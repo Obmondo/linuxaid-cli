@@ -33,10 +33,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	checkAwsCli()
 	clustername := os.Args[1]
 	majorVersion := os.Args[2]
 	minorVersion := os.Args[3]
+
+	// Basic checks
+	if clustername == "" {
+		fmt.Println("Clustername cannot be an empty string.")
+		os.Exit(1)
+	}
+
+	// Checking major in between 0 and 1
+	if !isValidVersion(majorVersion, 0, 1) {
+		os.Exit(1)
+	}
+
+	// Checking minor in between 20 30
+	if !isValidVersion(minorVersion, 20, 30) {
+		os.Exit(1)
+	}
+
+	checkAwsCli()
 
 	checkDeprecatedAPIs(fmt.Sprintf("%s.%s", majorVersion, minorVersion), clustername)
 
@@ -59,6 +76,19 @@ func handleError(err error) {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func isValidVersion(ver string, min int, max int) bool {
+	v, err := strconv.Atoi(ver)
+	if err != nil {
+		fmt.Println("Version should be a valid integer.")
+		return false
+	}
+	if v < min || v > max {
+		fmt.Printf("Version should be between %d and %d.\n", min, max)
+		return false
+	}
+	return true
 }
 
 func handleStringError(errorMessage string, err error) {
