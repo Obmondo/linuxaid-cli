@@ -71,10 +71,10 @@ func GetCustomerId(certname string) string {
 
 func GetIsServiceWindow(response []byte) string {
 	var serviceWindow map[string]interface{}
-	err := json.Unmarshal(response, &serviceWindow);
-	if  err != nil {
-        log.Println("Failed to parse service window json")
-    }
+	err := json.Unmarshal(response, &serviceWindow)
+	if err != nil {
+		log.Println("Failed to parse service window json")
+	}
 	isServiceWindow, ok := serviceWindow["data"].(string)
 	if !ok {
 		log.Println("Data field not found in reposne for service window")
@@ -103,7 +103,7 @@ func GetServiceWindowStatus(obmondoApiCient api.ObmondoClient) bool {
 	serviceWindow := GetIsServiceWindow(responseBody)
 	if serviceWindow == "" {
 		return false
-	} 
+	}
 	if serviceWindow == "yes" {
 		return true
 	}
@@ -113,8 +113,8 @@ func GetServiceWindowStatus(obmondoApiCient api.ObmondoClient) bool {
 func GetSytemDistribution() string {
 	pipe := script.Exec("cat /etc/os-release")
 	pipe = pipe.Exec("grep ^Name -i")
-	pipe =  pipe.Exec("cut -d '=' -f2")
-	output, err :=  pipe.Exec("tr -d '\"'").String()
+	pipe = pipe.Exec("cut -d '=' -f2")
+	output, err := pipe.Exec("tr -d '\"'").String()
 	if err != nil {
 		fmt.Println("Error executing command:", err)
 		return ""

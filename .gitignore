@@ -1,0 +1,5 @@
+*.swp
+/dist/
+rpmbuild
+/build/
+/vendor/

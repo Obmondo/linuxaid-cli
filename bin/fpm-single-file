@@ -1,0 +1,20 @@
+#!/bin/bash
+
+fpm                                                 \
+  ${DEPS:+${DEPS}}                                  \
+  ${MAINTAINER:+--maintainer "${MAINTAINER}"}       \
+  ${ARCHITECTURE:+--architecture "${ARCHITECTURE}"} \
+  ${CONFLICTS:+--conflicts "${CONFLICTS}"}          \
+  ${ITERATION:+--iteration "${ITERATION}"}          \
+  ${DESCRIPTION:+--description "${DESCRIPTION}"}    \
+  --force                                           \
+  --url "${URL:-https://obmondo.com}"               \
+  --version "${VERSION}"                            \
+  --input-type "${TYPE:-dir}"                       \
+  --output-type "${TARGET}"                         \
+  --name "${NAME}"                                  \
+  --package "${DIST}"                               \
+  --prefix "${PREFIX:-/opt/obmondo/nagios/plugins}" \
+  --vendor 'EnableIT ApS'                           \
+  ${PLUGINS_DIR:+--chdir "${PLUGINS_DIR}"}          \
+  "${@}"

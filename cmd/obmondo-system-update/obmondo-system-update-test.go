@@ -1,8 +1,8 @@
 package main
 
 import (
-	"testing"
 	mock "go-scripts/mock"
+	"testing"
 )
 
 func TestGetCustomerId(t *testing.T) {
@@ -14,8 +14,8 @@ func TestGetCustomerId(t *testing.T) {
 	}
 }
 
-// TODO: Failing on ci as kernel can't be installed 
-// on the ci instance 
+// TODO: Failing on ci as kernel can't be installed
+// on the ci instance
 
 // func TestGetInstalledKernel(t *testing.T) {
 // 	distribution := "Ubuntu"
@@ -30,7 +30,7 @@ func TestGetServiceWindowStatus(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
 	op := GetServiceWindowStatus(mockObmondoClient)
 	if op != expected {
-		t.Errorf("o/p: %t %t", expected,op)
+		t.Errorf("o/p: %t %t", expected, op)
 	}
 }
 
