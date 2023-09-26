@@ -11,27 +11,27 @@ import (
 type MockObmondoClient struct {
 }
 
-func (m *MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
+func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	data := map[string]interface{}{
-		"status": 200,
-		"success": true,
-		"data": "yes",
-		"message": "successfully got current service window status",
+		"status":     200,
+		"success":    true,
+		"data":       "yes",
+		"message":    "successfully got current service window status",
 		"resolution": "",
-		"error_text": "",  
+		"error_text": "",
 	}
 	dataBytes, _ := json.Marshal(data)
 	response := &http.Response{
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBuffer(dataBytes)),
 		Header:     make(http.Header),
 	}
 	return response, nil
 }
 
-func (m *MockObmondoClient) CloseServiceWindow() (*http.Response, error) {
+func (*MockObmondoClient) CloseServiceWindow() (*http.Response, error) {
 	response := &http.Response{
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString("")),
 		Header:     make(http.Header),
 	}

@@ -1,10 +1,7 @@
 package main
 
 import (
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -21,9 +18,10 @@ import (
 )
 
 const (
-	obmondoAPIURL     = constants.OBMONDO_API_URL
-	agentDisabledFile = constants.AGENT_DISABLED_FILE
-	path              = constants.PUPPET_PATH
+	obmondoAPIURL     = constants.ObmondoAPIURL
+	agentDisabledFile = constants.AgentDisabledFile
+	path              = constants.PuppetPath
+	sleepTime         = 5
 )
 
 func cleanup() {
@@ -36,37 +34,6 @@ func cleanup() {
 func cleanupAndExit() {
 	cleanup()
 	os.Exit(1)
-}
-
-func GetCommonNameFromCertFile(certPath string) string {
-	hostCert, err := os.ReadFile(certPath)
-	if err != nil {
-		log.Printf("Failed to fetch hostcert: %s", err)
-		return ""
-	}
-
-	block, _ := pem.Decode(hostCert)
-	if block == nil {
-		log.Printf("Failed to decode hostcert: %s", err)
-		return ""
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		log.Printf("Failed to parse hostcert: %s", err)
-		return ""
-	}
-
-	return cert.Subject.CommonName
-}
-
-func GetCustomerId(certname string) string {
-	parts := strings.Split(certname, ".")
-	if len(parts) < 2 {
-		log.Println("Incorrect format for certname")
-		return ""
-	}
-	return parts[1]
 }
 
 func GetIsServiceWindow(response []byte) string {
@@ -83,12 +50,13 @@ func GetIsServiceWindow(response []byte) string {
 	return strings.TrimSpace(isServiceWindow)
 }
 
-func GetServiceWindowStatus(obmondoApiCient api.ObmondoClient) bool {
-	resp, err := obmondoApiCient.FetchServiceWindowStatus()
+func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
+	resp, err := obmondoAPICient.FetchServiceWindowStatus()
 	if err != nil || resp == nil {
 		log.Printf("unexpected error fetching service window url: %s", err)
 		cleanupAndExit()
 	}
+	defer resp.Body.Close()
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
 		log.Printf("unexpected error reading response body: %s", err)
@@ -116,21 +84,21 @@ func GetSytemDistribution() string {
 	pipe = pipe.Exec("cut -d '=' -f2")
 	output, err := pipe.Exec("tr -d '\"'").String()
 	if err != nil {
-		fmt.Println("Error executing command:", err)
+		log.Println("Error executing command:", err)
 		return ""
 	}
 
 	return strings.TrimSpace(output)
 }
 
-func CloseWidow(obmondoApiCient api.ObmondoClient) (*http.Response, error) {
-	close_window, err := obmondoApiCient.CloseServiceWindow()
+func CloseWidow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
+	closeWindow, err := obmondoAPICient.CloseServiceWindow()
 	if err != nil {
 		log.Println("Failed to close service window")
 		return nil, err
 	}
 
-	return close_window, err
+	return closeWindow, err
 }
 
 func RunPuppet() int {
@@ -198,6 +166,63 @@ func GetInstalledKernel(distribution string) string {
 	}
 }
 
+func waitForPuppet() {
+	timeout := 600
+	for {
+		isPuppetRunning := puppet.IsPuupetRunning()
+
+		if !isPuppetRunning {
+			break
+		}
+
+		if timeout <= 0 {
+			log.Println("Puppet is running, aborting")
+			cleanupAndExit()
+		}
+
+		timeout -= 5
+		time.Sleep(sleepTime * time.Second)
+	}
+}
+
+func handlePuppetRun(puppetClean *int) {
+	// NOTE: Added to avoid magic number issue with puppet exit codes
+	//nolint:all
+	var puppetExitCodes = map[string]int{
+		"two": 2,
+		"four": 4,
+		"five": 5,
+		"six": 6,
+	}
+	exitCode := puppet.RunPuppet()
+	puppet.DisableAgent("Puppet has been disabled by the systme update script.")
+
+	switch exitCode {
+	case 0, puppetExitCodes["two"]:
+		log.Println("Everything is fine, let's continue.")
+		*puppetClean = 1
+	case puppetExitCodes["four"], puppetExitCodes["six"]:
+		log.Println("Puppet has pending changes, aborting.")
+		return
+	default:
+		log.Println("Puppet failed with exit code", strconv.Itoa(exitCode), ", aborting.")
+		return
+	}
+}
+
+func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
+	closeWindow, err := CloseWidow(obmondoAPICient)
+	if err != nil {
+		log.Println("Failed to close Service Window")
+		cleanupAndExit()
+	}
+	defer closeWindow.Body.Close()
+	if closeWindow.StatusCode != http.StatusOK {
+		log.Println("Failed to close Service Window")
+		cleanupAndExit()
+	}
+}
+
 func main() {
 	log.Println("Starting Obmondo System Update Srcipt")
 
@@ -221,81 +246,40 @@ func main() {
 	if distribution == "" {
 		cleanupAndExit()
 	}
-	obmondoApiCient := api.NewObmondoClient()
-	is_service_window := GetServiceWindowStatus(obmondoApiCient)
+	obmondoAPICient := api.NewObmondoClient()
+	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
 
-	if is_service_window {
-		timeout := 600
-		var puppet_clean int
-		for {
-			// _, err := script.Exec("pgrep -f /opt/puppetlabs/puppet/bin/puppet agent").String()
-			isPuppetRunning := puppet.IsPuupetRunning()
-
-			// if err == nil {
-			if isPuppetRunning {
-				if timeout <= 0 {
-					log.Println("Puppet is running, aborting")
-					cleanup()
-					os.Exit(1)
-				}
-
-				timeout -= 5
-				time.Sleep(5 * time.Second)
-			} else {
-				break
-			}
-		}
-
-		exitCode := puppet.RunPuppet()
-		puppet.DisableAgent("Puppet has been disabled by the systme update script.")
-
-		switch exitCode {
-		case 0, 2:
-			log.Println("Everything is fine, let's continue.")
-			puppet_clean = 1
-		case 4, 6:
-			log.Println("Puppet has pending changes, aborting.")
-			return
-		default:
-			log.Println("Puppet failed with exit code", strconv.Itoa(exitCode), ", aborting.")
-			return
-		}
+	if isServiceWindow {
+		var puppetClean int
+		waitForPuppet()
+		handlePuppetRun(&puppetClean)
 
 		installedKernel := GetInstalledKernel(distribution)
 		if installedKernel == "" {
 			cleanupAndExit()
 		}
 
-		close_window, err := CloseWidow(obmondoApiCient)
-		if err != nil {
-			log.Println("Failed to close Service Window")
-			cleanupAndExit()
-		}
-		if close_window.StatusCode != 200 {
-			log.Println("Failed to close Service Window")
-			cleanupAndExit()
-		}
-
-		running_kernel, err := script.Exec("uname -r").String()
+		closeServiceWindow(obmondoAPICient)
+		runningKernel, err := script.Exec("uname -r").String()
 		if err != nil {
 			log.Println("Failed to fetch Running Kernel")
 			cleanupAndExit()
 		}
 
-		if installedKernel != running_kernel {
+		if installedKernel != runningKernel {
 			log.Println("Rebooting server")
 			script.Exec("reboot --force")
 		}
 
 		cleanup()
 
-		if puppet_clean != 0 {
+		if puppetClean != 0 {
 			exitCode := puppet.RunPuppet()
 			log.Println("Puppet exited with exit code", exitCode)
 		}
 
 		// restart mode=automatic, batch mode, set DEBIAN_FRONTEND to noninteractive
-		// FIXME
+		// commented here to be fixed
 		// needrestart -ra -b -f noninteractive
 	}
 }

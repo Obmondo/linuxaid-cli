@@ -1,11 +1,15 @@
 package util
 
 import (
-	"os"
-	"log"
-	"strings"
 	"crypto/x509"
 	"encoding/pem"
+	"log"
+	"os"
+	"strings"
+)
+
+const (
+	two = 2
 )
 
 func GetCommonNameFromCertFile(certPath string) string {
@@ -30,9 +34,9 @@ func GetCommonNameFromCertFile(certPath string) string {
 	return cert.Subject.CommonName
 }
 
-func GetCustomerId(certname string) string {
+func GetCustomerID(certname string) string {
 	parts := strings.Split(certname, ".")
-	if len(parts) < 2 {
+	if len(parts) < two {
 		log.Println("In correct formatt for certname")
 		return ""
 	}

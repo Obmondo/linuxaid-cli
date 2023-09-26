@@ -1,8 +1,8 @@
 package puppet
 
 import (
-	"log"
 	"fmt"
+	"log"
 
 	"github.com/bitfield/script"
 )
@@ -25,7 +25,7 @@ func DisableAgent(msg string) bool {
 		log.Println("Failed To Disable Puppet")
 		return false
 	}
-	log.Println("Successfully Disbaled Puppet")
+	log.Println("Successfully Disabled Puppet")
 
 	return true
 }
@@ -47,6 +47,6 @@ func IsPuupetRunning() bool {
 		log.Println("Failed To Run Puppet")
 		return false
 	}
-	
+
 	return true
 }
