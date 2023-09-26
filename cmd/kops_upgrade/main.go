@@ -28,8 +28,9 @@ const deprecated_apis = "/resources/depreciated_apis.txt"
 
 func main() {
 
-	if len(os.Args) != 4 {
-		fmt.Println("Command must have these arguements: <clusterName> <k8s Major Version> <k8s Minor Version>")
+	if len(os.Args) < 4 || len(os.Args) > 5 {
+		fmt.Println("Command must have these arguments: <clusterName> <k8s Major Version> <k8s Minor Version> [handlePdb]")
+		fmt.Println("handlePdb is optional. If you want to handle PDB as well, add the 4th argument as 'handlePdb'")
 		os.Exit(1)
 	}
 
@@ -62,8 +63,13 @@ func main() {
 	handlePVs()
 	defer revertPVs()
 
-	handlePDBs()
-	defer revertPDBs()
+	if len(os.Args) == 5 {
+		hadlePDB := os.Args[4]
+		if hadlePDB == "handlePdb" {
+			handlePDBs()
+			defer revertPDBs()
+		}
+	}
 
 	upgradeCluster(clustername)
 
