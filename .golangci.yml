@@ -1,0 +1,87 @@
+linters:
+  disable-all: false
+
+  # The below linters are 'additional' linters that are enabled over and
+  # above the default linters mentioned in: https://golangci-lint.run/usage/linters/
+  enable:
+    - tenv
+    - unparam
+    - usestdlibvars
+    - reassign
+    - prealloc
+    - nilerr
+    - nestif
+    - musttag
+    - makezero
+    - maintidx
+    - importas
+    - gomnd
+    - gofmt
+    - godox
+    - goconst
+    - gocognit
+    - gocyclo
+    - forcetypeassert
+    - forbidigo
+    - exportloopref
+    - errorlint
+    - dupword
+    - revive
+    - misspell
+    - bodyclose
+
+
+linters-settings:
+  funlen:
+    lines: 70
+    statements: 50
+    ignore-comments: true
+  revive:
+    severity: error
+    rules:
+      - name: bool-literal-in-expr
+      - name: comment-spacings
+      - name: constant-logical-expr
+      - name: context-as-argument
+      - name: datarace
+      - name: nested-structs
+      - name: defer
+      - name: duplicated-imports
+      - name: early-return
+      - name: empty-block
+      - name: error-naming
+      - name: error-strings
+      - name: errorf
+      - name: identical-branches
+      - name: increment-decrement
+      - name: modifies-value-receiver
+      - name: range
+      - name: range-val-address
+      - name: receiver-naming
+      - name: string-of-int
+      - name: struct-tag
+      - name: superfluous-else
+      - name: time-equal
+      - name: time-naming
+      - name: var-naming
+      - name: var-declaration
+      - name: unconditional-recursion
+      - name: unexported-naming
+      - name: unhandled-error
+      - name: unnecessary-stmt
+      - name: unreachable-code
+      - name: unused-parameter
+      - name: unused-receiver
+      - name: useless-break
+      - name: waitgroup-by-value
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - unparam
+        - bodyclose
+    - path: mock/.*
+      linters:
+        - gomnd
