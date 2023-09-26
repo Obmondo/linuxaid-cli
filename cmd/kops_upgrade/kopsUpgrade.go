@@ -228,7 +228,11 @@ func handlePVs() {
 	handleError(err)
 	defer file.Close()
 	for _, name := range pvNamesToDelete {
-		file.WriteString(name + "\n")
+		_, err = file.WriteString(name + "\n")
+		if err!=nil{
+			fmt.Printf("error while writing to file Error:%s",err)
+			os.Exit(1)
+		}
 	}
 
 	// Patch PVs
