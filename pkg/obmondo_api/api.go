@@ -16,6 +16,10 @@ import (
 	"github.com/bitfield/script"
 )
 
+const (
+	apiTimeOut = 15
+)
+
 type Client struct {
 }
 
@@ -25,7 +29,7 @@ type ObmondoClient interface {
 }
 
 const (
-	obmondoAPIURL = constants.OBMONDO_API_URL
+	obmondoAPIURL = constants.ObmondoAPIURL
 )
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
@@ -52,7 +56,7 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 		body = bytes.NewBuffer(data)
 	}
 
-	httpClient := http.Client{Transport: t, Timeout: 15 * time.Second}
+	httpClient := http.Client{Transport: t, Timeout: apiTimeOut * time.Second}
 
 	request, err := http.NewRequest(requestType, url, body)
 	if err != nil {
@@ -70,18 +74,18 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 	return response, nil
 }
 
-func (c *Client) FetchServiceWindowStatus() (*http.Response, error) {
-	serviceWindowURl := fmt.Sprintf("%s/window/now", obmondoAPIURL)
-	return fetchURL(serviceWindowURl, nil, http.MethodGet)
+func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
+	serviceWindowURL := fmt.Sprintf("%s/window/now", obmondoAPIURL)
+	return fetchURL(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (c *Client) CloseServiceWindow() (*http.Response, error) {
+func (*Client) CloseServiceWindow() (*http.Response, error) {
 	hostCert := script.IfExists(os.Getenv("PUPPETCERT"))
 	if hostCert.ExitStatus() != 0 {
 		log.Println("puppet host cert is not present on the node")
 	}
 	certname := util.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
-	customerID := util.GetCustomerId(certname)
+	customerID := util.GetCustomerID(certname)
 	yearMonthDay := time.Now().Format("2006-01-02")
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s", obmondoAPIURL, customerID, certname, yearMonthDay)
 	data := []byte(`{"comments": "server has been updated"}`)
