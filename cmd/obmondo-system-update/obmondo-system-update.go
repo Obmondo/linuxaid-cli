@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -78,17 +79,22 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
 	return false
 }
 
-func GetSytemDistribution() string {
-	pipe := script.Exec("cat /etc/os-release")
-	pipe = pipe.Exec("grep ^Name -i")
-	pipe = pipe.Exec("cut -d '=' -f2")
-	output, err := pipe.Exec("tr -d '\"'").String()
+func GetSystemDistribution() string {
+	data, err := os.ReadFile("/etc/os-release")
 	if err != nil {
-		log.Println("Error executing command:", err)
+		log.Println("Error reading os release file:", err)
 		return ""
 	}
+	content := string(data)
+	r := regexp.MustCompile(`(?:\n|^)NAME="([^"]+)"`)
+	matches := r.FindStringSubmatch(content)
 
-	return strings.TrimSpace(output)
+	if len(matches) > 1 {
+		dist := strings.Trim(matches[1], "\"")
+		return strings.TrimSpace(dist)
+	}
+
+	return ""
 }
 
 func CloseWidow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
@@ -109,7 +115,7 @@ func updateDebian() *script.Pipe {
 	pipe := script.Exec("export DEBIAN_FRONTEND=noninteractive")
 	pipe = pipe.Exec("apt-get update")
 	pipe = pipe.Exec("apt-get upgrade -y")
-	pipe.Exec("apt-get autoremove -y")
+	pipe = pipe.Exec("apt-get autoremove -y")
 
 	return pipe
 }
@@ -123,7 +129,7 @@ func getKernelForDebian(pipe *script.Pipe) string {
 
 func updateSUSE() *script.Pipe {
 	pipe := script.Exec("zypper refresh")
-	pipe.Exec("zypper update -y")
+	pipe = pipe.Exec("zypper update -y")
 
 	return pipe
 }
@@ -134,10 +140,14 @@ func getKernelForSUSE(pipe *script.Pipe) string {
 	return installedKernel
 }
 
-func updateCentOS() *script.Pipe {
+func updateCentOS(osVersion string) *script.Pipe {
 	pipe := script.Exec("yum clean metadata")
 	pipe = pipe.Exec("yum update -y")
-	pipe.Exec("package-cleanup --oldkernels --count=2 -y")
+	if osVersion == "8" {
+		pipe = pipe.Exec("yum remove $(yum repoquery --installonly --latest-limit=-3 -q)")
+	} else {
+		pipe = pipe.Exec("package-cleanup --oldkernels --count=2 -y")
+	}
 
 	return pipe
 }
@@ -149,6 +159,33 @@ func getKernelForCentOS(pipe *script.Pipe) string {
 	return installedKernel
 }
 
+func GetOsVersion() string {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		log.Println("Error reading os release file:", err)
+		return ""
+	}
+	content := string(data)
+	r := regexp.MustCompile(`(?:\n|^)VERSION_ID="([^"]+)"`)
+	matches := r.FindStringSubmatch(content)
+
+	if len(matches) > 1 {
+		dist := strings.Trim(matches[1], "\"")
+		return strings.TrimSpace(dist)
+	}
+
+	return ""
+}
+
+func GetCentOsVersion(osVersion string) string {
+	if strings.Contains(osVersion, "8") {
+		vers := strings.Split(osVersion, ".")
+		return vers[0]
+	} else {
+		return osVersion
+	}
+}
+
 func GetInstalledKernel(distribution string) string {
 	switch distribution {
 	case "Ubuntu", "Debian":
@@ -158,7 +195,9 @@ func GetInstalledKernel(distribution string) string {
 		pipe := updateSUSE()
 		return getKernelForSUSE(pipe)
 	case "CentOS", "RedHat":
-		pipe := updateCentOS()
+		osVersion := GetOsVersion()
+		osVersion = GetCentOsVersion(osVersion)
+		pipe := updateCentOS(osVersion)
 		return getKernelForCentOS(pipe)
 	default:
 		log.Println("Unknown distribution")
@@ -189,10 +228,10 @@ func handlePuppetRun(puppetClean *int) {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
 	var puppetExitCodes = map[string]int{
-		"two": 2,
+		"two":  2,
 		"four": 4,
 		"five": 5,
-		"six": 6,
+		"six":  6,
 	}
 	exitCode := puppet.RunPuppet()
 	puppet.DisableAgent("Puppet has been disabled by the systme update script.")
@@ -242,7 +281,7 @@ func main() {
 	// Note that if for some reason Puppet agent is running in daemon mode we'll end
 	// up here waiting for it to terminate, which will never happen. If that becomes
 	// an issue we might want to actively kill Puppet, but let's wait and see.
-	distribution := GetSytemDistribution()
+	distribution := GetSystemDistribution()
 	if distribution == "" {
 		cleanupAndExit()
 	}
