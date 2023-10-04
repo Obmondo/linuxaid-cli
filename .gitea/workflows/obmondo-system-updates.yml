@@ -1,8 +1,24 @@
+# The obmondo-system-update workflow does following things
+# Checks format and run test
+# On merge of PR
+# builds the packages deb and rpm
+# and rsync the packages to atat
+
 name: 'obmondo-system-update'
 
 on:
   push:
-    paths: 'cmd/obmondo-system-update/**'
+    paths:
+      - 'cmd/obmondo-system-update/**'
+      - '.gitea/workflows/obmondo-system-updates.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'cmd/obmondo-system-update/**'
+      - '.gitea/workflows/obmondo-system-updates.yml'
+    types:
+      - closed
 
 jobs:
   format:
@@ -31,8 +47,45 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.19'
-          
+
       - name: Run Tests For System Update Script
         working-directory: cmd/obmondo-system-update
         run:
           make test
+
+  build:
+    if: gitea.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.19'
+
+      - name: Install Required Packages
+        run: apt update && apt install -y ruby gem rpm automake rsync
+
+      - name: Install fpm Package
+        run: gem install fpm --no-document
+
+      - name: Build Package System Update Script
+        working-directory: cmd/obmondo-system-update
+        run:
+          make packages
+
+      - name: copy file via ssh key
+        env:
+          PUBLIC_PATH: /vol0/data/packagesign01_var/var/lib/packagesign/repos/incoming/public/
+          USERNAME: ${{ secrets.USERNAME }}
+          SSH_KEY: ${{ secrets.PRIVATE_KEY }}
+          HOST: ${{ secrets.HOST }}
+        run: |
+          echo "${SSH_KEY}" > /tmp/ssh_key
+          chmod a=,u=r /tmp/ssh_key
+          eval $(ssh-agent)
+          ssh-add /tmp/ssh_key || (echo 'Broken SSH key. Is the branch protected?' && exit 1)
+          ls -al dist/*
+          rsync -azv dist/* -e 'ssh -A -o StrictHostKeyChecking=no' "${USERNAME}"@"${HOST}":"${PUBLIC_PATH}"
