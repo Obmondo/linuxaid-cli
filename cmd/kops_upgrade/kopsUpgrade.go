@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -24,74 +25,155 @@ import (
 const dirPath = "/resources"
 const pvsPath = "/resources/pvs.txt"
 const pdbsPath = "resources/pdbs.txt"
-const deprecated_apis = "/resources/depreciated_apis.txt"
+const deprecatedApis = "/resources/depreciated_apis.txt"
+
+const minPatchVersionAllowed = 1
+const maxPatchVersionAllowed = 30
+
+const minMinorVersionAllowed = 20
+const maxMinorVersionAllowed = 30
+
+const majorVersionAllowed = 1
+
+const defaultDirPermission = 0755
 
 func main() {
 
-	if len(os.Args) < 4 || len(os.Args) > 5 {
-		fmt.Println("Command must have these arguments: <clusterName> <k8s Major Version> <k8s Minor Version> [handlePdb]")
-		fmt.Println("handlePdb is optional. If you want to handle PDB as well, add the 4th argument as 'handlePdb'")
-		os.Exit(1)
-	}
+	clusterName := flag.String("clusterName", "", "The name of the cluster")
+	k8sVersion := flag.String("k8sVersion", "", "Kuberentes version to be upgraded to")
+	handlePdb := flag.Bool("handlePdb", false, "Handle PDB (optional)")
 
-	clustername := os.Args[1]
-	majorVersion := os.Args[2]
-	minorVersion := os.Args[3]
+	flag.Parse()
 
 	// Basic checks
-	if clustername == "" {
-		fmt.Println("Clustername cannot be an empty string.")
+	if *clusterName == "" {
+		log.Println("Clustername cannot be an empty string.")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Checking major in between 0 and 1
-	if !isValidVersion(majorVersion, 0, 1) {
+	if *k8sVersion == "" {
+		log.Println("k8sVersion cannot be empty")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Checking minor in between 20 30
-	if !isValidVersion(minorVersion, 20, 30) {
-		os.Exit(1)
-	}
+	majorVersion, minorVersion, patchVersion := HandleK8sVersion(*k8sVersion)
 
 	checkAwsCli()
 
-	checkDeprecatedAPIs(fmt.Sprintf("%s.%s", majorVersion, minorVersion), clustername)
-
 	checkKopsVersion(majorVersion, minorVersion)
+
+	_, err := script.Exec(fmt.Sprintf("kops export kubeconfig --name %s --admin", *clusterName)).Stdout()
+	if err != nil {
+		handleError(err)
+	}
+
+	checkDeprecatedAPIs(fmt.Sprintf("%s.%s", majorVersion, minorVersion), *clusterName)
 
 	handlePVs()
 	defer revertPVs()
 
-	if len(os.Args) == 5 {
-		hadlePDB := os.Args[4]
-		if hadlePDB == "handlePdb" {
-			handlePDBs()
-			defer revertPDBs()
+	if *handlePdb {
+		handlePDBs()
+		defer revertPDBs()
+	}
+
+	if patchVersion == "" {
+		upgradeCluster(*clusterName)
+	}
+
+	updateCluster(*clusterName, *k8sVersion)
+
+	// Post-upgrade
+	_, err = script.Exec(fmt.Sprintf("kops get cluster %s -o yaml", *clusterName)).Stdout()
+	handleError(err)
+}
+
+// Update the cluster to the same kops major version, minor version and to mentioned patch
+func updateCluster(clusterName string, k8sVersion string) {
+	commands := []string{
+		fmt.Sprintf("kops edit cluster --name %s --set kubernetesVersion=%s", clusterName, k8sVersion),
+		fmt.Sprintf("kops update cluster --name %s", clusterName),
+		fmt.Sprintf("kops update cluster --name %s --yes", clusterName),
+		fmt.Sprintf("kops rolling-update cluster --name %s", clusterName),
+		fmt.Sprintf("kops rolling-update cluster --name %s --yes", clusterName),
+	}
+
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "--yes") {
+			promptUser(fmt.Sprintf("About to execute: %s", cmd))
+		}
+		_, err := script.Exec(cmd).Stdout()
+		handleError(err)
+	}
+}
+
+// HandleK8sVersion splits a Kubernetes version string into major, minor, and patch versions.
+func HandleK8sVersion(k8sVersion string) (string, string, string) {
+	maxkuberenetesVersionLength := 3 // After splitting the version of this format 1.26.8 or 1.26
+	minkubernetesVersionLength := 2
+	k8sVersion = strings.TrimSpace(k8sVersion)
+
+	// Split the version string on periods
+	parts := strings.Split(k8sVersion, ".")
+
+	// Check for the correct number of parts
+	if len(parts) > maxkuberenetesVersionLength || len(parts) < minkubernetesVersionLength {
+		log.Println("Error parsing target kubernetes version")
+		os.Exit(1)
+	}
+
+	// Convert string parts to integers
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		log.Println("Error parsing major version")
+		os.Exit(1)
+	}
+
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		log.Println("Error parsing minor version")
+		os.Exit(1)
+	}
+	var patch int
+	if len(parts) == maxkuberenetesVersionLength {
+		var err error
+		patch, err = strconv.Atoi(parts[2])
+		if err != nil {
+			log.Println("Error parsing patch version")
+			os.Exit(1)
+		}
+
+		// Checking the patch version
+		if !isValidVersion(patch, minPatchVersionAllowed, maxPatchVersionAllowed) {
+			os.Exit(1)
 		}
 	}
 
-	upgradeCluster(clustername)
+	// Checking major is 1
+	if major != majorVersionAllowed {
+		os.Exit(1)
+	}
 
-	// Post-upgrade
-	_, err := script.Exec(fmt.Sprintf("kops get cluster %s -o yaml", clustername)).Stdout()
-	handleError(err)
+	// Checking minor version
+	if !isValidVersion(minor, minMinorVersionAllowed, maxMinorVersionAllowed) {
+		os.Exit(1)
+	}
+
+	return strconv.Itoa(major), strconv.Itoa(minor), strconv.Itoa(patch)
 }
 
 func handleError(err error) {
 	if err != nil {
+		log.Println(err)
 		os.Exit(1)
 	}
 }
 
-func isValidVersion(ver string, min int, max int) bool {
-	v, err := strconv.Atoi(ver)
-	if err != nil {
-		fmt.Println("Version should be a valid integer.")
-		return false
-	}
-	if v < min || v > max {
-		fmt.Printf("Version should be between %d and %d.\n", min, max)
+func isValidVersion(ver int, min int, max int) bool {
+	if ver < min || ver > max {
+		log.Printf("Version should be between %d and %d.\n", min, max)
 		return false
 	}
 	return true
@@ -99,15 +181,15 @@ func isValidVersion(ver string, min int, max int) bool {
 
 func handleStringError(errorMessage string, err error) {
 	if err != nil {
-		fmt.Printf("\nError: %s", errorMessage)
+		log.Printf("\nError: %s", errorMessage)
 		os.Exit(1)
 	}
 }
 
 // promptUser prompts the user with a given message and expects 'yes' as confirmation to proceed.
 func promptUser(message string) {
-	fmt.Println(message)
-	fmt.Print("Do you want to proceed? (yes/no): ")
+	log.Println(message)
+	log.Println("Do you want to proceed? (yes/no): ")
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
@@ -116,7 +198,7 @@ func promptUser(message string) {
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response != "yes" {
-		fmt.Println("Operation aborted.")
+		log.Println("Operation aborted.")
 		os.Exit(1)
 	}
 }
@@ -143,42 +225,39 @@ func upgradeCluster(clusterName string) {
 
 // Downloading kops and setting it up
 func checkKopsVersion(majorVersion, minorVersion string) {
-	fmt.Println("Checking Kops version...")
+	log.Println("Checking Kops version...")
 
 	// Check if kops is installed
 	kopsCheck, err := script.Exec("which kops").String()
 	handleStringError(kopsCheck, err)
 
 	if strings.TrimSpace(kopsCheck) == "" {
-		fmt.Println("Kops is not installed. Please install Kops and set it to path.")
+		log.Println("Kops is not installed. Please install Kops and set it to path.")
 		os.Exit(1)
 	}
 
 	// Get kops version
 	versionOutput, err := script.Exec("kops version").String()
 	handleStringError(versionOutput, err)
-
+	versionOutput = strings.TrimSpace(versionOutput)
 	// Extracting the version from the format "Client version: 1.27.1 (git-v1.27.1)"
 	splitStrings := strings.Split(versionOutput, " ")
-	currentVersion := strings.TrimSpace(splitStrings[1])
+	currentVersion := strings.TrimSpace(splitStrings[2])
 	splitVersionParts := strings.Split(currentVersion, ".")
-	if len(splitVersionParts) < 3 {
-		fmt.Println("Error parsing kops version.")
-		os.Exit(1)
-	}
 
 	// Check if major and minor versions match the desired ones
 	if splitVersionParts[0] != majorVersion || splitVersionParts[1] != minorVersion {
-		fmt.Printf("Currently installed kops version is %s. Please install version %s.%s for upgradation.\n", currentVersion, majorVersion, minorVersion)
+		log.Printf("Currently installed kops version is %s. Please install version %s.%s for upgradation.\n", currentVersion, majorVersion, minorVersion)
+		log.Println("Install the respective version from here: https://github.com/kubernetes/kops/tags")
 		os.Exit(1)
 	}
 
-	fmt.Println("Correct version of Kops is installed!")
+	log.Println("Correct version of Kops is installed!")
 }
 
 // checkAwsCli will check if the cli is installed, if not install it and try to check if it is able to establish connection or not.
 func checkAwsCli() {
-	fmt.Println("Checking AWS CLI installation...")
+	log.Println("Checking AWS CLI installation...")
 
 	// Check if AWS CLI is installed
 	awsCLICheck, err := script.Exec("which aws").String()
@@ -186,7 +265,7 @@ func checkAwsCli() {
 
 	// If AWS CLI is not installed, exit with a message
 	if strings.TrimSpace(awsCLICheck) == "" {
-		fmt.Println("AWS CLI not found. Please install AWS CLI.")
+		log.Println("AWS CLI not found. Please install AWS CLI.")
 		os.Exit(1)
 	}
 
@@ -195,16 +274,16 @@ func checkAwsCli() {
 
 	// If there's an error, it likely means AWS CLI isn't configured properly
 	if err != nil {
-		fmt.Println("Unable to connect to AWS. Please configure your AWS CLI.")
+		log.Println("Unable to connect to AWS. Please configure your AWS CLI.")
 		os.Exit(1)
 	}
 
-	fmt.Println("Successfully connected to AWS:", awsTest)
+	log.Println("Successfully connected to AWS:", awsTest)
 }
 
-// HandlePVs will be patching the pvc which have delete recalim policy to retain
+// HandlePVs will be patching the pvc which have delete reclaim policy to retain
 func handlePVs() {
-	fmt.Println("Handling PVs...")
+	log.Println("Handling PVs...")
 
 	// Create Kubernetes client
 	client, err := createK8sClient()
@@ -229,20 +308,20 @@ func handlePVs() {
 	defer file.Close()
 	for _, name := range pvNamesToDelete {
 		_, err = file.WriteString(name + "\n")
-		if err!=nil{
-			fmt.Printf("error while writing to file Error:%s",err)
+		if err != nil {
+			log.Printf("error while writing to file Error:%s", err)
 			os.Exit(1)
 		}
 	}
 
 	// Patch PVs
 	for _, pvName := range pvNamesToDelete {
-		fmt.Println("Patching PV " + pvName)
+		log.Println("Patching PV " + pvName)
 
 		// Fetch the PersistentVolume with the specified name
 		pvToUpdate, err := client.CoreV1().PersistentVolumes().Get(context.TODO(), pvName, metav1.GetOptions{})
 		if err != nil {
-			fmt.Printf("failed to get PersistentVolume %s: %v", pvName, err)
+			log.Printf("failed to get PersistentVolume %s: %v", pvName, err)
 			os.Exit(1)
 		}
 
@@ -252,7 +331,7 @@ func handlePVs() {
 		// Submit the update back to the API server
 		_, err = client.CoreV1().PersistentVolumes().Update(context.TODO(), pvToUpdate, metav1.UpdateOptions{})
 		if err != nil {
-			fmt.Printf("failed to update PersistentVolume %s: %v", pvName, err)
+			log.Printf("failed to update PersistentVolume %s: %v", pvName, err)
 			os.Exit(1)
 		}
 	}
@@ -260,7 +339,7 @@ func handlePVs() {
 
 // Revert PVs back to 'Delete' after upgrade
 func revertPVs() {
-	fmt.Println("Reverting PVs...")
+	log.Println("Reverting PVs...")
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Failed to get current working directory: %v", err)
@@ -271,7 +350,7 @@ func revertPVs() {
 	handleStringError(pvContents, err)
 
 	pvs := strings.Split(pvContents, "\n")
-	fmt.Println(pvs)
+	log.Println(pvs)
 
 	// Create Kubernetes client
 	client, err := createK8sClient()
@@ -282,12 +361,12 @@ func revertPVs() {
 			continue
 		}
 
-		fmt.Println("Reverting PV " + pvName)
+		log.Println("Reverting PV " + pvName)
 
 		// Fetch the PersistentVolume with the specified name
 		pvToUpdate, err := client.CoreV1().PersistentVolumes().Get(context.TODO(), pvName, metav1.GetOptions{})
 		if err != nil {
-			fmt.Printf("failed to get PersistentVolume %s: %v", pvName, err)
+			log.Printf("failed to get PersistentVolume %s: %v", pvName, err)
 			os.Exit(1)
 		}
 
@@ -296,7 +375,7 @@ func revertPVs() {
 
 		_, err = client.CoreV1().PersistentVolumes().Update(context.TODO(), pvToUpdate, metav1.UpdateOptions{})
 		if err != nil {
-			fmt.Printf("failed to update PersistentVolume %s: %v", pvName, err)
+			log.Printf("failed to update PersistentVolume %s: %v", pvName, err)
 			os.Exit(1)
 		}
 	}
@@ -304,7 +383,7 @@ func revertPVs() {
 
 // Patch all pod disruption budgets to make minAvailable 0
 func handlePDBs() {
-	fmt.Println("Handling PDBs...")
+	log.Println("Handling PDBs...")
 	ensureDirectory()
 
 	// Check if file exists, if not create it
@@ -334,7 +413,7 @@ func handlePDBs() {
 			log.Fatalf("Failed to write to file: %v", err)
 		}
 
-		fmt.Println("Patching PDB " + pdbName)
+		log.Println("Patching PDB " + pdbName)
 		m := intstr.FromInt(0)
 		pdb.Spec.MinAvailable = &m
 		_, err = client.PolicyV1().PodDisruptionBudgets(pdb.Namespace).Update(context.TODO(), &pdb, metav1.UpdateOptions{})
@@ -344,7 +423,7 @@ func handlePDBs() {
 
 // Revert back the pod disruption budget to initial state
 func revertPDBs() {
-	fmt.Println("Reverting PDBs...")
+	log.Println("Reverting PDBs...")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -373,7 +452,7 @@ func revertPDBs() {
 		originalMinAvailable, err := strconv.Atoi(parts[2])
 		handleError(err)
 
-		fmt.Println("Reverting PDB " + pdbName)
+		log.Println("Reverting PDB " + pdbName)
 
 		// Fetch the specific PDB
 		pdb, err := client.PolicyV1().PodDisruptionBudgets(pdbNamespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
@@ -395,7 +474,7 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 		if home := homedir.HomeDir(); home != "" {
 			kubeconfig = filepath.Join(home, ".kube", "config")
 		} else {
-			fmt.Println("could not find home directory")
+			log.Println("could not find home directory")
 			os.Exit(1)
 		}
 	}
@@ -404,7 +483,7 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 	kubepugCheck, err := script.Exec("which kubepug").String()
 	handleStringError(kubepugCheck, err)
 	if strings.TrimSpace(kubepugCheck) == "" {
-		fmt.Println("Kubepug is not installed. Please install it to continue.")
+		log.Println("Kubepug is not installed. Please install it to continue.")
 		os.Exit(1)
 	}
 
@@ -412,7 +491,7 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 	currentContext, err := script.Exec(fmt.Sprintf("kubectl config current-context --kubeconfig=%s", kubeconfig)).String()
 	handleStringError(currentContext, err)
 	if strings.TrimSpace(currentContext) != desiredClusterContext {
-		fmt.Printf("Current context %s does not match the desired context %s.\n", currentContext, desiredClusterContext)
+		log.Printf("Current context %s does not match the desired context %s.\n", currentContext, desiredClusterContext)
 		os.Exit(1)
 	}
 
@@ -420,12 +499,12 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 	kubepugOutput, err := script.Exec(fmt.Sprintf("kubepug --k8s-version=v%s --kubeconfig=%s", k8sVersion, kubeconfig)).String()
 	handleStringError(kubepugOutput, err)
 	if !strings.Contains(kubepugOutput, "No deprecated or deleted APIs found") {
-		fmt.Println("Found deprecated APIs. Saving output to deprecated_apis.txt")
+		log.Println("Found deprecated APIs. Saving output to deprecated_apis.txt")
 
 		// Check if file exists, if not create it
 		cwd, err := os.Getwd()
 		handleError(err)
-		filePath := filepath.Join(cwd, deprecated_apis)
+		filePath := filepath.Join(cwd, deprecatedApis)
 		file, err := os.Create(filePath)
 		handleError(err)
 		defer file.Close()
@@ -433,7 +512,7 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 		_, err = script.File(filePath).WriteFile(kubepugOutput)
 		handleError(err)
 	} else {
-		fmt.Println("No deprecated APIs found.")
+		log.Println("No deprecated APIs found.")
 	}
 }
 
@@ -441,7 +520,7 @@ func checkDeprecatedAPIs(k8sVersion, desiredClusterContext string) {
 func ensureDirectory() {
 	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Failed to get current working directory: %s", err)
+		log.Printf("Failed to get current working directory: %s", err)
 		os.Exit(1)
 	}
 
@@ -449,7 +528,7 @@ func ensureDirectory() {
 
 	// Check if directory exists, if not create it
 	if _, err := os.Stat(absDirPath); os.IsNotExist(err) {
-		err = os.Mkdir(absDirPath, 0755)
+		err = os.Mkdir(absDirPath, defaultDirPermission)
 		if err != nil {
 			log.Fatalf("Failed to create directory: %v", err)
 		}
@@ -460,11 +539,11 @@ func createK8sClient() (*kubernetes.Clientset, error) {
 	kubeconfig := os.Getenv("KUBECONFIG")
 
 	if kubeconfig == "" {
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
-		} else {
+		homeDir := homedir.HomeDir()
+		if homeDir == "" {
 			return nil, fmt.Errorf("could not find home directory")
 		}
+		kubeconfig = filepath.Join(homeDir, ".kube", "config")
 	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
