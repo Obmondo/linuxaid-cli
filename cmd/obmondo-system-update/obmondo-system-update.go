@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	constants "go-scripts/contants"
+	constants "go-scripts/constants"
 	api "go-scripts/pkg/obmondo_api"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/util"
