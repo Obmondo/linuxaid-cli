@@ -19,8 +19,6 @@ const (
 )
 
 const (
-	inputTypeNumber              = "num"
-	inputTypeString              = "str"
 	maxStringInputLength         = 100
 	minNumInputValue             = 1
 	maxNumInputValue             = 1000
