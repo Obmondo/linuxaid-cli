@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"go-scripts/contants"
+	constants "go-scripts/contants"
 	"go-scripts/util"
 
 	"github.com/bitfield/script"
