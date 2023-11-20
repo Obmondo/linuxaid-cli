@@ -3,13 +3,21 @@ package puppet
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/bitfield/script"
+
+	constants "go-scripts/constants"
+)
+
+const (
+	agentRunningLockFile = constants.AgentRunningLockFile
 )
 
 func EnableAgent() bool {
-	exitStatus := script.Exec("puppet agent --enable").ExitStatus()
-	if exitStatus != 0 {
+	p := script.Exec("puppet agent --enable")
+	p.Wait()
+	if p.ExitStatus() != 0 {
 		log.Println("Failed To Enable Puppet")
 		return false
 	}
@@ -20,8 +28,9 @@ func EnableAgent() bool {
 
 func DisableAgent(msg string) bool {
 	cmdString := fmt.Sprintf("puppet agent --disable '%s'", msg)
-	exitStatus := script.Exec(cmdString).ExitStatus()
-	if exitStatus != 0 {
+	p := script.Exec(cmdString)
+	p.Wait()
+	if p.ExitStatus() != 0 {
 		log.Println("Failed To Disable Puppet")
 		return false
 	}
@@ -30,21 +39,30 @@ func DisableAgent(msg string) bool {
 	return true
 }
 
-func RunPuppet() int {
-	exitStatus := script.Exec("puppet agent -t --noop --detailed-exitcodes").ExitStatus()
-	if exitStatus != 0 {
-		log.Println("Failed To Run Puppet")
-		return exitStatus
+func RunPuppet(noopStatus string) int {
+	log.Printf("Running puppet agent in '%s' mode", noopStatus)
+	cmdString := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopStatus)
+	p := script.Exec(cmdString)
+	_, err := p.Stdout()
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Println("Successfully Ran Puppet")
-
+	p.Wait()
+	exitStatus := p.ExitStatus()
+	log.Println("Completed puppet agent run")
 	return exitStatus
 }
 
-func IsPuupetRunning() bool {
-	exitStatus := script.IfExists("/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock").ExitStatus()
-	if exitStatus == 0 {
-		log.Println("Failed To Run Puppet")
+// check if puppet agent is running or not
+func IsPuppetRunning() bool {
+	_, err := os.Stat(agentRunningLockFile)
+
+	if err == nil {
+		log.Println("Puppet is already running or stuck, please check it manually")
+		os.Exit(1)
+		return true
+	} else if os.IsNotExist(err) {
+		log.Println("Puppet agent running lock file is not present")
 		return false
 	}
 
