@@ -315,5 +315,7 @@ func main() {
 			log.Println("Rebooting server")
 			script.Exec("reboot --force")
 		}
+
+		cleanup()
 	}
 }

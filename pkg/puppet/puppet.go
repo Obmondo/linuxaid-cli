@@ -41,7 +41,7 @@ func DisableAgent(msg string) bool {
 
 func RunPuppet(noopStatus string) int {
 	log.Printf("Running puppet agent in '%s' mode", noopStatus)
-	cmdString := fmt.Sprintf("puppet agent -t --%s -E ashish --detailed-exitcodes", noopStatus)
+	cmdString := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopStatus)
 	p := script.Exec(cmdString)
 	_, err := p.Stdout()
 	if err != nil {
