@@ -130,8 +130,8 @@ func getKernelForDebian() string {
 }
 
 func updateSUSE() {
-	pipe := script.Exec("zypper refresh")
-	pipe = pipe.Exec("zypper update -y")
+	script.Exec("zypper refresh")
+	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
 		log.Fatal(err)
@@ -155,9 +155,9 @@ func updateRedHat() {
 	osVersion := GetRedHatVersion(GetOsVersion())
 
 	if osVersion == "8" {
-		pipe = pipe.Exec("yum remove $(yum repoquery --installonly --latest-limit=-3 -q)")
+		script.Exec("yum remove $(yum repoquery --installonly --latest-limit=-3 -q)")
 	} else {
-		pipe = pipe.Exec("package-cleanup --oldkernels --count=2 -y")
+		script.Exec("package-cleanup --oldkernels --count=2 -y")
 	}
 }
 
