@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	constants "go-scripts/contants"
+	constants "go-scripts/constants"
 	"go-scripts/util"
 
 	"github.com/bitfield/script"
@@ -36,8 +36,9 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 	puppetCert := script.IfExists(os.Getenv("PUPPETCERT"))
 	puppetPrivKey := script.IfExists(os.Getenv("PUPPETPRIVKEY"))
 
-	if puppetCert.ExitStatus() == 0 || puppetPrivKey.ExitStatus() == 0 {
-		log.Println("puppet host cert or puppet private key is not present on the node")
+	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
+		log.Fatal("puppet host cert or puppet private key is not present on the node")
+		os.Exit(1)
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))

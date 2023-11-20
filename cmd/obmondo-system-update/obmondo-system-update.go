@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	constants "go-scripts/contants"
+	constants "go-scripts/constants"
 	api "go-scripts/pkg/obmondo_api"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/util"
@@ -20,7 +20,7 @@ import (
 
 const (
 	obmondoAPIURL     = constants.ObmondoAPIURL
-	agentDisabledFile = constants.AgentDisabledFile
+	agentDisabledFile = constants.AgentDisabledLockFile
 	path              = constants.PuppetPath
 	sleepTime         = 5
 )
@@ -34,6 +34,7 @@ func cleanup() {
 
 func cleanupAndExit() {
 	cleanup()
+	log.Println("Ending Obmondo System Update Script")
 	os.Exit(1)
 }
 
@@ -57,7 +58,10 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
 		log.Printf("unexpected error fetching service window url: %s", err)
 		cleanupAndExit()
 	}
+
 	defer resp.Body.Close()
+
+	log.Println(resp)
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
 		log.Printf("unexpected error reading response body: %s", err)
@@ -107,53 +111,50 @@ func CloseWidow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
 	return closeWindow, err
 }
 
-func RunPuppet() int {
-	return script.Exec("puppet agent -t --noop --detailed-exitcodes").ExitStatus()
-}
-
-func updateDebian() *script.Pipe {
+func updateDebian() {
 	pipe := script.Exec("export DEBIAN_FRONTEND=noninteractive")
 	pipe = pipe.Exec("apt-get update")
 	pipe = pipe.Exec("apt-get upgrade -y")
 	pipe = pipe.Exec("apt-get autoremove -y")
-
-	return pipe
+	pipe.Stdout()
+	pipe.Wait()
 }
 
-func getKernelForDebian(pipe *script.Pipe) string {
-	pipe = pipe.Exec("dpkg-query -Wf '${Installed-Size}\t${Package}\t${Status}\n'")
+func getKernelForDebian() string {
+	pipe := script.Exec("dpkg-query -Wf '${Installed-Size}\t${Package}\t${Status}\n'")
 	installedKernel, _ := pipe.Exec("grep linux-image").Exec("grep installed").Exec("sort -nr").Exec("awk '{print $2}'").Exec("sed 's/linux-image-//g'").String()
 
 	return installedKernel
 }
 
-func updateSUSE() *script.Pipe {
+func updateSUSE() {
 	pipe := script.Exec("zypper refresh")
 	pipe = pipe.Exec("zypper update -y")
-
-	return pipe
+	pipe.Stdout()
+	pipe.Wait()
 }
 
-func getKernelForSUSE(pipe *script.Pipe) string {
-	installedKernel, _ := pipe.Exec("rpm -qa").Exec("grep kernel-default").Exec("sort -tr").Exec("sed 's/kernel-default-//g'").Exec("head -1").Exec("cut -d. -f1-3").Exec("sed 's/$/-default/g'").String()
+func getKernelForSUSE() string {
+	installedKernel, _ := script.Exec("rpm -qa").Exec("grep kernel-default").Exec("sort -tr").Exec("sed 's/kernel-default-//g'").Exec("head -1").Exec("cut -d. -f1-3").Exec("sed 's/$/-default/g'").String()
 
 	return installedKernel
 }
 
-func updateCentOS(osVersion string) *script.Pipe {
-	pipe := script.Exec("yum clean metadata")
-	pipe = pipe.Exec("yum update -y")
+func updateRedHat() {
+	pipe := script.Exec("yum update -y")
+	pipe.Stdout()
+	pipe.Wait()
+	osVersion := GetRedHatVersion(GetOsVersion())
+
 	if osVersion == "8" {
 		pipe = pipe.Exec("yum remove $(yum repoquery --installonly --latest-limit=-3 -q)")
 	} else {
 		pipe = pipe.Exec("package-cleanup --oldkernels --count=2 -y")
 	}
-
-	return pipe
 }
 
-func getKernelForCentOS(pipe *script.Pipe) string {
-	pipe = pipe.Exec("yum history package-info kernel")
+func getKernelForRedHat() string {
+	pipe := script.Exec("yum history package-info kernel")
 	installedKernel, _ := pipe.Exec("grep '^Package '").Exec("head -n 1").Exec("sed 's/P.*:.*kernel-//g'").String()
 
 	return installedKernel
@@ -177,10 +178,10 @@ func GetOsVersion() string {
 	return ""
 }
 
-func GetCentOsVersion(osVersion string) string {
+func GetRedHatVersion(osVersion string) string {
 	if strings.Contains(osVersion, "8") {
-		vers := strings.Split(osVersion, ".")
-		return vers[0]
+		version := strings.Split(osVersion, ".")
+		return version[0]
 	} else {
 		return osVersion
 	}
@@ -189,16 +190,14 @@ func GetCentOsVersion(osVersion string) string {
 func GetInstalledKernel(distribution string) string {
 	switch distribution {
 	case "Ubuntu", "Debian":
-		pipe := updateDebian()
-		return getKernelForDebian(pipe)
-	case "SUSE", "openSUSE":
-		pipe := updateSUSE()
-		return getKernelForSUSE(pipe)
-	case "CentOS", "RedHat":
-		osVersion := GetOsVersion()
-		osVersion = GetCentOsVersion(osVersion)
-		pipe := updateCentOS(osVersion)
-		return getKernelForCentOS(pipe)
+		updateDebian()
+		return getKernelForDebian()
+	case "SUSE", "openSUSE", "SLES":
+		updateSUSE()
+		return getKernelForSUSE()
+	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
+		updateRedHat()
+		return getKernelForRedHat()
 	default:
 		log.Println("Unknown distribution")
 		return ""
@@ -208,7 +207,7 @@ func GetInstalledKernel(distribution string) string {
 func waitForPuppet() {
 	timeout := 600
 	for {
-		isPuppetRunning := puppet.IsPuupetRunning()
+		isPuppetRunning := puppet.IsPuppetRunning()
 
 		if !isPuppetRunning {
 			break
@@ -233,12 +232,11 @@ func handlePuppetRun(puppetClean *int) {
 		"five": 5,
 		"six":  6,
 	}
-	exitCode := puppet.RunPuppet()
-	puppet.DisableAgent("Puppet has been disabled by the systme update script.")
+	exitCode := puppet.RunPuppet("noop")
 
 	switch exitCode {
 	case 0, puppetExitCodes["two"]:
-		log.Println("Everything is fine, let's continue.")
+		log.Println("Everything is fine with puppet agent run, let's continue.")
 		*puppetClean = 1
 	case puppetExitCodes["four"], puppetExitCodes["six"]:
 		log.Println("Puppet has pending changes, aborting.")
@@ -263,15 +261,13 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 }
 
 func main() {
-	log.Println("Starting Obmondo System Update Srcipt")
+	log.Println("Starting Obmondo System Update Script")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
 		log.Println("Puppet has been disabled, exiting")
 		os.Exit(1)
 	}
-
-	// script.IfExists(agentDisabledFile).Echo("Puppet has been disabled, exiting").Stdout()
 
 	// assuming that clean up will not be done if the script fails
 	defer cleanup()
@@ -285,20 +281,22 @@ func main() {
 	if distribution == "" {
 		cleanupAndExit()
 	}
-	obmondoAPICient := api.NewObmondoClient()
-	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
+	//obmondoAPICient := api.NewObmondoClient()
+	//isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
+	isServiceWindow := true
 
 	if isServiceWindow {
 		var puppetClean int
 		waitForPuppet()
 		handlePuppetRun(&puppetClean)
 
+		puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
 		installedKernel := GetInstalledKernel(distribution)
 		if installedKernel == "" {
 			cleanupAndExit()
 		}
 
-		closeServiceWindow(obmondoAPICient)
+		//closeServiceWindow(obmondoAPICient)
 		runningKernel, err := script.Exec("uname -r").String()
 		if err != nil {
 			log.Println("Failed to fetch Running Kernel")
@@ -309,16 +307,5 @@ func main() {
 			log.Println("Rebooting server")
 			script.Exec("reboot --force")
 		}
-
-		cleanup()
-
-		if puppetClean != 0 {
-			exitCode := puppet.RunPuppet()
-			log.Println("Puppet exited with exit code", exitCode)
-		}
-
-		// restart mode=automatic, batch mode, set DEBIAN_FRONTEND to noninteractive
-		// commented here to be fixed
-		// needrestart -ra -b -f noninteractive
 	}
 }
