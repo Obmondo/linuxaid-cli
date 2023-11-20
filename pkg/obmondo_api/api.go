@@ -38,7 +38,6 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 
 	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
 		log.Fatal("puppet host cert or puppet private key is not present on the node")
-		os.Exit(1)
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))

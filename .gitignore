@@ -3,3 +3,4 @@
 rpmbuild
 /build/
 /vendor/
+cmd/obmondo-system-update/obmondo-system-update

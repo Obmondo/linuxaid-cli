@@ -115,7 +115,10 @@ func updateDebian() {
 	pipe = pipe.Exec("apt-get update")
 	pipe = pipe.Exec("apt-get upgrade -y")
 	pipe = pipe.Exec("apt-get autoremove -y")
-	pipe.Stdout()
+	_, err := pipe.Stdout()
+	if err != nil {
+		log.Fatal(err)
+	}
 	pipe.Wait()
 }
 
@@ -129,7 +132,10 @@ func getKernelForDebian() string {
 func updateSUSE() {
 	pipe := script.Exec("zypper refresh")
 	pipe = pipe.Exec("zypper update -y")
-	pipe.Stdout()
+	_, err := pipe.Stdout()
+	if err != nil {
+		log.Fatal(err)
+	}
 	pipe.Wait()
 }
 
@@ -141,7 +147,10 @@ func getKernelForSUSE() string {
 
 func updateRedHat() {
 	pipe := script.Exec("yum update -y")
-	pipe.Stdout()
+	_, err := pipe.Stdout()
+	if err != nil {
+		log.Fatal(err)
+	}
 	pipe.Wait()
 	osVersion := GetRedHatVersion(GetOsVersion())
 
