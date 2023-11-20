@@ -30,11 +30,11 @@ func cleanup() {
 	if !isEnabled {
 		log.Println("Not able to remove agent disable file")
 	}
+	log.Println("Ending Obmondo System Update Script")
 }
 
 func cleanupAndExit() {
 	cleanup()
-	log.Println("Ending Obmondo System Update Script")
 	os.Exit(1)
 }
 
@@ -61,7 +61,6 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
 
 	defer resp.Body.Close()
 
-	log.Println(resp)
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
 		log.Printf("unexpected error reading response body: %s", err)
@@ -281,9 +280,9 @@ func main() {
 	if distribution == "" {
 		cleanupAndExit()
 	}
-	//obmondoAPICient := api.NewObmondoClient()
-	//isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
-	isServiceWindow := true
+
+	obmondoAPICient := api.NewObmondoClient()
+	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
 
 	if isServiceWindow {
 		var puppetClean int
@@ -296,7 +295,7 @@ func main() {
 			cleanupAndExit()
 		}
 
-		//closeServiceWindow(obmondoAPICient)
+		closeServiceWindow(obmondoAPICient)
 		runningKernel, err := script.Exec("uname -r").String()
 		if err != nil {
 			log.Println("Failed to fetch Running Kernel")
