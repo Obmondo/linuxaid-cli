@@ -7,10 +7,6 @@
 name: 'obmondo-system-update'
 
 on:
-  push:
-    paths:
-      - 'cmd/obmondo-system-update/**'
-      - '.gitea/workflows/obmondo-system-updates.yml'
   pull_request:
     branches:
       - main
@@ -18,10 +14,13 @@ on:
       - 'cmd/obmondo-system-update/**'
       - '.gitea/workflows/obmondo-system-updates.yml'
     types:
+      - synchronize
+      - opened
       - closed
 
 jobs:
   format:
+    if: gitea.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,6 +37,7 @@ jobs:
           version: v1.54
 
   test:
+    if: gitea.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
