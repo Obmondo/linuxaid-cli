@@ -14,14 +14,12 @@ on:
     types:
       - synchronize
       - opened
-  pull_request_target:
+  push:
     branches:
       - main
     paths:
       - 'cmd/obmondo-system-update/**'
       - '.gitea/workflows/obmondo-system-updates.yml'
-    types:
-      - closed
 
 jobs:
   format:
