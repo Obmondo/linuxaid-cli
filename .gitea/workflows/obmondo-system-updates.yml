@@ -25,7 +25,7 @@ on:
 
 jobs:
   format:
-    if: gitea.event.pull_request.merged == false
+    if: github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -42,7 +42,7 @@ jobs:
           version: v1.54
 
   test:
-    if: gitea.event.pull_request.merged == false
+    if: github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -59,7 +59,7 @@ jobs:
           make test
 
   build:
-    if: gitea.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
