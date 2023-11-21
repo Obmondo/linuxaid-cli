@@ -8,8 +8,6 @@ name: 'obmondo-system-update'
 
 on:
   pull_request:
-    branches:
-      - main
     paths:
       - 'cmd/obmondo-system-update/**'
       - '.gitea/workflows/obmondo-system-updates.yml'
