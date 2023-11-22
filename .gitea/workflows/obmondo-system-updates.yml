@@ -61,7 +61,7 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     container:
-      image: harbor.obmondo.com/obmondo/dockerfiles/package-build:1.0.2
+      image: harbor.obmondo.com/obmondo/dockerfiles/package-build:1.0.3
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
