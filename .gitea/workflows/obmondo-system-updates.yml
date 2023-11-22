@@ -61,10 +61,15 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     container:
-      image: harbor.obmondo.com/obmondo/dockerfiles/golang-build:1.0.0
+      image: harbor.obmondo.com/obmondo/dockerfiles/package-build:1.0.2
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.19'
 
       - name: Build Package System Update Script
         working-directory: cmd/obmondo-system-update
