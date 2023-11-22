@@ -293,29 +293,37 @@ func main() {
 	obmondoAPICient := api.NewObmondoClient()
 	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
 
-	if isServiceWindow {
-		var puppetClean int
-		waitForPuppet()
-		handlePuppetRun(&puppetClean)
-
-		puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
-		installedKernel := GetInstalledKernel(distribution)
-		if installedKernel == "" {
-			cleanupAndExit()
-		}
-
-		closeServiceWindow(obmondoAPICient)
-		runningKernel, err := script.Exec("uname -r").String()
-		if err != nil {
-			log.Println("Failed to fetch Running Kernel")
-			cleanupAndExit()
-		}
-
-		if installedKernel != runningKernel {
-			log.Println("Rebooting server")
-			script.Exec("reboot --force")
-		}
-
-		cleanup()
+	if !isServiceWindow {
+		// lets fail with exit 0, otherwise systemd service will be in failed status
+		log.Println("Exiting, Service window is NOT active")
+		os.Exit(0)
 	}
+
+	log.Println("Service window is active, going ahead")
+
+	var puppetClean int
+	waitForPuppet()
+	handlePuppetRun(&puppetClean)
+
+	puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
+	installedKernel := GetInstalledKernel(distribution)
+	if installedKernel == "" {
+		cleanupAndExit()
+	}
+
+	closeServiceWindow(obmondoAPICient)
+	log.Println("Service window is closed now for this respective node")
+
+	runningKernel, err := script.Exec("uname -r").String()
+	if err != nil {
+		log.Println("Failed to fetch Running Kernel")
+		cleanupAndExit()
+	}
+
+	if installedKernel != runningKernel {
+		log.Println("Rebooting server")
+		script.Exec("reboot --force")
+	}
+
+	cleanup()
 }

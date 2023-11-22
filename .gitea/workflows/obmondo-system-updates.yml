@@ -28,6 +28,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Docker image has go installed, but it still fails with this error
+      # https://gitea.obmondo.com/EnableIT/go-scripts/actions/runs/124/jobs/0
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
@@ -58,20 +60,11 @@ jobs:
   build:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    container:
+      image: harbor.obmondo.com/obmondo/dockerfiles/golang-build:1.0.0
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.19'
-
-      - name: Install Required Packages
-        run: apt update && apt install -y ruby gem rpm automake rsync
-
-      - name: Install fpm Package
-        run: gem install fpm --no-document
 
       - name: Build Package System Update Script
         working-directory: cmd/obmondo-system-update
