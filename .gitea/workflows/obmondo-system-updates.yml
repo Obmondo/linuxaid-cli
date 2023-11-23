@@ -79,9 +79,9 @@ jobs:
       - name: copy file via ssh key
         env:
           PUBLIC_PATH: /vol0/data/packagesign01_var/var/lib/packagesign/repos/incoming/public/
-          USERNAME: ${{ secrets.USERNAME }}
-          SSH_KEY: ${{ secrets.PRIVATE_KEY }}
-          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.PACKAGESIGN_USER }}
+          SSH_KEY: ${{ secrets.PACKAGESIGN_SSH_KEY }}
+          HOST: ${{ secrets.PACKAGESIGN_HOST }}
         run: |
           echo "${SSH_KEY}" > /tmp/ssh_key
           chmod a=,u=r /tmp/ssh_key
