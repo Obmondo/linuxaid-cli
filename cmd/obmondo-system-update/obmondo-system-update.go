@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/user"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,15 +112,19 @@ func CloseWidow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
 }
 
 func updateDebian() {
-	pipe := script.Exec("export DEBIAN_FRONTEND=noninteractive")
-	pipe = pipe.Exec("apt-get update")
-	pipe = pipe.Exec("apt-get upgrade -y")
-	pipe = pipe.Exec("apt-get autoremove -y")
+	log.Println("Running apt update/upgrade/autoremove")
+	enverr := os.Setenv("DEBIAN_FRONTEND", "noninteractive")
+	if enverr != nil {
+		log.Fatal(enverr)
+	}
+	script.Exec("apt-get update").Wait()
+	pipe := script.Exec("apt-get upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
 		log.Fatal(err)
 	}
 	pipe.Wait()
+	script.Exec("apt-get autoremove -y").Wait()
 }
 
 func getKernelForDebian() string {
@@ -130,7 +135,8 @@ func getKernelForDebian() string {
 }
 
 func updateSUSE() {
-	script.Exec("zypper refresh")
+	log.Println("Running zypper refresh/update")
+	script.Exec("zypper refresh").Wait()
 	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
@@ -146,6 +152,8 @@ func getKernelForSUSE() string {
 }
 
 func updateRedHat() {
+	log.Println("Running yum repolist/update")
+	script.Exec("yum repolist").Wait()
 	pipe := script.Exec("yum update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
@@ -231,13 +239,12 @@ func waitForPuppet() {
 	}
 }
 
-func handlePuppetRun(puppetClean *int) {
+func handlePuppetRun() {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
 	var puppetExitCodes = map[string]int{
 		"two":  2,
 		"four": 4,
-		"five": 5,
 		"six":  6,
 	}
 	exitCode := puppet.RunPuppet("noop")
@@ -245,13 +252,16 @@ func handlePuppetRun(puppetClean *int) {
 	switch exitCode {
 	case 0, puppetExitCodes["two"]:
 		log.Println("Everything is fine with puppet agent run, let's continue.")
-		*puppetClean = 1
+		return
+	case 1:
+		log.Println("Puppet run failed, or wasn't attempted due to another run already in progress.")
+		os.Exit(0)
 	case puppetExitCodes["four"], puppetExitCodes["six"]:
 		log.Println("Puppet has pending changes, aborting.")
-		return
+		os.Exit(0)
 	default:
 		log.Println("Puppet failed with exit code", strconv.Itoa(exitCode), ", aborting.")
-		return
+		os.Exit(0)
 	}
 }
 
@@ -268,13 +278,26 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 	}
 }
 
+func checkUser() {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if user.Username == "root" {
+		return
+	}
+	log.Fatal("exiting, obmondo-system-update script needs to be run as root, current user is ", user.Username)
+}
+
 func main() {
+	checkUser()
+
 	log.Println("Starting Obmondo System Update Script")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
 		log.Println("Puppet has been disabled, exiting")
-		os.Exit(1)
+		os.Exit(0)
 	}
 
 	// assuming that clean up will not be done if the script fails
@@ -301,29 +324,36 @@ func main() {
 
 	log.Println("Service window is active, going ahead")
 
-	var puppetClean int
+	// Check if any existing puppet agent is already running
 	waitForPuppet()
-	handlePuppetRun(&puppetClean)
 
+	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
+	handlePuppetRun()
+
+	// Disable puppet-agent, since we'll be running upgrade commands
 	puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
+
+	// Get installed kernel of the system
 	installedKernel := GetInstalledKernel(distribution)
 	if installedKernel == "" {
 		cleanupAndExit()
 	}
 
+	// Close the service window
+	// we need to close it with diff close msg, incase if there is a failure, but that's for later
 	closeServiceWindow(obmondoAPICient)
 	log.Println("Service window is closed now for this respective node")
 
+	// Get running kernel of the system
 	runningKernel, err := script.Exec("uname -r").String()
 	if err != nil {
 		log.Println("Failed to fetch Running Kernel")
 		cleanupAndExit()
 	}
 
+	// Reboot the node, if we have installed a new kernel
 	if installedKernel != runningKernel {
 		log.Println("Rebooting server")
 		script.Exec("reboot --force")
 	}
-
-	cleanup()
 }
