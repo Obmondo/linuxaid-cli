@@ -36,7 +36,7 @@ func cleanup() {
 
 func cleanupAndExit() {
 	cleanup()
-	os.Exit(1)
+	os.Exit(0)
 }
 
 func GetIsServiceWindow(response []byte) string {

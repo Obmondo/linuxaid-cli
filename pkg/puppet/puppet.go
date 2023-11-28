@@ -45,7 +45,7 @@ func RunPuppet(noopStatus string) int {
 	p := script.Exec(cmdString)
 	_, err := p.Stdout()
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 	}
 	p.Wait()
 	exitStatus := p.ExitStatus()
