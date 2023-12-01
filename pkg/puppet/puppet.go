@@ -59,10 +59,9 @@ func IsPuppetRunning() bool {
 
 	if err == nil {
 		log.Println("Puppet is already running or stuck, please check it manually")
-		os.Exit(1)
 		return true
 	} else if os.IsNotExist(err) {
-		log.Println("Puppet agent running lock file is not present")
+		log.Println("Puppet agent is not running currently, great")
 		return false
 	}
 

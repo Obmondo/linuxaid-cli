@@ -101,10 +101,10 @@ func GetSystemDistribution() string {
 	return ""
 }
 
-func CloseWidow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
+func CloseWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
 	closeWindow, err := obmondoAPICient.CloseServiceWindow()
 	if err != nil {
-		log.Println("Failed to close service window")
+		log.Println("Failed to close service window", err)
 		return nil, err
 	}
 
@@ -266,14 +266,17 @@ func handlePuppetRun() {
 }
 
 func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
-	closeWindow, err := CloseWidow(obmondoAPICient)
+	closeWindow, err := CloseWindow(obmondoAPICient)
 	if err != nil {
-		log.Println("Failed to close Service Window")
 		cleanupAndExit()
 	}
 	defer closeWindow.Body.Close()
-	if closeWindow.StatusCode != http.StatusOK {
-		log.Println("Failed to close Service Window")
+
+	// 202 -> When a certname says it's done but the overall window is not auto-closed
+	// 204 -> When a certname says it's done AND the overall window is auto-closed
+	// 208 -> When any of the above requests happen again and again
+	if closeWindow.StatusCode != http.StatusAccepted || closeWindow.StatusCode != http.StatusNoContent || closeWindow.StatusCode != http.StatusAlreadyReported {
+		log.Println("Failed to close Service Window, window 3")
 		cleanupAndExit()
 	}
 }
@@ -336,7 +339,7 @@ func main() {
 	// Get installed kernel of the system
 	installedKernel := GetInstalledKernel(distribution)
 	if installedKernel == "" {
-		cleanupAndExit()
+		log.Println("Looks like no kernel is installed on the node")
 	}
 
 	// Close the service window
@@ -344,16 +347,20 @@ func main() {
 	closeServiceWindow(obmondoAPICient)
 	log.Println("Service window is closed now for this respective node")
 
-	// Get running kernel of the system
-	runningKernel, err := script.Exec("uname -r").String()
-	if err != nil {
-		log.Println("Failed to fetch Running Kernel")
-		cleanupAndExit()
-	}
+	// If kernel is installed, then only we will try to reboot.
+	// in lxc kernel wont be present
+	if installedKernel != "" {
+		// Get running kernel of the system
+		runningKernel, err := script.Exec("uname -r").String()
+		if err != nil {
+			log.Println("Failed to fetch Running Kernel")
+			cleanupAndExit()
+		}
 
-	// Reboot the node, if we have installed a new kernel
-	if installedKernel != runningKernel {
-		log.Println("Rebooting server")
-		script.Exec("reboot --force")
+		// Reboot the node, if we have installed a new kernel
+		if installedKernel != runningKernel {
+			log.Println("Rebooting server")
+			script.Exec("reboot --force")
+		}
 	}
 }
