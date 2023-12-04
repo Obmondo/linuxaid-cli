@@ -33,11 +33,14 @@ const (
 )
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
-	puppetCert := script.IfExists(os.Getenv("PUPPETCERT"))
-	puppetPrivKey := script.IfExists(os.Getenv("PUPPETPRIVKEY"))
+	_, certOk := os.LookupEnv("PUPPETCERT")
+	if !certOk {
+		log.Fatal("PUPPETCERT env variable not set")
+	}
 
-	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
-		log.Fatal("puppet host cert or puppet private key is not present on the node")
+	_, keyOk := os.LookupEnv("PUPPETPRIVKEY")
+	if !keyOk {
+		log.Fatal("PUPPETPRIVKEY env variable not set")
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
