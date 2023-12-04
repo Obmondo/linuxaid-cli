@@ -33,13 +33,13 @@ const (
 )
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
-	_, cert_ok := os.LookupEnv("PUPPETCERT")
-	if !cert_ok {
+	_, certOk := os.LookupEnv("PUPPETCERT")
+	if !certOk {
 		log.Fatal("PUPPETCERT env variable not set")
 	}
 
-	_, key_ok := os.LookupEnv("PUPPETPRIVKEY")
-	if !key_ok {
+	_, keyOk := os.LookupEnv("PUPPETPRIVKEY")
+	if !keyOk {
 		log.Fatal("PUPPETPRIVKEY env variable not set")
 	}
 

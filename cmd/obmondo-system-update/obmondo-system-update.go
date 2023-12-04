@@ -26,6 +26,15 @@ const (
 	sleepTime         = 5
 )
 
+// 202 -> When a certname says it's done but the overall window is not auto-closed
+// 204 -> When a certname says it's done AND the overall window is auto-closed
+// 208 -> When any of the above requests happen again and again
+var closeWindowSuccessStatuses = map[int]bool{
+	http.StatusAccepted:        true,
+	http.StatusNoContent:       true,
+	http.StatusAlreadyReported: true,
+}
+
 func cleanup() {
 	isEnabled := puppet.EnableAgent()
 	if !isEnabled {
@@ -268,15 +277,13 @@ func handlePuppetRun() {
 func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 	closeWindow, err := CloseWindow(obmondoAPICient)
 	if err != nil {
+		log.Println("Closing service window failed, due to some error", err)
 		cleanupAndExit()
 	}
 	defer closeWindow.Body.Close()
 
-	// 202 -> When a certname says it's done but the overall window is not auto-closed
-	// 204 -> When a certname says it's done AND the overall window is auto-closed
-	// 208 -> When any of the above requests happen again and again
-	if closeWindow.StatusCode != http.StatusAccepted || closeWindow.StatusCode != http.StatusNoContent || closeWindow.StatusCode != http.StatusAlreadyReported {
-		log.Println("Failed to close Service Window, window 3")
+	if !closeWindowSuccessStatuses[closeWindow.StatusCode] {
+		log.Println("Closing service window failed, wrong response code from API", closeWindow.StatusCode)
 		cleanupAndExit()
 	}
 }

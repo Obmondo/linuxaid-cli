@@ -31,7 +31,7 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 
 func (*MockObmondoClient) CloseServiceWindow() (*http.Response, error) {
 	response := &http.Response{
-		StatusCode: http.StatusOK,
+		StatusCode: http.StatusAccepted,
 		Body:       io.NopCloser(bytes.NewBufferString("")),
 		Header:     make(http.Header),
 	}

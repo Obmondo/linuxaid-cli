@@ -16,17 +16,6 @@ func TestGetCustomerID(t *testing.T) {
 	}
 }
 
-// Failing on ci as kernel can't be installed
-// on the ci instance, fix it
-
-// func TestGetInstalledKernel(t *testing.T) {
-// 	distribution := "Ubuntu"
-// 	installedKernel := GetInstalledKernel(distribution)
-// 	if installedKernel == "" {
-// 		t.Errorf("o/p : %s", installedKernel)
-// 	}
-// }
-
 func TestGetServiceWindowStatus(t *testing.T) {
 	expected := true
 	mockObmondoClient := mock.NewMockObmondoClient()
@@ -38,12 +27,16 @@ func TestGetServiceWindowStatus(t *testing.T) {
 
 func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	op, err := CloseWidow(mockObmondoClient)
+	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
+
+	op, err := CloseWindow(mockObmondoClient)
 	if err != nil {
 		t.Errorf("o/p: %+v", op)
 	}
 	defer op.Body.Close()
-	if op.StatusCode != http.StatusOK {
+	if !closeWindowSuccessStatuses[op.StatusCode] {
 		t.Errorf("o/p: %+v, err: %s", op, err.Error())
 	}
 }
+
+// Need tests for 204 and 208 and a failed scenario as well
