@@ -366,7 +366,10 @@ func main() {
 
 		// Reboot the node, if we have installed a new kernel
 		if installedKernel != runningKernel {
-			log.Println("Rebooting server")
+			// Enable the puppet agent, so puppet runs after reboot and dont exit the script
+			// otherwise reboot wont be triggered
+			cleanup()
+			log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
 			script.Exec("reboot --force")
 		}
 	}
