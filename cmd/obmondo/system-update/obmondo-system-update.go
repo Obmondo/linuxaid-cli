@@ -204,6 +204,10 @@ func UpdateSystem(distribution string) {
 		log.Println("Unknown distribution")
 		cleanupAndExit()
 	}
+
+	// Get the newest kernel installed
+	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
+	return installedKernel
 }
 
 func GetInstalledKernel() string {
