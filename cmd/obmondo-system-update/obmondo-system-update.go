@@ -136,13 +136,6 @@ func updateDebian() {
 	script.Exec("apt-get autoremove -y").Wait()
 }
 
-func getKernelForDebian() string {
-	pipe := script.Exec("dpkg-query -Wf '${Installed-Size}\t${Package}\t${Status}\n'")
-	installedKernel, _ := pipe.Exec("grep linux-image").Exec("grep installed").Exec("sort -nr").Exec("awk '{print $2}'").Exec("sed 's/linux-image-//g'").String()
-
-	return installedKernel
-}
-
 func updateSUSE() {
 	log.Println("Running zypper refresh/update")
 	script.Exec("zypper refresh").Wait()
@@ -152,12 +145,6 @@ func updateSUSE() {
 		log.Fatal(err)
 	}
 	pipe.Wait()
-}
-
-func getKernelForSUSE() string {
-	installedKernel, _ := script.Exec("rpm -qa").Exec("grep kernel-default").Exec("sort -tr").Exec("sed 's/kernel-default-//g'").Exec("head -1").Exec("cut -d. -f1-3").Exec("sed 's/$/-default/g'").String()
-
-	return installedKernel
 }
 
 func updateRedHat() {
@@ -176,13 +163,6 @@ func updateRedHat() {
 	} else {
 		script.Exec("package-cleanup --oldkernels --count=2 -y")
 	}
-}
-
-func getKernelForRedHat() string {
-	pipe := script.Exec("yum history package-info kernel")
-	installedKernel, _ := pipe.Exec("grep '^Package '").Exec("head -n 1").Exec("sed 's/P.*:.*kernel-//g'").String()
-
-	return installedKernel
 }
 
 func GetOsVersion() string {
@@ -216,17 +196,18 @@ func GetInstalledKernel(distribution string) string {
 	switch distribution {
 	case "Ubuntu", "Debian":
 		updateDebian()
-		return getKernelForDebian()
 	case "SUSE", "openSUSE", "SLES":
 		updateSUSE()
-		return getKernelForSUSE()
 	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
 		updateRedHat()
-		return getKernelForRedHat()
 	default:
 		log.Println("Unknown distribution")
 		return ""
 	}
+
+	// Get the newest kernel installed
+	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
+	return installedKernel
 }
 
 func waitForPuppet() {
