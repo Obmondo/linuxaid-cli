@@ -12,7 +12,8 @@ import (
 	"time"
 
 	constants "go-scripts/constants"
-	api "go-scripts/pkg/obmondo_api"
+	disk "go-scripts/pkg/disk"
+	api "go-scripts/pkg/obmondo"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/util"
 
@@ -133,6 +134,11 @@ func updateDebian() {
 		log.Fatal(err)
 	}
 	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
+	if exitStatus != 0 {
+		log.Println("exiting, apt update failed")
+		cleanupAndExit()
+	}
 	script.Exec("apt-get autoremove -y").Wait()
 }
 
@@ -145,6 +151,11 @@ func updateSUSE() {
 		log.Fatal(err)
 	}
 	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
+	if exitStatus != 0 {
+		log.Println("exiting, suse update failed")
+		cleanupAndExit()
+	}
 }
 
 func updateRedHat() {
@@ -156,12 +167,10 @@ func updateRedHat() {
 		log.Fatal(err)
 	}
 	pipe.Wait()
-	osVersion := GetRedHatVersion(GetOsVersion())
-
-	if osVersion == "8" {
-		script.Exec("yum remove $(yum repoquery --installonly --latest-limit=-3 -q)")
-	} else {
-		script.Exec("package-cleanup --oldkernels --count=2 -y")
+	exitStatus := pipe.ExitStatus()
+	if exitStatus != 0 {
+		log.Println("exiting, yum update failed")
+		cleanupAndExit()
 	}
 }
 
@@ -183,16 +192,7 @@ func GetOsVersion() string {
 	return ""
 }
 
-func GetRedHatVersion(osVersion string) string {
-	if strings.Contains(osVersion, "8") {
-		version := strings.Split(osVersion, ".")
-		return version[0]
-	} else {
-		return osVersion
-	}
-}
-
-func GetInstalledKernel(distribution string) string {
+func UpdateSystem(distribution string) {
 	switch distribution {
 	case "Ubuntu", "Debian":
 		updateDebian()
@@ -202,9 +202,11 @@ func GetInstalledKernel(distribution string) string {
 		updateRedHat()
 	default:
 		log.Println("Unknown distribution")
-		return ""
+		cleanupAndExit()
 	}
+}
 
+func GetInstalledKernel() string {
 	// Get the newest kernel installed
 	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
 	return installedKernel
@@ -282,6 +284,7 @@ func checkUser() {
 
 func main() {
 	checkUser()
+	disk.CheckDiskSize()
 
 	log.Println("Starting Obmondo System Update Script")
 
@@ -324,8 +327,11 @@ func main() {
 	// Disable puppet-agent, since we'll be running upgrade commands
 	puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
 
+	// Apt/Yum/Zypper update
+	UpdateSystem(distribution)
+
 	// Get installed kernel of the system
-	installedKernel := GetInstalledKernel(distribution)
+	installedKernel := GetInstalledKernel()
 	if installedKernel == "" {
 		log.Println("Looks like no kernel is installed on the node")
 	}
