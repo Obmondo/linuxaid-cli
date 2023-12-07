@@ -1,6 +1,6 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-system-update
-export VERSION=1.0.8
+export VERSION=1.0.9
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
@@ -31,7 +31,7 @@ clean: ## Remove previous build
 	@go clean
 
 run:
-	@go run ./cmd
+	@go run ./$(SOURECS)
 
 $(SOURCES): dep
 	CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES) .

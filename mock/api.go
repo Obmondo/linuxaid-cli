@@ -3,7 +3,7 @@ package mock
 import (
 	"bytes"
 	"encoding/json"
-	"go-scripts/pkg/obmondo_api"
+	"go-scripts/pkg/obmondo"
 	"io"
 	"net/http"
 )
