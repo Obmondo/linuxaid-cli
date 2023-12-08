@@ -8,8 +8,7 @@ import (
 	"net/http"
 )
 
-type MockObmondoClient struct {
-}
+type MockObmondoClient struct{}
 
 func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	data := map[string]interface{}{

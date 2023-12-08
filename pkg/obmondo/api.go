@@ -63,7 +63,7 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 
 	request, err := http.NewRequest(requestType, url, body)
 	if err != nil {
-		log.Println("Failed to create api request to obmonod")
+		log.Println("Failed to create api request to obmondo")
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Println("Failed to make api request to obmonod")
+		log.Println("Failed to make api request to obmondo")
 		return nil, err
 	}
 	return response, nil
