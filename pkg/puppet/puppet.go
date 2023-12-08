@@ -2,28 +2,31 @@ package puppet
 
 import (
 	"fmt"
+	constants "go-scripts/constants"
+	"go-scripts/pkg/webtee"
+	"io"
 	"log"
-	"strconv"
-
-	"go-scripts/constants"
-	"go-scripts/util"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/bitfield/script"
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
-	MAILTO = constants.MAILTO
+	sleepTime = 5
 )
 
-var (
-	HOST      = util.GetHost()
-	CUSTOMER  = util.GetCustomer()
-	KEY_FILE  string
-	CERT_FILE string
-	HOSTNAME  string
-)
+var certName = os.Getenv("CERTNAME")
 
-func EnableAgent() bool {
+// 200 HTTP code
+var closeWindowSuccessStatuses = map[int]bool{
+	http.StatusOK: true,
+}
+
+// enable puppet-agent
+func EnablePuppetAgent() bool {
 	exitStatus := script.Exec("puppet agent --enable").ExitStatus()
 	if exitStatus != 0 {
 		log.Println("Failed To Enable Puppet")
@@ -34,7 +37,8 @@ func EnableAgent() bool {
 	return true
 }
 
-func DisableAgent(msg string) bool {
+// disable puppet-agent with a msg
+func DisablePuppetAgent(msg string) bool {
 	cmdString := fmt.Sprintf("puppet agent --disable '%s'", msg)
 	exitStatus := script.Exec(cmdString).ExitStatus()
 	if exitStatus != 0 {
@@ -46,85 +50,151 @@ func DisableAgent(msg string) bool {
 	return true
 }
 
-func RunPuppet() int {
-	pipe := script.Exec("puppet agent -t --noop --detailed-exitcodes")
-	exitStatus := pipe.ExitStatus()
-	err := pipe.Error()
-	if exitStatus != 0 {
-		log.Println(err)
+// run puppet-agent
+func RunPuppetAgent(remoteLog bool, noopStatus string) int {
+	cmdString := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopStatus)
+	if remoteLog {
+		webtee.RemoteLogObmondo([]string{cmdString}, certName)
+		return 0
+	} else {
+		log.Printf("Running puppet agent in '%s' mode", noopStatus)
+		pipe := script.Exec(cmdString)
+		_, err := pipe.Stdout()
+		if err != nil {
+			log.Println(err)
+		}
+		pipe.Wait()
+		exitStatus := pipe.ExitStatus()
+		log.Println("Completed puppet agent run")
 		return exitStatus
 	}
-
-	log.Println("Successfully Ran Puppet")
-	return exitStatus
 }
 
-func RunPuppetWithRemoteLog() {
-	log.Println("Contacting obmondo.com...")
+// check if puppet agent is running or not
+func isPuppetAgentRunning() bool {
+	_, err := os.Stat(constants.AgentRunningLockFile)
 
-	util.Remotelog("puppet agent -t --no-noop")
-	exitStatus := util.Remotelog("puppet agent -t --no-noop").ExitStatus()
-
-	// Puppet returns 0 on no changes, 1 on failures, 2 on successful run with
-	// changes, and 4 or 6 if the run failed wholly or partially
-	if exitStatus == 1 || exitStatus == 4 || exitStatus == 6 {
-		puppetRunCount := 1
-
-		for puppetRunCount <= 5 {
-			util.Remotelog("puppet agent -t --no-noop")
-			exitStatus = util.Remotelog("puppet agent -t --no-noop").ExitStatus()
-
-			// 4 and 6 means more changes are pending, lets run again
-			if exitStatus == 4 || exitStatus == 6 {
-				puppetRunCount = puppetRunCount + 1
-				log.Println("Running puppet agent " + strconv.Itoa(puppetRunCount) + " times now. last run exit code is " + strconv.Itoa(exitStatus))
-			} else if exitStatus == 2 { // 2 means no more changes and a clean run, lets close the loop
-				break
-			} else if exitStatus == 1 { // 1 means puppet is failing to run somehow, lets exit and complain
-				util.InstallFailed()
-				script.Echo("Client install failed with code " + strconv.Itoa(exitStatus) + ". Contact EnableIT - " + MAILTO)
-				break
-			}
-		}
-	}
-
-	log.Println("Installation succeeded. Please head to https://obmondo.com/server/" + HOSTNAME + " to continue configuration.")
-}
-
-func IsPuppetRunning() bool {
-	exitStatus := script.IfExists("/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock").ExitStatus()
-	if exitStatus == 0 {
-		log.Println("Failed To Run Puppet")
+	if err == nil {
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent is running currently, or stuck, exiting"}, certName)
+		return true
+	} else if os.IsNotExist(err) {
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not running current, going ahead"}, certName)
 		return false
 	}
 
 	return true
 }
 
-func IsPuppetInstalled() {
-	if script.Exec("rpm -qa puppet-agent >/dev/null || dpkg -l puppet-agent >/dev/null").ExitStatus() == 0 {
-		if KEY_FILE == "" {
-			KEY_FILE = "/etc/puppetlabs/puppet/ssl/private_keys/" + HOST + "." + CUSTOMER + ".pem"
-		}
-		if CERT_FILE == "" {
-			CERT_FILE = "/etc/puppetlabs/puppet/ssl/" + HOST + "." + CUSTOMER + ".pem"
-		}
+// facter for new installation
+func FacterNewSetup() {
+	script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d")
+
+	// NOTE: not a fan, but quick and ugly one
+	facter := `---
+install_date: ` + time.Now().Format("20060102") + `
+`
+
+	_, err := script.Echo(facter).WriteFile(constants.ExternalFacterFile)
+	if err != nil {
+		errMsg := fmt.Sprintf("echo Can not create external facter file: %s ", err.Error())
+		webtee.RemoteLogObmondo([]string{errMsg}, certName)
+	}
+
+}
+
+// config setup for puppet-agent
+func ConfigurePuppetAgent() {
+	config := `[main]
+server = puppet.enableit.dk
+certname = ` + certName + `
+stringify_facts = false
+masterport = 443
+
+[agent]
+report = true
+pluginsync = true
+noop = true
+`
+	_, err := script.Echo(config).WriteFile(constants.PuppetConfig)
+	if err != nil {
+		errMsg := fmt.Sprintf("echo Can not create puppet configuration file: %s " + err.Error())
+		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
 }
 
-func isPuppetDisabled() string {
-	str, _ := script.Exec("puppet agent --configprint agent_disabled_lockfile").String()
-	return str
+// disable puppet-agent running as a service (sanity-check)
+func DisablePuppetAgentService() {
+	webtee.RemoteLogObmondo([]string{"puppet resource service puppet ensure=stopped enable=false"}, certName)
 }
 
-func PuppetDisabled() bool {
-	str := isPuppetDisabled()
-	err := script.Exec("test -e " + str).Error()
-	return err == nil
+// If Puppet is already running we wait for up to 10 minutes before exiting.
+//
+// Note that if for some reason Puppet agent is running in daemon mode we'll end
+// up here waiting for it to terminate, which will never happen. If that becomes
+// an issue we might want to actively kill Puppet, but let's wait and see.
+func WaitForPuppetAgent() {
+	timeout := 600
+	for {
+		isPuppetRunning := isPuppetAgentRunning()
+
+		if !isPuppetRunning {
+			break
+		}
+
+		if timeout <= 0 {
+			log.Println("Puppet is running, aborting")
+		}
+
+		timeout -= 5
+		time.Sleep(sleepTime * time.Second)
+	}
 }
 
-func PuppetDisabledNewInstall() bool {
-	str := isPuppetDisabled()
-	err := script.File(str).Match("Disabled by default on new or unconfigured old installations").Error()
-	return err == nil
-} 
+// puppet-agent is already installed
+func PuppetAgentIsInstalled() {
+	bar := progressbar.NewOptions(constants.BarProgressSize,
+		progressbar.OptionSetDescription("puppet-agent installation..."),
+	)
+
+	// Just to have a nice progress bar
+	tenErr := bar.Set(constants.BarSizeTen)
+	if tenErr != nil {
+		log.Println("progressbar setting failed")
+	}
+	time.Sleep(sleepTime * time.Millisecond)
+	hundredErr := bar.Set(constants.BarSizeHundred)
+	if hundredErr != nil {
+		log.Println("progressbar setting failed")
+	}
+	finishErr := bar.Finish()
+	if finishErr != nil {
+		log.Println("progressbar finish setting failed")
+	}
+
+	webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)
+}
+
+// download puppet-agent and install it
+func DownloadPuppetAgent(downloadPath string, url string) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if !closeWindowSuccessStatuses[resp.StatusCode] {
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
+	}
+
+	f, _ := os.Create(downloadPath)
+	defer f.Close()
+
+	bar := progressbar.DefaultBytes(
+		resp.ContentLength,
+		"downloading puppet-agent",
+	)
+	_, rerr := io.Copy(io.MultiWriter(f, bar), resp.Body)
+	if rerr != nil {
+		log.Fatal("downloading puppet-agent failed, exiting")
+	}
+}

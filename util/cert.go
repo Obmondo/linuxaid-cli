@@ -37,7 +37,7 @@ func GetCommonNameFromCertFile(certPath string) string {
 func GetCustomerID(certname string) string {
 	parts := strings.Split(certname, ".")
 	if len(parts) < two {
-		log.Println("In correct formatt for certname")
+		log.Println("In correct format for certname")
 		return ""
 	}
 	return parts[1]
