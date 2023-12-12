@@ -216,6 +216,11 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 func main() {
 	util.LoadOSReleaseEnv()
 
+	envErr := os.Setenv("PATH", constants.PuppetPath)
+	if envErr != nil {
+		log.Fatal("failed to set the PATH env, exiting")
+	}
+
 	util.CheckUser()
 	util.CheckPuppetEnv()
 	util.CheckOSNameEnv()

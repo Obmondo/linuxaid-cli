@@ -75,10 +75,8 @@ func isPuppetAgentRunning() bool {
 	_, err := os.Stat(constants.AgentRunningLockFile)
 
 	if err == nil {
-		webtee.RemoteLogObmondo([]string{"echo puppet-agent is running currently, or stuck, exiting"}, certName)
 		return true
 	} else if os.IsNotExist(err) {
-		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not running current, going ahead"}, certName)
 		return false
 	}
 
