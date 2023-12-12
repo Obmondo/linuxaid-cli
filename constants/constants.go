@@ -15,11 +15,13 @@ const (
 	AgentRunningLockFile  = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
 
 	// Progress Bar
-	BarProgressSize   = 100
-	BarSizeFive       = 5
-	BarSizeTen        = 10
-	BarSizeFifteen    = 15
-	BarSizeTwenty     = 20
-	BarSizeTwentyFive = 25
-	BarSizeHundred    = 100
+	BarProgressSize    = 100
+	BarSizeFive        = 5
+	BarSizeTen         = 10
+	BarSizeFifteen     = 15
+	BarSizeTwenty      = 20
+	BarSizeTwentyFive  = 25
+	BarSizeFifty       = 50
+	BarSizeSeventyFive = 75
+	BarSizeHundred     = 100
 )

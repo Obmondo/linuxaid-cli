@@ -1,9 +1,9 @@
 package util
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/bitfield/script"
 )
@@ -28,25 +28,30 @@ var osReleaseMajorVersion = map[string]string{
 }
 
 func GetMajorRelease() string {
-	osVersion := os.Getenv("VERSION")
+	osVersion, _, _ := strings.Cut(os.Getenv("VERSION_ID"), ".")
 
-	cmd := fmt.Sprintf("echo %s | cut -d '.' -f1'", osVersion)
-	release, _ := script.Exec(cmd).String()
-
-	return release
+	return osVersion
 }
 
 // List of Supported OS
 func SupportedOS() {
+	osVersion := os.Getenv("VERSION_ID")
 	distribution := os.Getenv("NAME")
-	osVersion := os.Getenv("VERSION")
+
 	majRelease := GetMajorRelease()
 
 	switch distribution {
 	case "Ubuntu", "Debian":
 		switch osVersion {
 		case osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"]:
-			//
+			isInstalled := IsCaCertificateInstalled("dpkg-query -W ca-certificates openssl")
+
+			if !isInstalled {
+				apipe := script.Exec("apt update")
+				apipe.Wait()
+				pipe := script.Exec("apt install -y ca-certificates")
+				pipe.Wait()
+			}
 		default:
 			log.Println("Unknown Ubuntu distribution")
 			os.Exit(1)
@@ -54,7 +59,12 @@ func SupportedOS() {
 	case "SUSE", "openSUSE", "SLES", "openSUSE Leap":
 		switch majRelease {
 		case osReleaseMajorVersion["suse12"], osReleaseMajorVersion["suse15"]:
-			//
+			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla")
+
+			if !isInstalled {
+				pipe := script.Exec("zypper install -y ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla")
+				pipe.Wait()
+			}
 		default:
 			log.Println("Unknown Suse distribution")
 			os.Exit(1)
@@ -62,7 +72,12 @@ func SupportedOS() {
 	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
 		switch majRelease {
 		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"]:
-			//
+			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl")
+
+			if !isInstalled {
+				pipe := script.Exec("yum install -y ca-certificates openssl")
+				pipe.Wait()
+			}
 		default:
 			log.Println("Unknown RedHat distribution")
 			os.Exit(1)

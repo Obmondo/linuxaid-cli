@@ -57,9 +57,8 @@ func main() {
 	}
 
 	// Puppet agent setup
-	bar := progressbar.NewOptions(constants.BarProgressSize,
-		progressbar.OptionSetDescription("puppet-agent initial setup..."),
-	)
+	bar := progressbar.Default(constants.BarProgressSize,
+		"puppet-agent setup...")
 
 	puppet.DisablePuppetAgentService()
 	fiveErr := bar.Set(constants.BarSizeFive)
@@ -96,6 +95,6 @@ func main() {
 		log.Println("failed to finish the progressbar size")
 	}
 
-	log.Println("Installation succeeded. Please head to https://obmondo.com/server/" + certName + " to continue configuration.")
+	log.Println("\nInstallation succeeded. Please head to https://obmondo.com/server/" + certName + " to continue configuration.")
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
 }

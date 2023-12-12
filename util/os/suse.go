@@ -14,7 +14,7 @@ import (
 
 func SusePuppetAgent() {
 	certName := os.Getenv("CERTNAME")
-	webtee.RemoteLogObmondo([]string{"zypper install -y epel-release iptables ca-certificates openssl"}, certName)
+	webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, certName)
 
 	majRelease := util.GetMajorRelease()
 	tempDir := util.TempDir()
@@ -25,7 +25,7 @@ func SusePuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/sles/puppet7/%s/x86_64/%s.rpm", majRelease, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("rpm -qa | grep -q %s", packageName)
+	isPuppetInstalled := fmt.Sprintf("rpm -q %s", packageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	pipe.Wait()
@@ -35,7 +35,7 @@ func SusePuppetAgent() {
 		puppet.DownloadPuppetAgent(downloadPath, url)
 
 		// Install the package
-		installCmd := []string{fmt.Sprintf("zypper install -y %s", downloadPath)}
+		installCmd := []string{fmt.Sprintf("rpm -ivh %s", downloadPath)}
 		webtee.RemoteLogObmondo(installCmd, certName)
 	} else {
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)

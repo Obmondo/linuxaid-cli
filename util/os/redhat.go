@@ -14,7 +14,7 @@ import (
 
 func RedHatPuppetAgent() {
 	certName := os.Getenv("CERTNAME")
-	webtee.RemoteLogObmondo([]string{"yum install -y iptables ca-certificates openssl"}, certName)
+	webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, certName)
 
 	majRelease := util.GetMajorRelease()
 	tempDir := util.TempDir()
@@ -25,7 +25,7 @@ func RedHatPuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/puppet7/el/%s/x86_64/%s.rpm", majRelease, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("rpm -qa | grep -q %s", packageName)
+	isPuppetInstalled := fmt.Sprintf("rpm -q %s", packageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	pipe.Wait()
@@ -35,7 +35,7 @@ func RedHatPuppetAgent() {
 		puppet.DownloadPuppetAgent(downloadPath, url)
 
 		// Install the package
-		installCmd := []string{fmt.Sprintf("yum install -y %s", downloadPath)}
+		installCmd := []string{fmt.Sprintf("rpm -ivh %s", downloadPath)}
 		webtee.RemoteLogObmondo(installCmd, certName)
 	} else {
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)

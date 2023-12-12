@@ -18,7 +18,7 @@ func DebianPuppetAgent() {
 	certName := os.Getenv("CERTNAME")
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	webtee.RemoteLogObmondo([]string{"apt update"}, certName)
-	webtee.RemoteLogObmondo([]string{"apt install -y ca-certificates openssl"}, certName)
+	webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, certName)
 
 	tempDir := util.TempDir()
 

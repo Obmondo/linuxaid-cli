@@ -152,23 +152,24 @@ func WaitForPuppetAgent() {
 
 // puppet-agent is already installed
 func PuppetAgentIsInstalled() {
-	bar := progressbar.NewOptions(constants.BarProgressSize,
-		progressbar.OptionSetDescription("puppet-agent installation..."),
-	)
+	bar := progressbar.Default(constants.BarProgressSize,
+		"puppet-agent install...")
 
 	// Just to have a nice progress bar
 	tenErr := bar.Set(constants.BarSizeTen)
 	if tenErr != nil {
-		log.Println("progressbar setting failed")
+		log.Println("failed to set the progressbar size")
 	}
+
 	time.Sleep(sleepTime * time.Millisecond)
 	hundredErr := bar.Set(constants.BarSizeHundred)
 	if hundredErr != nil {
-		log.Println("progressbar setting failed")
+		log.Println("failed to set the progressbar size")
 	}
+
 	finishErr := bar.Finish()
 	if finishErr != nil {
-		log.Println("progressbar finish setting failed")
+		log.Println("failed to set the progressbar size")
 	}
 
 	webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)
@@ -191,7 +192,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 
 	bar := progressbar.DefaultBytes(
 		resp.ContentLength,
-		"downloading puppet-agent",
+		"download puppet-agent..",
 	)
 	_, rerr := io.Copy(io.MultiWriter(f, bar), resp.Body)
 	if rerr != nil {

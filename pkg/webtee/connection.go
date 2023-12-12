@@ -80,24 +80,25 @@ func webTee(app *application, lines <-chan logLine) {
 	for {
 		m, more := <-lines
 
-		if more {
-			logLine := rpc.LogLine{
-				Timestamp: uint64(time.Now().Unix()),
-				Line:      m.line,
-				Pipe:      m.pipe,
+		if !more {
+			_, err := stream.CloseAndRecv()
+			// fail here, when cert is not found in db
+			if err != nil {
+				log.Printf("Failed to close log stream: %v\n", err)
 			}
 
-			if err := stream.Send(&logLine); err != nil {
-				log.Printf("Failed to send log line (%v): %v\n", logLine.String(), err)
-			}
-
+			return
 		}
 
-		_, err := stream.CloseAndRecv()
-		if err != nil {
-			log.Printf("Failed to close log stream: %v\n", err)
+		logLine := rpc.LogLine{
+			Timestamp: uint64(time.Now().Unix()),
+			Line:      m.line,
+			Pipe:      m.pipe,
 		}
 
+		if err := stream.Send(&logLine); err != nil {
+			log.Printf("Failed to send log line (%v): %v\n", logLine.String(), err)
+		}
 	}
 
 }
