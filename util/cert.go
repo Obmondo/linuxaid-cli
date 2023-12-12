@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/bitfield/script"
 )
 
 const (
@@ -37,8 +39,16 @@ func GetCommonNameFromCertFile(certPath string) string {
 func GetCustomerID(certname string) string {
 	parts := strings.Split(certname, ".")
 	if len(parts) < two {
-		log.Println("In correct formatt for certname")
+		log.Println("In correct format for certname")
 		return ""
 	}
 	return parts[1]
+}
+
+// Need this, otherwise remotelog func wont work
+func IsCaCertificateInstalled(cmd string) bool {
+	pipe := script.Exec(cmd)
+	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
+	return exitStatus == 0
 }

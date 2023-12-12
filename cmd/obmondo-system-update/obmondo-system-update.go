@@ -5,11 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/user"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	constants "go-scripts/constants"
 	disk "go-scripts/pkg/disk"
@@ -37,7 +34,7 @@ var closeWindowSuccessStatuses = map[int]bool{
 }
 
 func cleanup() {
-	isEnabled := puppet.EnableAgent()
+	isEnabled := puppet.EnablePuppetAgent()
 	if !isEnabled {
 		log.Println("Not able to remove agent disable file")
 	}
@@ -91,24 +88,6 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
 		return true
 	}
 	return false
-}
-
-func GetSystemDistribution() string {
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		log.Println("Error reading os release file:", err)
-		return ""
-	}
-	content := string(data)
-	r := regexp.MustCompile(`(?:\n|^)NAME="([^"]+)"`)
-	matches := r.FindStringSubmatch(content)
-
-	if len(matches) > 1 {
-		dist := strings.Trim(matches[1], "\"")
-		return strings.TrimSpace(dist)
-	}
-
-	return ""
 }
 
 func CloseWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
@@ -174,29 +153,11 @@ func updateRedHat() {
 	}
 }
 
-func GetOsVersion() string {
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		log.Println("Error reading os release file:", err)
-		return ""
-	}
-	content := string(data)
-	r := regexp.MustCompile(`(?:\n|^)VERSION_ID="([^"]+)"`)
-	matches := r.FindStringSubmatch(content)
-
-	if len(matches) > 1 {
-		dist := strings.Trim(matches[1], "\"")
-		return strings.TrimSpace(dist)
-	}
-
-	return ""
-}
-
 func UpdateSystem(distribution string) {
 	switch distribution {
 	case "Ubuntu", "Debian":
 		updateDebian()
-	case "SUSE", "openSUSE", "SLES":
+	case "SUSE", "openSUSE", "SLES", "openSUSE Leap":
 		updateSUSE()
 	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
 		updateRedHat()
@@ -212,25 +173,6 @@ func GetInstalledKernel() string {
 	return installedKernel
 }
 
-func waitForPuppet() {
-	timeout := 600
-	for {
-		isPuppetRunning := puppet.IsPuppetRunning()
-
-		if !isPuppetRunning {
-			break
-		}
-
-		if timeout <= 0 {
-			log.Println("Puppet is running, aborting")
-			cleanupAndExit()
-		}
-
-		timeout -= 5
-		time.Sleep(sleepTime * time.Second)
-	}
-}
-
 func handlePuppetRun() {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
@@ -239,7 +181,7 @@ func handlePuppetRun() {
 		"four": 4,
 		"six":  6,
 	}
-	exitCode := puppet.RunPuppet("noop")
+	exitCode := puppet.RunPuppetAgent(false, "noop")
 
 	switch exitCode {
 	case 0, puppetExitCodes["two"]:
@@ -271,19 +213,18 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 	}
 }
 
-func checkUser() {
-	user, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if user.Username == "root" {
-		return
-	}
-	log.Fatal("exiting, obmondo-system-update script needs to be run as root, current user is ", user.Username)
-}
-
 func main() {
-	checkUser()
+	util.LoadOSReleaseEnv()
+
+	envErr := os.Setenv("PATH", constants.PuppetPath)
+	if envErr != nil {
+		log.Fatal("failed to set the PATH env, exiting")
+	}
+
+	util.CheckUser()
+	util.CheckPuppetEnv()
+	util.CheckOSNameEnv()
+	util.SupportedOS()
 	disk.CheckDiskSize()
 
 	log.Println("Starting Obmondo System Update Script")
@@ -297,15 +238,7 @@ func main() {
 	// assuming that clean up will not be done if the script fails
 	defer cleanup()
 
-	// If Puppet is already running we wait for up to 10 minutes before exiting.
-	//
-	// Note that if for some reason Puppet agent is running in daemon mode we'll end
-	// up here waiting for it to terminate, which will never happen. If that becomes
-	// an issue we might want to actively kill Puppet, but let's wait and see.
-	distribution := GetSystemDistribution()
-	if distribution == "" {
-		cleanupAndExit()
-	}
+	distribution := os.Getenv("NAME")
 
 	obmondoAPICient := api.NewObmondoClient()
 	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
@@ -319,13 +252,13 @@ func main() {
 	log.Println("Service window is active, going ahead")
 
 	// Check if any existing puppet agent is already running
-	waitForPuppet()
+	puppet.WaitForPuppetAgent()
 
 	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 	handlePuppetRun()
 
 	// Disable puppet-agent, since we'll be running upgrade commands
-	puppet.DisableAgent("Puppet has been disabled by the obmondo-system-update script.")
+	puppet.DisablePuppetAgent("Puppet has been disabled by the obmondo-system-update script.")
 
 	// Apt/Yum/Zypper update
 	UpdateSystem(distribution)

@@ -1,10 +1,10 @@
 PATH := ../../bin:$(PATH)
-export NAME=obmondo-system-update
-export VERSION=1.1.0
+export NAME=obmondo-install-setup
+export VERSION=1.0.0
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
-SOURCES := obmondo-system-update
+SOURCES := obmondo-install-setup
 
 .PHONY: all dep build clean test format vet lint run
 

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option go_package = "gitlab.enableit.dk/obmondo/webtee/rpc";
+
+
+message LogLine {
+  uint64 timestamp = 1;
+  string line = 2;
+  string pipe = 3;
+}
+
+message ReceiveResponse {
+  string message = 1;
+  int32 elapsed_time = 2;
+}
+
+service Webtee {
+  rpc SendLog(stream LogLine) returns (ReceiveResponse) {}
+}

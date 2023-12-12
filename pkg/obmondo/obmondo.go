@@ -12,12 +12,11 @@ import (
 
 	constants "go-scripts/constants"
 	"go-scripts/util"
-
-	"github.com/bitfield/script"
 )
 
 const (
-	apiTimeOut = 15
+	apiTimeOut    = 15
+	obmondoAPIURL = constants.ObmondoAPIURL
 )
 
 type Client struct {
@@ -28,21 +27,7 @@ type ObmondoClient interface {
 	CloseServiceWindow() (*http.Response, error)
 }
 
-const (
-	obmondoAPIURL = constants.ObmondoAPIURL
-)
-
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
-	_, certOk := os.LookupEnv("PUPPETCERT")
-	if !certOk {
-		log.Fatal("PUPPETCERT env variable not set")
-	}
-
-	_, keyOk := os.LookupEnv("PUPPETPRIVKEY")
-	if !keyOk {
-		log.Fatal("PUPPETPRIVKEY env variable not set")
-	}
-
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
 	if err != nil {
 		log.Println("Failed to load host cert & key pair")
@@ -83,10 +68,6 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 }
 
 func (*Client) CloseServiceWindow() (*http.Response, error) {
-	hostCert := script.IfExists(os.Getenv("PUPPETCERT"))
-	if hostCert.ExitStatus() != 0 {
-		log.Println("puppet host cert is not present on the node")
-	}
 	certname := util.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
 	customerID := util.GetCustomerID(certname)
 	yearMonthDay := time.Now().Format("2006-01-02")
