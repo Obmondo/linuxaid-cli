@@ -28,7 +28,7 @@ func DebianPuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet7/p/puppet-agent/%s", codeName, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("dpkg-query -Wf '${Status}\t${Version}\n' puppet-agent | cut -f2 | grep -q %s", fullPuppetVersion)
+	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", fullPuppetVersion)
 
 	pipe := script.Exec(isPuppetInstalled)
 	pipe.Wait()
