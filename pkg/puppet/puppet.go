@@ -27,7 +27,9 @@ var closeWindowSuccessStatuses = map[int]bool{
 
 // enable puppet-agent
 func EnablePuppetAgent() bool {
-	exitStatus := script.Exec("puppet agent --enable").ExitStatus()
+	pipe := script.Exec("puppet agent --enable")
+	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		log.Println("Failed To Enable Puppet")
 		return false
@@ -40,7 +42,9 @@ func EnablePuppetAgent() bool {
 // disable puppet-agent with a msg
 func DisablePuppetAgent(msg string) bool {
 	cmdString := fmt.Sprintf("puppet agent --disable '%s'", msg)
-	exitStatus := script.Exec(cmdString).ExitStatus()
+	pipe := script.Exec(cmdString)
+	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		log.Println("Failed To Disable Puppet")
 		return false
