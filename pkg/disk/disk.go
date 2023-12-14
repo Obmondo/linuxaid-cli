@@ -8,8 +8,14 @@ import (
 )
 
 const (
-	diskSpace = 00
+	boot = 10000000  // 10Mb
+	root = 100000000 // 100Mb
 )
+
+var diskFreeSize = map[string]uint64{
+	"/boot": boot,
+	"/":     root,
+}
 
 func listPartitions() ([]gpud.PartitionStat, error) {
 	// Only returns physical devices only (e.g. hard disks, cd-rom drives, USB keys)
@@ -35,7 +41,7 @@ func CheckDiskSize() {
 		}
 
 		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
-			if disk.Free == diskSpace {
+			if disk.Free <= diskFreeSize[p.Mountpoint] {
 				errMsg := fmt.Sprintf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
 				log.Println(errMsg)
 			}
