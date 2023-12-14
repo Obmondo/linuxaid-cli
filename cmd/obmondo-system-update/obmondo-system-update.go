@@ -225,7 +225,6 @@ func main() {
 	util.CheckPuppetEnv()
 	util.CheckOSNameEnv()
 	util.SupportedOS()
-	disk.CheckDiskSize()
 
 	log.Println("Starting Obmondo System Update Script")
 
@@ -283,6 +282,8 @@ func main() {
 			log.Println("Failed to fetch Running Kernel")
 			cleanupAndExit()
 		}
+
+		disk.CheckDiskSize()
 
 		// Reboot the node, if we have installed a new kernel
 		if installedKernel != runningKernel {

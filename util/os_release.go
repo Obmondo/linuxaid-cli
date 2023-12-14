@@ -69,7 +69,7 @@ func SupportedOS() {
 			log.Println("Unknown Suse distribution")
 			os.Exit(1)
 		}
-	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
+	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux", "CentOS Linux":
 		switch majRelease {
 		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"]:
 			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl")
