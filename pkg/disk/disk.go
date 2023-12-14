@@ -1,20 +1,15 @@
 package disk
 
 import (
+	"fmt"
 	"log"
 
 	gpud "github.com/shirou/gopsutil/disk"
 )
 
 const (
-	boot = 200000000
-	root = 1500000000
+	diskSpace = 00
 )
-
-var diskFreeSize = map[string]uint64{
-	"/boot": boot,
-	"/":     root,
-}
 
 func listPartitions() ([]gpud.PartitionStat, error) {
 	// Only returns physical devices only (e.g. hard disks, cd-rom drives, USB keys)
@@ -38,18 +33,12 @@ func CheckDiskSize() {
 		if err != nil {
 			log.Println("failed")
 		}
-		switch p.Mountpoint {
-		case "/boot":
-			// 200 MB
-			if disk.Free <= diskFreeSize["/boot"] {
-				log.Fatal("exiting, /boot has not enough free space ", disk.Free, " bytes. Need atleast 200MB free space")
+
+		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
+			if disk.Free == diskSpace {
+				errMsg := fmt.Sprintf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
+				log.Println(errMsg)
 			}
-		case "/":
-			// 1.5GB
-			if disk.Free <= diskFreeSize["/"] {
-				log.Fatal("exiting, / has not enough free space ", disk.Free, " bytes. Need atleast 1.5GB free space")
-			}
-			// no defaults, maybe I should have
 		}
 	}
 }
