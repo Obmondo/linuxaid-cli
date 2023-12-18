@@ -44,13 +44,13 @@ func main() {
 	}
 
 	// Pre-requisites
-	distribution := os.Getenv("NAME")
+	distribution := os.Getenv("ID")
 	switch distribution {
-	case "Ubuntu", "Debian":
+	case "ubuntu", "debian":
 		os_util.DebianPuppetAgent()
-	case "SUSE", "openSUSE", "SLES", "openSUSE Leap":
+	case "sles":
 		os_util.SusePuppetAgent()
-	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
+	case "centos", "rhel":
 		os_util.RedHatPuppetAgent()
 	default:
 		log.Fatal("Unknown distribution, exiting")

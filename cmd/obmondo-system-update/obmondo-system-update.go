@@ -155,11 +155,11 @@ func updateRedHat() {
 
 func UpdateSystem(distribution string) {
 	switch distribution {
-	case "Ubuntu", "Debian":
+	case "ubuntu", "debian":
 		updateDebian()
-	case "SUSE", "openSUSE", "SLES", "openSUSE Leap":
+	case "sles":
 		updateSUSE()
-	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux":
+	case "centos", "rhel":
 		updateRedHat()
 	default:
 		log.Println("Unknown distribution")
@@ -237,7 +237,7 @@ func main() {
 	// assuming that clean up will not be done if the script fails
 	defer cleanup()
 
-	distribution := os.Getenv("NAME")
+	distribution := os.Getenv("ID")
 
 	obmondoAPICient := api.NewObmondoClient()
 	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
