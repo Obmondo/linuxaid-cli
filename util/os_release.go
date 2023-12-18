@@ -16,6 +16,7 @@ const (
 	suse12   = "12"
 	ubuntu22 = "22.04"
 	ubuntu20 = "20.04"
+	debian11 = "11"
 )
 
 var osReleaseMajorVersion = map[string]string{
@@ -25,6 +26,7 @@ var osReleaseMajorVersion = map[string]string{
 	"suse12":   suse12,
 	"ubuntu22": ubuntu22,
 	"ubuntu20": ubuntu20,
+	"debian11": debian11,
 }
 
 func GetMajorRelease() string {
@@ -36,14 +38,14 @@ func GetMajorRelease() string {
 // List of Supported OS
 func SupportedOS() {
 	osVersion := os.Getenv("VERSION_ID")
-	distribution := os.Getenv("NAME")
+	distribution := os.Getenv("ID")
 
 	majRelease := GetMajorRelease()
 
 	switch distribution {
-	case "Ubuntu", "Debian":
+	case "ubuntu", "debian":
 		switch osVersion {
-		case osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"]:
+		case osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"], osReleaseMajorVersion["debian11"]:
 			isInstalled := IsCaCertificateInstalled("dpkg-query -W ca-certificates openssl")
 
 			if !isInstalled {
@@ -56,7 +58,7 @@ func SupportedOS() {
 			log.Println("Unknown Ubuntu distribution")
 			os.Exit(1)
 		}
-	case "SUSE", "openSUSE", "SLES", "openSUSE Leap":
+	case "sles":
 		switch majRelease {
 		case osReleaseMajorVersion["suse12"], osReleaseMajorVersion["suse15"]:
 			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla")
@@ -69,7 +71,7 @@ func SupportedOS() {
 			log.Println("Unknown Suse distribution")
 			os.Exit(1)
 		}
-	case "CentOS", "Red Hat Enterprise Linux Server", "Red Hat Enterprise Linux", "CentOS Linux":
+	case "centos", "rhel":
 		switch majRelease {
 		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"]:
 			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl")
