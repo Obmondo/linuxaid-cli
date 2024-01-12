@@ -17,6 +17,6 @@ jobs:
           go-version: '1.21'
 
       - name: Go lint check with gitea-actions
-        uses: Obmondo/gitea-actions/.gitea/workflows/linting-workflow.yaml@main
+        uses: Obmondo/gitea-actions/.gitea/workflows/golang-lint.yaml@main
         with:
           working-directory: cmd/tls-common-name-verifier
