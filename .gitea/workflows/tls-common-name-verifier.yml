@@ -1,0 +1,22 @@
+name: 'tls-common-name-verifier'
+
+on:
+  push:
+    paths: 'cmd/tls-common-name-verifier/**'
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Go lint check with gitea-actions
+        uses: Obmondo/gitea-actions/.gitea/workflows/golang-lint.yaml@main
+        with:
+          working-directory: cmd/tls-common-name-verifier
