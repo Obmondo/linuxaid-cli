@@ -1,4 +1,4 @@
-// Package tlscommonnameverifier provides a function to check the reachability
+// Package checkendpointsreachable provides a function to check the reachability
 // and TLS certificate common name verification for a list of domains.
 package checkendpointsreachable
 
