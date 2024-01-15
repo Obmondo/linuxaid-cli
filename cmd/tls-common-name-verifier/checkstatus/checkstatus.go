@@ -29,11 +29,11 @@ func CheckStatus() {
 	}
 
 	for _, domain := range config.Domains {
-		err := connectAndVerify(&domain)
+		result, err := connectAndVerify(&domain)
 		if err != nil {
-			fmt.Printf("Error connecting and verifying for IP %s and common name %s: %v\n", domain.IP, domain.CommonName, err)
+			fmt.Printf("%s=false\n", domain.IP)
 		} else {
-			fmt.Printf("Connection successful for IP %s and common name %s. Common name matches.\n", domain.IP, domain.CommonName)
+			fmt.Printf("%s=%t\n", domain.IP, result)
 		}
 	}
 }
@@ -55,7 +55,7 @@ func loadConfig(filename string) (*Config, error) {
 }
 
 // connectAndVerify connects to the IP address and verifies the certificate
-func connectAndVerify(domain *DomainConfig) error {
+func connectAndVerify(domain *DomainConfig) (bool, error) {
 	dialer := &net.Dialer{
 		Timeout: 5 * time.Second,
 	}
@@ -79,9 +79,9 @@ func connectAndVerify(domain *DomainConfig) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to connect: %v", err)
+		return false, err
 	}
 	defer conn.Close()
 
-	return nil
+	return true, nil
 }
