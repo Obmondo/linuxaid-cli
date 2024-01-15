@@ -16,6 +16,10 @@ type DomainConfig struct {
 	CommonName string `yaml:"common_name"`
 }
 
+type Result struct {
+	ObmondoEndpointsReachable map[string]bool `yaml:"obmondo_endpoints_reachable"`
+}
+
 type Config struct {
 	Domains []DomainConfig `yaml:"domains"`
 }
@@ -28,14 +32,25 @@ func CheckStatus() {
 		return
 	}
 
+	results := make(map[string]bool)
 	for _, domain := range config.Domains {
 		result, err := connectAndVerify(&domain)
 		if err != nil {
-			fmt.Printf("%s=false\n", domain.IP)
+			results[domain.IP] = false
 		} else {
-			fmt.Printf("%s=%t\n", domain.IP, result)
+			results[domain.IP] = result
 		}
 	}
+
+	output := Result{ObmondoEndpointsReachable: results}
+
+	yamlOutput, err := yaml.Marshal(output)
+	if err != nil {
+		fmt.Println("Error marshalling YAML:", err)
+		return
+	}
+
+	fmt.Println(string(yamlOutput))
 }
 
 // loadConfig loads the config from the given filename
