@@ -1,4 +1,6 @@
-package checkstatus
+// Package tlscommonnameverifier provides a function to check the reachability
+// and TLS certificate common name verification for a list of domains.
+package checkendpointsreachable
 
 import (
 	"crypto/tls"
@@ -11,28 +13,21 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// DomainConfig represents the configuration for a domain.
 type DomainConfig struct {
 	IP         string `yaml:"ip"`
 	CommonName string `yaml:"common_name"`
-}
-
-type Result struct {
-	ObmondoEndpointsReachable map[string]bool `yaml:"obmondo_endpoints_reachable"`
 }
 
 type Config struct {
 	Domains []DomainConfig `yaml:"domains"`
 }
 
-// CheckStatus checks the status of the domains in the config file
-func CheckStatus() {
-	config, err := loadConfig("config.yaml")
-	if err != nil {
-		fmt.Println("Error loading config:", err)
-		return
-	}
-
+// ObmondoEndpointStatus checks the reachability and TLS certificate common name
+// verification for a list of domains.
+func ObmondoEndpointStatus(config Config) (map[string]bool, error) {
 	results := make(map[string]bool)
+
 	for _, domain := range config.Domains {
 		result, err := connectAndVerify(&domain)
 		if err != nil {
@@ -42,40 +37,15 @@ func CheckStatus() {
 		}
 	}
 
-	output := Result{ObmondoEndpointsReachable: results}
-
-	yamlOutput, err := yaml.Marshal(output)
-	if err != nil {
-		fmt.Println("Error marshalling YAML:", err)
-		return
-	}
-
-	fmt.Println(string(yamlOutput))
+	return results, nil
 }
 
-// loadConfig loads the config from the given filename
-func loadConfig(filename string) (*Config, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var config Config
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
-// connectAndVerify connects to the IP address and verifies the certificate
+// connectAndVerify connects to the domain and verifies the TLS certificate
 func connectAndVerify(domain *DomainConfig) (bool, error) {
 	dialer := &net.Dialer{
 		Timeout: 5 * time.Second,
 	}
 
-	// Connect to the IP address and verify the certificate
 	conn, err := tls.DialWithDialer(dialer, "tcp", domain.IP+":443", &tls.Config{
 		InsecureSkipVerify: true,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -99,4 +69,34 @@ func connectAndVerify(domain *DomainConfig) (bool, error) {
 	defer conn.Close()
 
 	return true, nil
+}
+
+// LoadConfig reads the configuration from a YAML file.
+func LoadConfig(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+// PrintYAML prints the YAML representation of the map containing the reachability
+// status of the domains.
+func PrintYAML(results map[string]bool) (string, error) {
+	output := make(map[string]interface{})
+	output["obmondo_endpoints_reachable"] = results
+
+	yamlOutput, err := yaml.Marshal(output)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling YAML: %v", err)
+	}
+
+	return string(yamlOutput), nil
 }

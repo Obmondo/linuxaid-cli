@@ -1,4 +1,4 @@
-module checkstatus
+module checkendpointsreachable
 
 go 1.21.6
 
