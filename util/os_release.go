@@ -12,6 +12,7 @@ import (
 const (
 	redhat7  = "7"
 	redhat8  = "8"
+	redhat9  = "9"
 	suse15   = "15"
 	suse12   = "12"
 	ubuntu22 = "22.04"
@@ -22,6 +23,7 @@ const (
 var osReleaseMajorVersion = map[string]string{
 	"redhat7":  redhat7,
 	"redhat8":  redhat8,
+	"redhat9":  redhat9,
 	"suse15":   suse15,
 	"suse12":   suse12,
 	"ubuntu22": ubuntu22,
@@ -73,7 +75,7 @@ func SupportedOS() {
 		}
 	case "centos", "rhel":
 		switch majRelease {
-		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"]:
+		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"], osReleaseMajorVersion["redhat9"]:
 			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl")
 
 			if !isInstalled {
