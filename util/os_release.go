@@ -17,6 +17,7 @@ const (
 	suse12   = "12"
 	ubuntu22 = "22.04"
 	ubuntu20 = "20.04"
+	ubuntu18 = "18.04"
 	debian11 = "11"
 )
 
@@ -28,6 +29,7 @@ var osReleaseMajorVersion = map[string]string{
 	"suse12":   suse12,
 	"ubuntu22": ubuntu22,
 	"ubuntu20": ubuntu20,
+	"ubuntu18": ubuntu18,
 	"debian11": debian11,
 }
 
@@ -47,7 +49,7 @@ func SupportedOS() {
 	switch distribution {
 	case "ubuntu", "debian":
 		switch osVersion {
-		case osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"], osReleaseMajorVersion["debian11"]:
+		case osReleaseMajorVersion["ubuntu18"], osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"], osReleaseMajorVersion["debian11"]:
 			isInstalled := IsCaCertificateInstalled("dpkg-query -W ca-certificates openssl")
 
 			if !isInstalled {
