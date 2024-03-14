@@ -6,23 +6,12 @@ on:
 
 jobs:
   golangci-lint:
-    runs-on: ubuntu-22.04-bantha
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21.6'
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.56.2
-          working-directory: cmd/tls-common-name-verifier
+    name: Golang Lint
+    uses: Obmondo/gitea-actions/.gitea/workflows/golang-lint.yaml@main
+    with:
+      working-directory: cmd/tls-common-name-verifier
 
   build:
-    runs-on: ubuntu-22.04-bantha
     name: Build Package
     uses: Obmondo/gitea-actions/.gitea/workflows/build-package.yml@main
     with:
