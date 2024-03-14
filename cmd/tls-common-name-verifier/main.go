@@ -1,14 +1,19 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 
 	"checkendpointsreachable"
 )
 
 func main() {
-	configFilename := "config.yaml"
+	var configFilename string
+
+	// Define a flag for config file
+	flag.StringVar(&configFilename, "config", "/opt/obmondo/etc/tls-common-name-verifier/config.yaml", "Path to the config.yaml file")
+	flag.Parse()
+
 	domains, err := checkendpointsreachable.LoadConfig(configFilename)
 	if err != nil {
 		log.Fatal("Error loading config:", err)
@@ -24,5 +29,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(yamlOutput)
+	log.Println(yamlOutput)
 }

@@ -5,18 +5,14 @@ on:
     paths: 'cmd/tls-common-name-verifier/**'
 
 jobs:
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+  golangci-lint:
+    name: Golang Lint
+    uses: Obmondo/gitea-actions/.gitea/workflows/golang-lint.yaml@main
+    with:
+      working-directory: cmd/tls-common-name-verifier
 
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Go lint check with gitea-actions
-        uses: Obmondo/gitea-actions/.gitea/workflows/golang-lint.yaml@main
-        with:
-          working-directory: cmd/tls-common-name-verifier
+  build:
+    name: Build Package
+    uses: Obmondo/gitea-actions/.gitea/workflows/build-package.yml@main
+    with:
+      project_path: cmd/tls-common-name-verifier

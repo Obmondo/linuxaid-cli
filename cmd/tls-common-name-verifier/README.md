@@ -38,7 +38,7 @@ This Go program connects to specified servers using their IP addresses and verif
 2. Run the program:
 
     ```bash
-    ./tls-common-name-verifier
+    ./tls-common-name-verifier -config=config.yaml
     ```
 
    The program will connect to each specified server and verify if the Common Name in the TLS certificate matches the expected value.
