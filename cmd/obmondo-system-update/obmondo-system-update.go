@@ -76,7 +76,8 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
 	}
 
 	if statusCode != http.StatusOK {
-		log.Printf("http status is not 200")
+		log.Printf("Response: %s\n", string(responseBody))
+		log.Printf("http status is not 200; status code: %d\n", statusCode)
 		cleanupAndExit()
 	}
 
