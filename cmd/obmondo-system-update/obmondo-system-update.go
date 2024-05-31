@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -215,6 +216,9 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 }
 
 func main() {
+	noReboot := flag.Bool("no-reboot", false, "Set this flag to prevent reboot")
+	flag.Parse()
+
 	util.LoadOSReleaseEnv()
 
 	envErr := os.Setenv("PATH", constants.PuppetPath)
@@ -274,6 +278,8 @@ func main() {
 	closeServiceWindow(obmondoAPICient)
 	log.Println("Service window is closed now for this respective node")
 
+	reboot := !*noReboot
+
 	// If kernel is installed, then only we will try to reboot.
 	// in lxc kernel wont be present
 	if installedKernel != "" {
@@ -292,7 +298,9 @@ func main() {
 			// otherwise reboot wont be triggered
 			cleanup()
 			log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
-			script.Exec("reboot --force")
+			if reboot {
+				script.Exec("reboot --force")
+			}
 		}
 	}
 }
