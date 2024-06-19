@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -210,7 +211,16 @@ func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
 	defer closeWindow.Body.Close()
 
 	if !closeWindowSuccessStatuses[closeWindow.StatusCode] {
-		log.Println("Closing service window failed, wrong response code from API", closeWindow.StatusCode)
+		bodyBytes, err := io.ReadAll(closeWindow.Body)
+		if err != nil {
+			log.Println("Failed to read response body:", err)
+			cleanupAndExit()
+		}
+		body := string(bodyBytes)
+
+		// Log the response status code and body
+		log.Printf("Closing service window failed, wrong response code from API: %d, Response body: %s", closeWindow.StatusCode, body)
+
 		cleanupAndExit()
 	}
 }
