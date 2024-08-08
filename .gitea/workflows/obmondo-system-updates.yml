@@ -23,7 +23,7 @@ on:
 jobs:
   format:
     if: github.event.pull_request.merged == false
-    runs-on: ubuntu-22.04-bantha
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -42,7 +42,7 @@ jobs:
 
   test:
     if: github.event.pull_request.merged == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -59,7 +59,7 @@ jobs:
 
   build:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
     container:
       image: harbor.obmondo.com/obmondo/dockerfiles/package-build:1.0.4
     steps:
