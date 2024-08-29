@@ -8,10 +8,11 @@ import (
 	puppet "go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
 
-	"github.com/schollz/progressbar/v3"
 	constants "go-scripts/constants"
 	util "go-scripts/util"
 	os_util "go-scripts/util/os"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 func main() {
@@ -25,7 +26,9 @@ func main() {
 	util.CheckOSVersionEnv()
 	util.SupportedOS()
 
-	disk.CheckDiskSize()
+	if err := disk.CheckDiskSize(); err != nil {
+		log.Println("unable to check disk size:", err)
+	}
 
 	certName := os.Getenv("CERTNAME")
 	envErr := os.Setenv("PATH", constants.PuppetPath)

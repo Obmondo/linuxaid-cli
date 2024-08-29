@@ -49,7 +49,6 @@ func CheckUbuntuCodeNameEnv() {
 
 func LoadOSReleaseEnv() {
 	err := godotenv.Load("/etc/os-release")
-
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 	}

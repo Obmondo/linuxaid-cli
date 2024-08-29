@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	constants "go-scripts/constants"
@@ -29,71 +30,97 @@ const (
 // 202 -> When a certname says it's done but the overall window is not auto-closed
 // 204 -> When a certname says it's done AND the overall window is auto-closed
 // 208 -> When any of the above requests happen again and again
-var closeWindowSuccessStatuses = map[int]bool{
-	http.StatusAccepted:        true,
-	http.StatusNoContent:       true,
-	http.StatusAlreadyReported: true,
+var closeWindowSuccessStatuses = map[int]struct{}{
+	http.StatusAccepted:        {},
+	http.StatusNoContent:       {},
+	http.StatusAlreadyReported: {},
 }
 
 func cleanup() {
-	isEnabled := puppet.EnablePuppetAgent()
-	if !isEnabled {
-		log.Println("Not able to remove agent disable file")
+	if !puppet.EnablePuppetAgent() {
+		log.Println("Unable to remove agent disable file and enable puppet agent")
 	}
+
 	log.Println("Ending Obmondo System Update Script")
 }
 
-func cleanupAndExit() {
-	cleanup()
-	os.Exit(0)
-}
+// ------------------------------------------------
+// ------------------------------------------------
 
-func GetIsServiceWindow(response []byte) string {
-	var serviceWindow map[string]interface{}
+func GetIsServiceWindow(response []byte) (string, error) {
+	serviceWindow := make(map[string]any)
 	err := json.Unmarshal(response, &serviceWindow)
 	if err != nil {
 		log.Println("Failed to parse service window json")
+		return "", err
 	}
+
 	isServiceWindow, ok := serviceWindow["data"].(string)
 	if !ok {
-		log.Println("Data field not found in reposne for service window")
-		return ""
+		log.Println(`"data" field not found in reposne for service window`)
+		return "", errors.New(`unable to find field "data" in service window response`)
 	}
-	return strings.TrimSpace(isServiceWindow)
+
+	return strings.TrimSpace(isServiceWindow), nil
 }
 
-func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) bool {
+func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, error) {
 	resp, err := obmondoAPICient.FetchServiceWindowStatus()
-	if err != nil || resp == nil {
-		log.Printf("unexpected error fetching service window url: %s", err)
-		cleanupAndExit()
+	if err != nil {
+		log.Printf("Unexpected error fetching service window url: %s\n", err)
+		return false, err
 	}
 
 	defer resp.Body.Close()
-
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
-		log.Printf("unexpected error reading response body: %s", err)
-		cleanupAndExit()
+		log.Printf("Unexpected error reading response body: %s\n", err)
+		return false, err
 	}
 
 	if statusCode != http.StatusOK {
 		log.Printf("Response: %s\n", string(responseBody))
-		log.Printf("http status is not 200; status code: %d\n", statusCode)
-		cleanupAndExit()
+		log.Printf("HTTP status is not 200; status code: %d\n", statusCode)
+		return false, fmt.Errorf("unexpected non-200 http status code received: %d", statusCode)
 	}
 
-	serviceWindow := GetIsServiceWindow(responseBody)
-	if serviceWindow == "" {
-		return false
+	serviceWindow, err := GetIsServiceWindow(responseBody)
+	if err != nil {
+		log.Printf("Unable to determine the service window: %s", err)
+		return false, err
 	}
+
 	if serviceWindow == "yes" {
-		return true
+		return true, nil
 	}
-	return false
+
+	return false, nil
 }
 
-func CloseWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
+func CloseServiceWindow(obmondoAPICient api.ObmondoClient) error {
+	closeWindow, err := closeWindow(obmondoAPICient)
+	if err != nil {
+		log.Printf("Closing service window failed: %s", err)
+		return err
+	}
+	defer closeWindow.Body.Close()
+
+	if _, exists := closeWindowSuccessStatuses[closeWindow.StatusCode]; !exists {
+		bodyBytes, err := io.ReadAll(closeWindow.Body)
+		if err != nil {
+			log.Printf("Failed to read response body: %s", err)
+			return err
+		}
+
+		// Log the response status code and body
+		log.Printf("Closing service window failed, wrong response code from API: %d, Response body: %s", closeWindow.StatusCode, bodyBytes)
+		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
+	}
+
+	return nil
+}
+
+func closeWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
 	closeWindow, err := obmondoAPICient.CloseServiceWindow()
 	if err != nil {
 		log.Println("Failed to close service window", err)
@@ -103,83 +130,106 @@ func CloseWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
 	return closeWindow, err
 }
 
-func updateDebian() {
+// ------------------------------------------------
+// ------------------------------------------------
+
+// UpdateSystem performs a system update based on the specified Linux distribution.
+//
+// This function accepts a `distribution` string representing the type of Linux distribution that needs
+// to be updated. Depending on the distribution provided, it will invoke the appropriate update function.
+func UpdateSystem(distribution string) error {
+	switch distribution {
+	case "ubuntu", "debian":
+		return updateDebian()
+	case "sles":
+		return updateSUSE()
+	case "centos", "rhel":
+		return updateRedHat()
+	default:
+		log.Println("Unknown distribution")
+		return nil
+	}
+}
+
+func updateDebian() error {
 	log.Println("Running apt update/upgrade/autoremove")
 	enverr := os.Setenv("DEBIAN_FRONTEND", "noninteractive")
 	if enverr != nil {
 		log.Fatal(enverr)
 	}
+
 	script.Exec("apt-get update").Wait()
 	pipe := script.Exec("apt-get upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("unable to write the output to Stdout: %s", err)
+		return err
 	}
+
 	pipe.Wait()
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		log.Println("exiting, apt update failed")
-		cleanupAndExit()
+		return fmt.Errorf(" apt-get update and upgrade failed: exit status %d", exitStatus)
 	}
+
 	script.Exec("apt-get autoremove -y").Wait()
+
+	return nil
 }
 
-func updateSUSE() {
+func updateSUSE() error {
 	log.Println("Running zypper refresh/update")
 	script.Exec("zypper refresh").Wait()
+
 	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("unable to write the output to Stdout: %s", err)
+		return err
 	}
+
 	pipe.Wait()
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		log.Println("exiting, suse update failed")
-		cleanupAndExit()
+		return fmt.Errorf("suse update failed: exit status %d", exitStatus)
 	}
+
+	return nil
 }
 
-func updateRedHat() {
+func updateRedHat() error {
 	log.Println("Running yum repolist/update")
 	script.Exec("yum repolist").Wait()
+
 	pipe := script.Exec("yum update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("unable to write the output to Stdout: %s", err)
+		return err
 	}
+
 	pipe.Wait()
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		log.Println("exiting, yum update failed")
-		cleanupAndExit()
+		return fmt.Errorf("yum update failed: exit status %d", exitStatus)
 	}
+
+	return nil
 }
 
-func UpdateSystem(distribution string) {
-	switch distribution {
-	case "ubuntu", "debian":
-		updateDebian()
-	case "sles":
-		updateSUSE()
-	case "centos", "rhel":
-		updateRedHat()
-	default:
-		log.Println("Unknown distribution")
-		cleanupAndExit()
-	}
-}
+// ------------------------------------------------
+// ------------------------------------------------
 
-func GetInstalledKernel() string {
-	// Get the newest kernel installed
-	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
-	return installedKernel
-}
-
-func handlePuppetRun() {
+// HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
+func HandlePuppetRun() error {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
 	var puppetExitCodes = map[string]int{
+		"zero": 0,
+		"one":  1,
 		"two":  2,
 		"four": 4,
 		"six":  6,
@@ -187,43 +237,71 @@ func handlePuppetRun() {
 	exitCode := puppet.RunPuppetAgent(false, "noop")
 
 	switch exitCode {
-	case 0, puppetExitCodes["two"]:
+	case puppetExitCodes["zero"], puppetExitCodes["two"]:
 		log.Println("Everything is fine with puppet agent run, let's continue.")
-		return
-	case 1:
+		return nil
+	case puppetExitCodes["one"]:
 		log.Println("Puppet run failed, or wasn't attempted due to another run already in progress.")
-		os.Exit(0)
+		return errors.New("unable to run puppet, or it's already running")
 	case puppetExitCodes["four"], puppetExitCodes["six"]:
 		log.Println("Puppet has pending changes, aborting.")
-		os.Exit(0)
+		return errors.New("aborting: puppet has pending changes")
 	default:
-		log.Println("Puppet failed with exit code", strconv.Itoa(exitCode), ", aborting.")
-		os.Exit(0)
+		log.Println("Puppet failed with exit code", exitCode, ", aborting.")
+		return fmt.Errorf("puppet failed with exit code: %d", exitCode)
 	}
 }
 
-func closeServiceWindow(obmondoAPICient api.ObmondoClient) {
-	closeWindow, err := CloseWindow(obmondoAPICient)
+// ------------------------------------------------
+// ------------------------------------------------
+
+// CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
+func CheckKernelAndRebootIfNeeded(noReboot bool) error {
+	// Get installed kernel of the system
+	// If kernel is installed, then only we will try to reboot.
+	// In lxc kernel wont be present
+	installedKernel := getInstalledKernel()
+	if installedKernel == "" {
+		log.Println("Looks like no kernel is installed on the node")
+		return nil
+	}
+
+	// Get running kernel of the system
+	runningKernel, err := script.Exec("uname -r").String()
 	if err != nil {
-		log.Println("Closing service window failed, due to some error", err)
-		cleanupAndExit()
+		log.Printf("Failed to fetch Running Kernel: %s", err)
+		return err
 	}
-	defer closeWindow.Body.Close()
 
-	if !closeWindowSuccessStatuses[closeWindow.StatusCode] {
-		bodyBytes, err := io.ReadAll(closeWindow.Body)
-		if err != nil {
-			log.Println("Failed to read response body:", err)
-			cleanupAndExit()
+	// Check the disk size
+	if err := disk.CheckDiskSize(); err != nil {
+		log.Printf("unable to check disk size: %s", err)
+		return err
+	}
+
+	// Reboot the node, if we have installed a new kernel
+	if installedKernel != runningKernel {
+		// Enable the puppet agent, so puppet runs after reboot and dont exit the script
+		// otherwise reboot wont be triggered
+		cleanup()
+		log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
+		if !noReboot {
+			script.Exec("reboot --force")
 		}
-		body := string(bodyBytes)
-
-		// Log the response status code and body
-		log.Printf("Closing service window failed, wrong response code from API: %d, Response body: %s", closeWindow.StatusCode, body)
-
-		cleanupAndExit()
 	}
+
+	return nil
 }
+
+// getInstalledKernel returns the installed Kernel
+func getInstalledKernel() string {
+	// Get the newest kernel installed
+	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
+	return installedKernel
+}
+
+// ------------------------------------------------
+// ------------------------------------------------
 
 func main() {
 	noReboot := flag.Bool("no-reboot", false, "Set this flag to prevent reboot")
@@ -246,21 +324,20 @@ func main() {
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
 		log.Println("Puppet has been disabled, exiting")
-		os.Exit(0)
+		return
 	}
 
-	// assuming that clean up will not be done if the script fails
-	defer cleanup()
-
-	distribution := os.Getenv("ID")
-
 	obmondoAPICient := api.NewObmondoClient()
-	isServiceWindow := GetServiceWindowStatus(obmondoAPICient)
+	isServiceWindow, err := GetServiceWindowStatus(obmondoAPICient)
+	if err != nil {
+		log.Printf("Unable to get service window status: %s", err)
+		return
+	}
 
+	// lets fail with exit 0, otherwise systemd service will be in failed status
 	if !isServiceWindow {
-		// lets fail with exit 0, otherwise systemd service will be in failed status
 		log.Println("Exiting, Service window is NOT active")
-		os.Exit(0)
+		return
 	}
 
 	log.Println("Service window is active, going ahead")
@@ -269,48 +346,43 @@ func main() {
 	puppet.WaitForPuppetAgent()
 
 	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-	handlePuppetRun()
+	if err := HandlePuppetRun(); err != nil {
+		log.Printf("unable to run puppet-agent: %s", err)
+		return
+	}
 
 	// Disable puppet-agent, since we'll be running upgrade commands
-	puppet.DisablePuppetAgent("Puppet has been disabled by the obmondo-system-update script.")
+	if !puppet.DisablePuppetAgent("Puppet has been disabled by the obmondo-system-update script.") {
+		log.Println("unable to disable the puppet agent")
+		return
+	}
+
+	// Ensure the cleanup is done regardless of the outcome of the update script execution
+	defer cleanup()
+
+	distribution, distIDExists := os.LookupEnv("ID")
+	if !distIDExists {
+		log.Println("ID env variable not set")
+		return
+	}
 
 	// Apt/Yum/Zypper update
-	UpdateSystem(distribution)
-
-	// Get installed kernel of the system
-	installedKernel := GetInstalledKernel()
-	if installedKernel == "" {
-		log.Println("Looks like no kernel is installed on the node")
+	if err := UpdateSystem(distribution); err != nil {
+		log.Printf("unable to update system: %s", err)
+		return
 	}
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	closeServiceWindow(obmondoAPICient)
+	if err := CloseServiceWindow(obmondoAPICient); err != nil {
+		log.Printf("unable to close the service window: %s", err)
+		return
+	}
+
 	log.Println("Service window is closed now for this respective node")
 
-	reboot := !*noReboot
-
-	// If kernel is installed, then only we will try to reboot.
-	// in lxc kernel wont be present
-	if installedKernel != "" {
-		// Get running kernel of the system
-		runningKernel, err := script.Exec("uname -r").String()
-		if err != nil {
-			log.Println("Failed to fetch Running Kernel")
-			cleanupAndExit()
-		}
-
-		disk.CheckDiskSize()
-
-		// Reboot the node, if we have installed a new kernel
-		if installedKernel != runningKernel {
-			// Enable the puppet agent, so puppet runs after reboot and dont exit the script
-			// otherwise reboot wont be triggered
-			cleanup()
-			log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
-			if reboot {
-				script.Exec("reboot --force")
-			}
-		}
+	if err := CheckKernelAndRebootIfNeeded(*noReboot); err != nil {
+		log.Printf("unable to check kernel and reboot: %s", err)
+		return
 	}
 }
