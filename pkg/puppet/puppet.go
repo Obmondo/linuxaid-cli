@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bitfield/script"
@@ -107,8 +108,9 @@ install_date: ` + time.Now().Format("20060102") + `
 
 // config setup for puppet-agent
 func ConfigurePuppetAgent() {
+	_, customerID, _ := strings.Cut(certName, ".")
 	config := `[main]
-server = puppet.enableit.dk
+server = ` + customerID + `.puppet.obmondo.com
 certname = ` + certName + `
 stringify_facts = false
 masterport = 443
