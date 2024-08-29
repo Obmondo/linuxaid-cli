@@ -21,8 +21,8 @@ const (
 var certName = os.Getenv("CERTNAME")
 
 // 200 HTTP code
-var closeWindowSuccessStatuses = map[int]bool{
-	http.StatusOK: true,
+var closeWindowSuccessStatuses = map[int]struct{}{
+	http.StatusOK: {},
 }
 
 // enable puppet-agent
@@ -60,18 +60,19 @@ func RunPuppetAgent(remoteLog bool, noopStatus string) int {
 	if remoteLog {
 		webtee.RemoteLogObmondo([]string{cmdString}, certName)
 		return 0
-	} else {
-		log.Printf("Running puppet agent in '%s' mode", noopStatus)
-		pipe := script.Exec(cmdString)
-		_, err := pipe.Stdout()
-		if err != nil {
-			log.Println(err)
-		}
-		pipe.Wait()
-		exitStatus := pipe.ExitStatus()
-		log.Println("Completed puppet agent run")
-		return exitStatus
 	}
+
+	log.Printf("Running puppet agent in '%s' mode", noopStatus)
+	pipe := script.Exec(cmdString)
+	_, err := pipe.Stdout()
+	if err != nil {
+		log.Println(err)
+	}
+
+	pipe.Wait()
+	exitStatus := pipe.ExitStatus()
+	log.Println("Completed puppet agent run")
+	return exitStatus
 }
 
 // check if puppet agent is running or not
@@ -135,19 +136,18 @@ func DisablePuppetAgentService() {
 // up here waiting for it to terminate, which will never happen. If that becomes
 // an issue we might want to actively kill Puppet, but let's wait and see.
 func WaitForPuppetAgent() {
-	timeout := 600
-	for {
-		isPuppetRunning := isPuppetAgentRunning()
-
-		if !isPuppetRunning {
+	timeoutDuration := 600
+	timeout := time.Now().Add(time.Duration(timeoutDuration) * time.Second)
+	for isPuppetAgentRunning() {
+		// time.Since calculates the time difference between time.Now() and the provided time in the argument.
+		// Since we're comparing with a future time, the difference will be negative.
+		// Hence, we'll timeout once the time difference becomes positive.
+		if time.Since(timeout) >= 0 {
+			log.Println("Puppet is running, aborting")
+			// puppet kill/abort logic goes here
 			break
 		}
 
-		if timeout <= 0 {
-			log.Println("Puppet is running, aborting")
-		}
-
-		timeout -= 5
 		time.Sleep(sleepTime * time.Second)
 	}
 }
@@ -185,7 +185,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	}
 	defer resp.Body.Close()
 
-	if !closeWindowSuccessStatuses[resp.StatusCode] {
+	if _, exists := closeWindowSuccessStatuses[resp.StatusCode]; !exists {
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
 	}
 

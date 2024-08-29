@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -28,23 +29,28 @@ func listPartitions() ([]gpud.PartitionStat, error) {
 	return allPartitions, nil
 }
 
-func CheckDiskSize() {
+func CheckDiskSize() error {
 	partitions, err := listPartitions()
 	if err != nil {
-		log.Fatal("Failed to fetch partitions: ", err)
+		log.Printf("Failed to fetch partitions: %s", err)
+		return err
 	}
 
 	for _, p := range partitions {
 		disk, err := gpud.Usage(p.Mountpoint)
 		if err != nil {
-			log.Println("failed")
+			log.Printf("failed to fetch file system usage: %s", err)
+			return err
 		}
 
 		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
 			if disk.Free <= diskFreeSize[p.Mountpoint] {
 				errMsg := fmt.Sprintf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
 				log.Println(errMsg)
+				return errors.New(errMsg)
 			}
 		}
 	}
+
+	return nil
 }
