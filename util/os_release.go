@@ -15,7 +15,7 @@ const (
 	redhat9  = "9"
 	suse15   = "15"
 	suse12   = "12"
-    ubuntu22 = "24.04"
+    ubuntu24 = "24.04"
     ubuntu22 = "22.04"
 	ubuntu20 = "20.04"
 	debian11 = "11"
