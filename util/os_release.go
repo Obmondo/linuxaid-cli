@@ -15,8 +15,8 @@ const (
 	redhat9  = "9"
 	suse15   = "15"
 	suse12   = "12"
-    ubuntu24 = "24.04"
-    ubuntu22 = "22.04"
+	ubuntu24 = "24.04"
+	ubuntu22 = "22.04"
 	ubuntu20 = "20.04"
 	debian11 = "11"
 )
@@ -27,7 +27,7 @@ var osReleaseMajorVersion = map[string]string{
 	"redhat9":  redhat9,
 	"suse15":   suse15,
 	"suse12":   suse12,
-    "ubuntu24": ubuntu24,
+	"ubuntu24": ubuntu24,
 	"ubuntu22": ubuntu22,
 	"ubuntu20": ubuntu20,
 	"debian11": debian11,
