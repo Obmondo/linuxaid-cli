@@ -1,4 +1,4 @@
-PATH := ../../bin:$(PATH)
+PATH := ../../../bin:$(PATH)
 export NAME=obmondo-system-update
 export VERSION=1.3.7
 export DIST=../../../dist
