@@ -17,23 +17,27 @@ func TestGetCustomerID(t *testing.T) {
 }
 
 func TestGetServiceWindowStatus(t *testing.T) {
-	expected := true
 	mockObmondoClient := mock.NewMockObmondoClient()
-	op, err := GetServiceWindowStatus(mockObmondoClient)
+	isServiceWindowOpen, windowType, err := GetServiceWindowStatus(mockObmondoClient)
 	if err != nil {
 		t.Errorf("o/p: %+v", err)
 	}
 
-	if op != expected {
-		t.Errorf("o/p: %t %t", expected, op)
+	if !isServiceWindowOpen {
+		t.Errorf("Expected service window to be open, but got: %t", isServiceWindowOpen)
 	}
+
+	if windowType != "automatic" {
+		t.Errorf("Expected window type to be 'automatic', but got: %s", windowType)
+	}
+
 }
 
 func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
 	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
 
-	op, err := closeWindow(mockObmondoClient)
+	op, err := closeWindow(mockObmondoClient, "automatic")
 	if err != nil {
 		t.Errorf("o/p: %+v", op)
 	}

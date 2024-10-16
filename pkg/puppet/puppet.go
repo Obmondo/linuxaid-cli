@@ -2,7 +2,7 @@ package puppet
 
 import (
 	"fmt"
-	constants "go-scripts/constants"
+	"go-scripts/constants"
 	"go-scripts/pkg/webtee"
 	"io"
 	"log"
@@ -122,7 +122,7 @@ noop = true
 `
 	_, err := script.Echo(config).WriteFile(constants.PuppetConfig)
 	if err != nil {
-		errMsg := fmt.Sprintf("echo Can not create puppet configuration file: %s " + err.Error())
+		errMsg := fmt.Sprintf("echo Can not create puppet configuration file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
 }

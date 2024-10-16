@@ -5,17 +5,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-
-	constants "go-scripts/constants"
+	"go-scripts/constants"
 	disk "go-scripts/pkg/disk"
 	api "go-scripts/pkg/obmondo"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/util"
+	"io"
+	"log"
+	"net/http"
+	"os"
 
 	"github.com/bitfield/script"
 )
@@ -36,6 +34,11 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 	http.StatusAlreadyReported: {},
 }
 
+type ServiceWindow struct {
+	IsWindowOpen bool   `json:"is_window_open"`
+	WindowType   string `json:"window_type"`
+}
+
 func cleanup() {
 	if !puppet.EnablePuppetAgent() {
 		log.Println("Unable to remove agent disable file and enable puppet agent")
@@ -47,58 +50,52 @@ func cleanup() {
 // ------------------------------------------------
 // ------------------------------------------------
 
-func GetIsServiceWindow(response []byte) (string, error) {
-	serviceWindow := make(map[string]any)
-	err := json.Unmarshal(response, &serviceWindow)
-	if err != nil {
-		log.Println("Failed to parse service window json")
-		return "", err
+func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
+	type ServiceWindowResponse struct {
+		Data ServiceWindow `json:"data"`
 	}
 
-	isServiceWindow, ok := serviceWindow["data"].(string)
-	if !ok {
-		log.Println(`"data" field not found in reposne for service window`)
-		return "", errors.New(`unable to find field "data" in service window response`)
+	var serviceWindowResponse ServiceWindowResponse
+
+	if err := json.Unmarshal(response, &serviceWindowResponse); err != nil {
+		log.Printf("Failed to parse service window JSON: %v", err)
+		return nil, err
 	}
 
-	return strings.TrimSpace(isServiceWindow), nil
+	return &serviceWindowResponse.Data, nil
 }
 
-func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, error) {
+func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, string, error) {
 	resp, err := obmondoAPICient.FetchServiceWindowStatus()
 	if err != nil {
 		log.Printf("Unexpected error fetching service window url: %s\n", err)
-		return false, err
+		return false, "", err
 	}
 
 	defer resp.Body.Close()
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
 		log.Printf("Unexpected error reading response body: %s\n", err)
-		return false, err
+		return false, "", err
 	}
 
 	if statusCode != http.StatusOK {
 		log.Printf("Response: %s\n", string(responseBody))
 		log.Printf("HTTP status is not 200; status code: %d\n", statusCode)
-		return false, fmt.Errorf("unexpected non-200 http status code received: %d", statusCode)
+		return false, "", fmt.Errorf("unexpected non-200 http status code received: %d", statusCode)
 	}
 
-	serviceWindow, err := GetIsServiceWindow(responseBody)
+	serviceWindow, err := GetServiceWindowDetails(responseBody)
 	if err != nil {
 		log.Printf("Unable to determine the service window: %s", err)
-		return false, err
+		return false, "", err
 	}
 
-	if serviceWindow == "yes" {
-		return true, nil
-	}
-
-	return false, nil
+	return serviceWindow.IsWindowOpen, serviceWindow.WindowType, nil
 }
 
-func CloseServiceWindow(obmondoAPICient api.ObmondoClient) error {
-	closeWindow, err := closeWindow(obmondoAPICient)
+func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) error {
+	closeWindow, err := closeWindow(obmondoAPICient, windowType)
 	if err != nil {
 		log.Printf("Closing service window failed: %s", err)
 		return err
@@ -120,8 +117,8 @@ func CloseServiceWindow(obmondoAPICient api.ObmondoClient) error {
 	return nil
 }
 
-func closeWindow(obmondoAPICient api.ObmondoClient) (*http.Response, error) {
-	closeWindow, err := obmondoAPICient.CloseServiceWindow()
+func closeWindow(obmondoAPICient api.ObmondoClient, windowType string) (*http.Response, error) {
+	closeWindow, err := obmondoAPICient.CloseServiceWindow(windowType)
 	if err != nil {
 		log.Println("Failed to close service window", err)
 		return nil, err
@@ -328,7 +325,7 @@ func main() {
 	}
 
 	obmondoAPICient := api.NewObmondoClient()
-	isServiceWindow, err := GetServiceWindowStatus(obmondoAPICient)
+	isServiceWindow, windowType, err := GetServiceWindowStatus(obmondoAPICient)
 	if err != nil {
 		log.Printf("Unable to get service window status: %s", err)
 		return
@@ -374,7 +371,7 @@ func main() {
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := CloseServiceWindow(obmondoAPICient); err != nil {
+	if err := CloseServiceWindow(obmondoAPICient, windowType); err != nil {
 		log.Printf("unable to close the service window: %s", err)
 		return
 	}
