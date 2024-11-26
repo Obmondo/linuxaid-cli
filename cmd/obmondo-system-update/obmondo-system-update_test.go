@@ -4,6 +4,7 @@ import (
 	mock "go-scripts/mock"
 	"go-scripts/util"
 	"net/http"
+	"path/filepath"
 	"testing"
 )
 
@@ -46,6 +47,24 @@ func TestCloseWindow(t *testing.T) {
 	if !closeWindowSuccessStatuses[op.StatusCode] {
 		t.Errorf("o/p: %+v, err: %s", op, err.Error())
 	}
+}
+
+func TestGetInstalledKernel(t *testing.T) {
+	testBootDirectory, err := filepath.Abs("../../test/boot/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedKernelOutput := "6.11.0-3-generic"
+
+	latestKernel, err := getInstalledKernel(testBootDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latestKernel != expectedKernelOutput {
+		t.Errorf("\n expected: %s\n actual: %s", expectedKernelOutput, latestKernel)
+		t.FailNow()
+	}
+
 }
 
 // Need tests for 204 and 208 and a failed scenario as well

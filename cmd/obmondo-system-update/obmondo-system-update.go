@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/bitfield/script"
 )
@@ -23,6 +24,7 @@ const (
 	agentDisabledFile = constants.AgentDisabledLockFile
 	path              = constants.PuppetPath
 	sleepTime         = 5
+	bootDirectory     = "/boot"
 )
 
 // 202 -> When a certname says it's done but the overall window is not auto-closed
@@ -257,7 +259,11 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
-	installedKernel := getInstalledKernel()
+	installedKernel, err := getInstalledKernel(bootDirectory)
+	if err != nil {
+		log.Printf("error occurred while trying to find kernel :%s", err)
+		return err
+	}
 	if installedKernel == "" {
 		log.Println("Looks like no kernel is installed on the node")
 		return nil
@@ -291,10 +297,11 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 }
 
 // getInstalledKernel returns the installed Kernel
-func getInstalledKernel() string {
-	// Get the newest kernel installed
-	installedKernel, _ := script.Exec("find /boot/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'").String()
-	return installedKernel
+func getInstalledKernel(bootDirectory string) (string, error) {
+	formatedBashCommand := fmt.Sprintf("find %s/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'", bootDirectory)
+	installedKernel, err := script.Exec(fmt.Sprintf("/bin/bash -c \"%s\"", formatedBashCommand)).String()
+	installedKernel = strings.TrimSpace(installedKernel)
+	return installedKernel, err
 }
 
 // ------------------------------------------------
