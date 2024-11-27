@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	constants "go-scripts/constants"
@@ -31,7 +32,9 @@ func DebianPuppetAgent() {
 	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", fullPuppetVersion)
 
 	pipe := script.Exec(isPuppetInstalled)
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to verify if puppet is installed", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 
 	if exitStatus != 0 {

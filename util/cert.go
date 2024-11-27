@@ -3,7 +3,7 @@ package util
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -17,19 +17,19 @@ const (
 func GetCommonNameFromCertFile(certPath string) string {
 	hostCert, err := os.ReadFile(certPath)
 	if err != nil {
-		log.Printf("Failed to fetch hostcert: %s", err)
+		slog.Error("failed to fetch hostcert", slog.String("error", err.Error()))
 		return ""
 	}
 
 	block, _ := pem.Decode(hostCert)
 	if block == nil {
-		log.Printf("Failed to decode hostcert: %s", err)
+		slog.Error("failed to decode hostcert")
 		return ""
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		log.Printf("Failed to parse hostcert: %s", err)
+		slog.Error("failed to parse hostcert", slog.String("error", err.Error()))
 		return ""
 	}
 
@@ -39,7 +39,7 @@ func GetCommonNameFromCertFile(certPath string) string {
 func GetCustomerID(certname string) string {
 	parts := strings.Split(certname, ".")
 	if len(parts) < two {
-		log.Println("In correct format for certname")
+		slog.Error("incorrect format for certname")
 		return ""
 	}
 	return parts[1]
@@ -48,7 +48,9 @@ func GetCustomerID(certname string) string {
 // Need this, otherwise remotelog func wont work
 func IsCaCertificateInstalled(cmd string) bool {
 	pipe := script.Exec(cmd)
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to determine if ca-certificates is installed", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	return exitStatus == 0
 }

@@ -1,11 +1,13 @@
 package puppet
 
 import (
+	"errors"
 	"fmt"
 	"go-scripts/constants"
 	"go-scripts/pkg/webtee"
 	"io"
-	"log"
+	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -29,14 +31,16 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 // enable puppet-agent
 func EnablePuppetAgent() bool {
 	pipe := script.Exec("puppet agent --enable")
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to enable puppet agent", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
-		log.Println("Failed To Enable Puppet")
+		slog.Error("failed To enable puppet")
 		return false
 	}
 
-	log.Println("Successfully Enabled Puppet")
+	slog.Info("successfully enabled puppet")
 	return true
 }
 
@@ -44,14 +48,16 @@ func EnablePuppetAgent() bool {
 func DisablePuppetAgent(msg string) bool {
 	cmdString := fmt.Sprintf("puppet agent --disable '%s'", msg)
 	pipe := script.Exec(cmdString)
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to disable puppet agent", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
-		log.Println("Failed To Disable Puppet")
+		slog.Error("failed To disable puppet")
 		return false
 	}
 
-	log.Println("Successfully Disabled Puppet")
+	slog.Info("successfully disabled puppet")
 	return true
 }
 
@@ -63,26 +69,31 @@ func RunPuppetAgent(remoteLog bool, noopStatus string) int {
 		return 0
 	}
 
-	log.Printf("Running puppet agent in '%s' mode", noopStatus)
+	slog.Info("running puppet agent in", slog.String("mode", noopStatus))
 	pipe := script.Exec(cmdString)
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Println(err)
+		slog.Error(err.Error())
 	}
 
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("completed puppet agent run", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
-	log.Println("Completed puppet agent run")
+	slog.Info("completed puppet agent run")
 	return exitStatus
 }
 
 // check if puppet agent is running or not
 func isPuppetAgentRunning() bool {
 	_, err := os.Stat(constants.AgentRunningLockFile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			slog.Error("unable to find puppet agent lock file", slog.String("error", err.Error()))
+			return false
+		}
 
-	if err == nil {
-		return true
-	} else if os.IsNotExist(err) {
+		slog.Error("unable to fetch puppet agent lock file details", slog.String("error", err.Error()))
 		return false
 	}
 
@@ -93,14 +104,12 @@ func isPuppetAgentRunning() bool {
 func FacterNewSetup() {
 	script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d")
 
-	// NOTE: not a fan, but quick and ugly one
-	facter := `---
-install_date: ` + time.Now().Format("20060102") + `
-`
+	currentTime := time.Now()
+	facter := fmt.Sprintf("---\ninstall_date: %d%d%d\n", currentTime.Year(), currentTime.Month(), currentTime.Day())
 
 	_, err := script.Echo(facter).WriteFile(constants.ExternalFacterFile)
 	if err != nil {
-		errMsg := fmt.Sprintf("echo Can not create external facter file: %s ", err.Error())
+		errMsg := fmt.Sprintf("echo can not create external facter file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
 
@@ -109,9 +118,9 @@ install_date: ` + time.Now().Format("20060102") + `
 // config setup for puppet-agent
 func ConfigurePuppetAgent() {
 	_, customerID, _ := strings.Cut(certName, ".")
-	config := `[main]
-server = ` + customerID + `.puppet.obmondo.com
-certname = ` + certName + `
+	configFmt := `[main]
+server = %s.puppet.obmondo.com
+certname = %s
 stringify_facts = false
 masterport = 443
 
@@ -120,9 +129,9 @@ report = true
 pluginsync = true
 noop = true
 `
-	_, err := script.Echo(config).WriteFile(constants.PuppetConfig)
+	_, err := script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
 	if err != nil {
-		errMsg := fmt.Sprintf("echo Can not create puppet configuration file: %s ", err.Error())
+		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
 }
@@ -145,7 +154,7 @@ func WaitForPuppetAgent() {
 		// Since we're comparing with a future time, the difference will be negative.
 		// Hence, we'll timeout once the time difference becomes positive.
 		if time.Since(timeout) >= 0 {
-			log.Println("Puppet is running, aborting")
+			slog.Warn("puppet is running, aborting")
 			// puppet kill/abort logic goes here
 			break
 		}
@@ -162,18 +171,18 @@ func PuppetAgentIsInstalled() {
 	// Just to have a nice progress bar
 	tenErr := bar.Set(constants.BarSizeTen)
 	if tenErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	time.Sleep(sleepTime * time.Millisecond)
 	hundredErr := bar.Set(constants.BarSizeHundred)
 	if hundredErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	finishErr := bar.Finish()
 	if finishErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)
@@ -183,7 +192,8 @@ func PuppetAgentIsInstalled() {
 func DownloadPuppetAgent(downloadPath string, url string) {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 	defer resp.Body.Close()
 
@@ -200,6 +210,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	)
 	_, rerr := io.Copy(io.MultiWriter(f, bar), resp.Body)
 	if rerr != nil {
-		log.Fatal("downloading puppet-agent failed, exiting")
+		slog.Error("downloading puppet-agent failed, exiting")
+		os.Exit(1)
 	}
 }

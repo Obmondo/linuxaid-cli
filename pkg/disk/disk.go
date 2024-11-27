@@ -3,7 +3,7 @@ package disk
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	gpud "github.com/shirou/gopsutil/disk"
 )
@@ -22,7 +22,7 @@ func listPartitions() ([]gpud.PartitionStat, error) {
 	// Only returns physical devices only (e.g. hard disks, cd-rom drives, USB keys)
 	allPartitions, err := gpud.Partitions(false)
 	if err != nil {
-		log.Println(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -32,21 +32,21 @@ func listPartitions() ([]gpud.PartitionStat, error) {
 func CheckDiskSize() error {
 	partitions, err := listPartitions()
 	if err != nil {
-		log.Printf("Failed to fetch partitions: %s", err)
+		slog.Error("failed to fetch partitions", slog.String("error", err.Error()))
 		return err
 	}
 
 	for _, p := range partitions {
 		disk, err := gpud.Usage(p.Mountpoint)
 		if err != nil {
-			log.Printf("failed to fetch file system usage: %s", err)
+			slog.Error("failed to fetch file system usage", slog.String("error", err.Error()))
 			return err
 		}
 
 		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
 			if disk.Free <= diskFreeSize[p.Mountpoint] {
 				errMsg := fmt.Sprintf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
-				log.Println(errMsg)
+				slog.Error(errMsg)
 				return errors.New(errMsg)
 			}
 		}

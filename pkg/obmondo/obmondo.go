@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -30,7 +30,7 @@ type ObmondoClient interface {
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
 	if err != nil {
-		log.Println("Failed to load host cert & key pair")
+		slog.Error("failed to load host cert & key pair")
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 
 	request, err := http.NewRequest(requestType, url, body)
 	if err != nil {
-		log.Println("Failed to create api request to obmondo")
+		slog.Error("failed to create API request to obmondo")
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func fetchURL(url string, data []byte, requestType string) (*http.Response, erro
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Println("Failed to make api request to obmondo")
+		slog.Error("failed to make API request to obmondo")
 		return nil, err
 	}
 	return response, nil

@@ -15,7 +15,7 @@ linters:
     - makezero
     - maintidx
     - importas
-    - gomnd
+    - mnd
     - gofmt
     - godox
     - goconst
@@ -23,7 +23,7 @@ linters:
     - gocyclo
     - forcetypeassert
     - forbidigo
-    - exportloopref
+    - copyloopvar
     - errorlint
     - dupword
     - revive
@@ -84,4 +84,4 @@ issues:
         - bodyclose
     - path: mock/.*
       linters:
-        - gomnd
+        - mnd

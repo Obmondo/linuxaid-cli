@@ -10,8 +10,9 @@ import (
 	api "go-scripts/pkg/obmondo"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/util"
+	"go-scripts/util/logger"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -43,10 +44,10 @@ type ServiceWindow struct {
 
 func cleanup() {
 	if !puppet.EnablePuppetAgent() {
-		log.Println("Unable to remove agent disable file and enable puppet agent")
+		slog.Error("unable to remove agent disable file and enable puppet agent")
 	}
 
-	log.Println("Ending Obmondo System Update Script")
+	slog.Info("ending obmondo-system-update script")
 }
 
 // ------------------------------------------------
@@ -60,7 +61,7 @@ func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
 	var serviceWindowResponse ServiceWindowResponse
 
 	if err := json.Unmarshal(response, &serviceWindowResponse); err != nil {
-		log.Printf("Failed to parse service window JSON: %v", err)
+		slog.Error("failed to parse service window JSON", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -70,26 +71,25 @@ func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
 func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, string, error) {
 	resp, err := obmondoAPICient.FetchServiceWindowStatus()
 	if err != nil {
-		log.Printf("Unexpected error fetching service window url: %s\n", err)
+		slog.Error("unexpected error fetching service window url", slog.String("error", err.Error()))
 		return false, "", err
 	}
 
 	defer resp.Body.Close()
 	statusCode, responseBody, err := util.ParseResponse(resp)
 	if err != nil {
-		log.Printf("Unexpected error reading response body: %s\n", err)
+		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
 		return false, "", err
 	}
 
 	if statusCode != http.StatusOK {
-		log.Printf("Response: %s\n", string(responseBody))
-		log.Printf("HTTP status is not 200; status code: %d\n", statusCode)
-		return false, "", fmt.Errorf("unexpected non-200 http status code received: %d", statusCode)
+		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
+		return false, "", fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
 	}
 
 	serviceWindow, err := GetServiceWindowDetails(responseBody)
 	if err != nil {
-		log.Printf("Unable to determine the service window: %s", err)
+		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
 		return false, "", err
 	}
 
@@ -99,7 +99,7 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, string, er
 func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) error {
 	closeWindow, err := closeWindow(obmondoAPICient, windowType)
 	if err != nil {
-		log.Printf("Closing service window failed: %s", err)
+		slog.Error("closing service window failed", slog.String("error", err.Error()))
 		return err
 	}
 	defer closeWindow.Body.Close()
@@ -107,12 +107,12 @@ func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) er
 	if _, exists := closeWindowSuccessStatuses[closeWindow.StatusCode]; !exists {
 		bodyBytes, err := io.ReadAll(closeWindow.Body)
 		if err != nil {
-			log.Printf("Failed to read response body: %s", err)
+			slog.Error("failed to read response body", slog.String("error", err.Error()))
 			return err
 		}
 
 		// Log the response status code and body
-		log.Printf("Closing service window failed, wrong response code from API: %d, Response body: %s", closeWindow.StatusCode, bodyBytes)
+		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
 		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
 	}
 
@@ -122,7 +122,7 @@ func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) er
 func closeWindow(obmondoAPICient api.ObmondoClient, windowType string) (*http.Response, error) {
 	closeWindow, err := obmondoAPICient.CloseServiceWindow(windowType)
 	if err != nil {
-		log.Println("Failed to close service window", err)
+		slog.Error("failed to close service window", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -145,53 +145,64 @@ func UpdateSystem(distribution string) error {
 	case "centos", "rhel":
 		return updateRedHat()
 	default:
-		log.Println("Unknown distribution")
+		slog.Error("unknown distribution")
 		return nil
 	}
 }
 
 func updateDebian() error {
-	log.Println("Running apt update/upgrade/autoremove")
+	slog.Info("running apt update/upgrade/autoremove")
 	enverr := os.Setenv("DEBIAN_FRONTEND", "noninteractive")
 	if enverr != nil {
-		log.Fatal(enverr)
+		slog.Error(enverr.Error())
+		os.Exit(1)
 	}
 
-	script.Exec("apt-get update").Wait()
+	if err := script.Exec("apt-get update").Wait(); err != nil {
+		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
+	}
 	pipe := script.Exec("apt-get upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Printf("unable to write the output to Stdout: %s", err)
+		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
 		return err
 	}
 
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
-		log.Println("exiting, apt update failed")
+		slog.Error("exiting, apt update failed")
 		return fmt.Errorf(" apt-get update and upgrade failed: exit status %d", exitStatus)
 	}
 
-	script.Exec("apt-get autoremove -y").Wait()
+	if err := script.Exec("apt-get autoremove -y").Wait(); err != nil {
+		slog.Error("failed to remove unused dependencies", slog.String("error", err.Error()))
+	}
 
 	return nil
 }
 
 func updateSUSE() error {
-	log.Println("Running zypper refresh/update")
-	script.Exec("zypper refresh").Wait()
+	slog.Info("running zypper refresh/update")
+	if err := script.Exec("zypper refresh").Wait(); err != nil {
+		slog.Error("failed to refresh all repositories", slog.String("error", err.Error()))
+	}
 
 	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Printf("unable to write the output to Stdout: %s", err)
+		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
 		return err
 	}
 
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
-		log.Println("exiting, suse update failed")
+		slog.Error("exiting, suse update failed")
 		return fmt.Errorf("suse update failed: exit status %d", exitStatus)
 	}
 
@@ -199,20 +210,24 @@ func updateSUSE() error {
 }
 
 func updateRedHat() error {
-	log.Println("Running yum repolist/update")
-	script.Exec("yum repolist").Wait()
+	slog.Info("running yum repolist/update")
+	if err := script.Exec("yum repolist").Wait(); err != nil {
+		slog.Error("failed to fetch all repositories", slog.String("error", err.Error()))
+	}
 
 	pipe := script.Exec("yum update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		log.Printf("unable to write the output to Stdout: %s", err)
+		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
 		return err
 	}
 
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to update all packages", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
-		log.Println("exiting, yum update failed")
+		slog.Error("exiting, yum update failed")
 		return fmt.Errorf("yum update failed: exit status %d", exitStatus)
 	}
 
@@ -237,16 +252,16 @@ func HandlePuppetRun() error {
 
 	switch exitCode {
 	case puppetExitCodes["zero"], puppetExitCodes["two"]:
-		log.Println("Everything is fine with puppet agent run, let's continue.")
+		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
 	case puppetExitCodes["one"]:
-		log.Println("Puppet run failed, or wasn't attempted due to another run already in progress.")
+		slog.Error("puppet run failed, or wasn't attempted due to another run already in progress.")
 		return errors.New("unable to run puppet, or it's already running")
 	case puppetExitCodes["four"], puppetExitCodes["six"]:
-		log.Println("Puppet has pending changes, aborting.")
+		slog.Warn("puppet has pending changes, aborting.")
 		return errors.New("aborting: puppet has pending changes")
 	default:
-		log.Println("Puppet failed with exit code", exitCode, ", aborting.")
+		slog.Error("puppet failed, aborting.", slog.Int("exit_code", exitCode))
 		return fmt.Errorf("puppet failed with exit code: %d", exitCode)
 	}
 }
@@ -261,25 +276,25 @@ func CheckKernelAndRebootIfNeeded(reboot bool) error {
 	// In lxc kernel wont be present
 	installedKernel, err := getInstalledKernel(bootDirectory)
 	if err != nil {
-		log.Printf("error occurred while trying to find kernel :%s", err)
+		slog.Error("error occurred while trying to find kernel", slog.String("error", err.Error()))
 		return err
 	}
 	if installedKernel == "" {
-		log.Println("Looks like no kernel is installed on the node")
+		slog.Warn("looks like no kernel is installed on the node")
 		return nil
 	}
 
 	// Get running kernel of the system
 	runningKernel, err := script.Exec("uname -r").String()
 	if err != nil {
-		log.Printf("Failed to fetch Running Kernel: %s", err)
+		slog.Error("Failed to fetch Running Kernel", slog.String("error", err.Error()))
 		return err
 	}
 	runningKernel = strings.TrimSpace(runningKernel)
 
 	// Check the disk size
 	if err := disk.CheckDiskSize(); err != nil {
-		log.Printf("unable to check disk size: %s", err)
+		slog.Error("unable to check disk size", slog.String("error", err.Error()))
 		return err
 	}
 
@@ -288,7 +303,7 @@ func CheckKernelAndRebootIfNeeded(reboot bool) error {
 		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
 		// otherwise reboot won't be triggered
 		cleanup()
-		log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
+		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
 		script.Exec("reboot --force")
 	}
 
@@ -307,6 +322,9 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 
 func main() {
+	debug := true
+	logger.InitLogger(debug)
+
 	reboot := flag.Bool("reboot", true, "Set this flag false to prevent reboot")
 
 	flag.Parse()
@@ -315,7 +333,8 @@ func main() {
 
 	envErr := os.Setenv("PATH", constants.PuppetPath)
 	if envErr != nil {
-		log.Fatal("failed to set the PATH env, exiting")
+		slog.Error("failed to set the PATH env, exiting")
+		os.Exit(1)
 	}
 
 	util.CheckUser()
@@ -323,41 +342,41 @@ func main() {
 	util.CheckOSNameEnv()
 	util.SupportedOS()
 
-	log.Println("Starting Obmondo System Update Script")
+	slog.Info("starting obmondo-system-update script")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
-		log.Println("Puppet has been disabled, exiting")
+		slog.Warn("puppet has been disabled, exiting")
 		return
 	}
 
 	obmondoAPICient := api.NewObmondoClient()
 	isServiceWindow, windowType, err := GetServiceWindowStatus(obmondoAPICient)
 	if err != nil {
-		log.Printf("Unable to get service window status: %s", err)
+		slog.Error("unable to get service window status", slog.String("error", err.Error()))
 		return
 	}
 
 	// lets fail with exit 0, otherwise systemd service will be in failed status
 	if !isServiceWindow {
-		log.Println("Exiting, Service window is NOT active")
+		slog.Warn("exiting, service window is inactive")
 		return
 	}
 
-	log.Println("Service window is active, going ahead")
+	slog.Info("service window is active, going ahead")
 
 	// Check if any existing puppet agent is already running
 	puppet.WaitForPuppetAgent()
 
 	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 	if err := HandlePuppetRun(); err != nil {
-		log.Printf("unable to run puppet-agent: %s", err)
+		slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
 		return
 	}
 
 	// Disable puppet-agent, since we'll be running upgrade commands
-	if !puppet.DisablePuppetAgent("Puppet has been disabled by the obmondo-system-update script.") {
-		log.Println("unable to disable the puppet agent")
+	if !puppet.DisablePuppetAgent("puppet has been disabled by the obmondo-system-update script.") {
+		slog.Error("unable to disable the puppet agent")
 		return
 	}
 
@@ -366,28 +385,27 @@ func main() {
 
 	distribution, distIDExists := os.LookupEnv("ID")
 	if !distIDExists {
-		log.Println("ID env variable not set")
+		slog.Error("env variable ID not set")
 		return
 	}
 
 	// Apt/Yum/Zypper update
 	if err := UpdateSystem(distribution); err != nil {
-		log.Printf("unable to update system: %s", err)
+		slog.Error("unable to update system", slog.String("error", err.Error()))
 		return
 	}
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
 	if err := CloseServiceWindow(obmondoAPICient, windowType); err != nil {
-		log.Printf("unable to close the service window: %s", err)
+		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}
 
-	log.Println("Service window is closed now for this respective node")
+	slog.Info("service window is closed now for this respective node")
 
 	if err := CheckKernelAndRebootIfNeeded(*reboot); err != nil {
-		log.Printf("unable to check kernel and reboot: %s", err)
+		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}
-
 }

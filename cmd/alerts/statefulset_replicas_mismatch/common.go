@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/manifoldco/promptui"
 )
 
@@ -89,25 +91,25 @@ func executeSteps(steps []scriptStep) error {
 }
 
 func commandPrint(message string) string {
-	fmt.Println("Run the following command:")
-	fmt.Println(fmt.Sprintf("\n%s%s%s\n", AnsiBold+AnsiFgGreen, message, AnsiReset))
+	slog.Info("run the following command")
+	slog.Info(fmt.Sprintf("\n%s%s%s\n", AnsiBold+AnsiFgGreen, message, AnsiReset))
 	return ""
 }
 
 func headingPrint(message string) string {
-	fmt.Println(fmt.Sprintf("\n%s%s%s\n", AnsiBold+AnsiFgBlue, message, AnsiReset))
+	slog.Info(fmt.Sprintf("\n%s%s%s\n", AnsiBold+AnsiFgBlue, message, AnsiReset))
 	return ""
 }
 
 func simplePrint(message string) string {
-	fmt.Println(message)
+	slog.Info(message)
 	return ""
 }
 
 func compareStrings(message string) string {
-
+	expectedMessageParts := 2
 	messageParts := strings.Split(message, ",")
-	if len(messageParts) != 2 {
+	if len(messageParts) != expectedMessageParts {
 		return strconv.FormatBool(false)
 	}
 
@@ -137,7 +139,7 @@ func promptForConfirmation(promptText string) string {
 	_, err := prompt.Run()
 	if err != nil {
 		if errors.Is(err, promptui.ErrInterrupt) {
-			fmt.Printf("Prompt interrupted %v\n", err)
+			slog.Error("prompt interrupted", slog.String("error", err.Error()))
 			os.Exit(0)
 		}
 
@@ -215,10 +217,10 @@ func validateNumInputPrompt(input string) error {
 func handlePromptInputErr(err error) {
 	if err != nil {
 		if errors.Is(err, promptui.ErrInterrupt) {
-			fmt.Printf("Prompt interrupted %v\n", err)
+			slog.Error("prompt interrupted", slog.String("error", err.Error()))
 			os.Exit(0)
 		}
-		fmt.Printf("Prompt failed %v\n", err)
+		slog.Error("prompt failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 }

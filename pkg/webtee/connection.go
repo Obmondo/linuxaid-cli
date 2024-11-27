@@ -3,7 +3,8 @@ package webtee
 import (
 	"context"
 	"crypto/tls"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	rpc "go-scripts/rpc"
@@ -27,12 +28,13 @@ func connectToServer(app *application) {
 	opts := []grpc.DialOption{
 		getTLSDialOption(app.config.NoTLS()),
 	}
-	app.conn, err = grpc.Dial(app.config.Server(), opts...)
+
+	app.conn, err = grpc.NewClient(app.config.Server(), opts...)
 
 	isConnected := false
 
 	if err != nil {
-		log.Printf("Failed to connect to webtee server: %v\n", err)
+		slog.Error("failed to connect to webtee server", slog.String("error", err.Error()))
 	} else {
 		isConnected = true
 	}
@@ -41,7 +43,8 @@ func connectToServer(app *application) {
 	// even if connection to server failed.
 
 	if !(isConnected) && !(app.config.ContinueOnDisconnect()) {
-		log.Fatalln("ContinueOnDisconnect is set to false so quitting without executing command")
+		slog.Error("ContinueOnDisconnect is set to false so quitting without executing command")
+		os.Exit(1)
 	}
 }
 
@@ -66,7 +69,7 @@ func webTee(app *application, lines <-chan logLine) {
 	// Start the logging stream.
 	stream, err := client.SendLog(ctx)
 	if err != nil {
-		log.Printf("Failed to initialize log stream: %v\n", err)
+		slog.Error("failed to initialize log stream", slog.String("error", err.Error()))
 		// Since we can't connect to server, accept and discard whatever we receive in the lines channel.
 		for {
 			_, more := <-lines
@@ -84,7 +87,7 @@ func webTee(app *application, lines <-chan logLine) {
 			_, err := stream.CloseAndRecv()
 			// fail here, when cert is not found in db
 			if err != nil {
-				log.Printf("Failed to close log stream: %v\n", err)
+				slog.Error("failed to close log stream", slog.String("error", err.Error()))
 			}
 
 			return
@@ -97,7 +100,7 @@ func webTee(app *application, lines <-chan logLine) {
 		}
 
 		if err := stream.Send(&logLine); err != nil {
-			log.Printf("Failed to send log line (%v): %v\n", logLine.String(), err)
+			slog.Error("failed to send", slog.String("log_line", logLine.String()), slog.String("error", err.Error()))
 		}
 	}
 

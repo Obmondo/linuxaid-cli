@@ -1,96 +1,99 @@
 package util
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/bitfield/script"
 )
 
-// List of Supported OSs
 const (
-	redhat7  = "7"
-	redhat8  = "8"
-	redhat9  = "9"
-	suse15   = "15"
-	suse12   = "12"
-	ubuntu24 = "24.04"
-	ubuntu22 = "22.04"
-	ubuntu20 = "20.04"
-	debian11 = "11"
+	constDistributionNameUbuntu = "ubuntu"
+	constDistributionNameDebian = "debian"
+	constDistributionNameSLES   = "sles"
+	constDistributionNameCentOS = "centos"
+	constDistributionNameRHEL   = "rhel"
+
+	constDistributionDebianUpdateRepoListCmd = "apt update"
+	constDistributionSLESUpdateRepoListCmd   = "zypper refresh"
+	constDistributionRHELUpdateRepoListCmd   = "yum repolist"
+
+	constDistributionDebianCheckCACertificatesCmd = "dpkg-query -W ca-certificates openssl"
+	constDistributionSLESCheckCACertificatesCmd   = "rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
+	constDistributionRHELCheckCACertificatesCmd   = "rpm -q ca-certificates openssl"
+
+	constDistributionDebianInstallCACertificatesCmd = "apt install -y ca-certificates"
+	constDistributionSLESInstallCACertificatesCmd   = "zypper install -y ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
+	constDistributionRHELInstallCACertificatesCmd   = "yum install -y ca-certificates openssl"
 )
 
-var osReleaseMajorVersion = map[string]string{
-	"redhat7":  redhat7,
-	"redhat8":  redhat8,
-	"redhat9":  redhat9,
-	"suse15":   suse15,
-	"suse12":   suse12,
-	"ubuntu24": ubuntu24,
-	"ubuntu22": ubuntu22,
-	"ubuntu20": ubuntu20,
-	"debian11": debian11,
+type certificateManagerCommands struct {
+	updateRepoListCmd        string
+	checkCACertificatesCmd   string
+	installCACertificatesCmd string
 }
 
 func GetMajorRelease() string {
 	osVersion, _, _ := strings.Cut(os.Getenv("VERSION_ID"), ".")
-
 	return osVersion
 }
 
 // List of Supported OS
 func SupportedOS() {
-	osVersion := os.Getenv("VERSION_ID")
-	distribution := os.Getenv("ID")
+	commands := getCommandsForInstallingCACertificates()
+	updateRepositoryList(commands.updateRepoListCmd)
+	checkAndInstallCaCertificates(commands.checkCACertificatesCmd, commands.installCACertificatesCmd)
+}
 
-	majRelease := GetMajorRelease()
-
-	switch distribution {
-	case "ubuntu", "debian":
-		switch osVersion {
-		case osReleaseMajorVersion["ubuntu24"], osReleaseMajorVersion["ubuntu20"], osReleaseMajorVersion["ubuntu22"], osReleaseMajorVersion["debian11"]:
-			isInstalled := IsCaCertificateInstalled("dpkg-query -W ca-certificates openssl")
-
-			if !isInstalled {
-				apipe := script.Exec("apt update")
-				apipe.Wait()
-				pipe := script.Exec("apt install -y ca-certificates")
-				pipe.Wait()
-			}
-		default:
-			log.Println("Unknown Ubuntu distribution")
-			os.Exit(1)
+// getCommandsForInstallingCACertificates returns the following for any distribution
+// 1. command to update repository list
+// 2. command to check if CA certificates are installed
+// 3. command to install CA certificates
+func getCommandsForInstallingCACertificates() certificateManagerCommands {
+	switch os.Getenv("ID") {
+	case constDistributionNameUbuntu, constDistributionNameDebian:
+		return certificateManagerCommands{
+			updateRepoListCmd:        constDistributionDebianUpdateRepoListCmd,
+			checkCACertificatesCmd:   constDistributionDebianCheckCACertificatesCmd,
+			installCACertificatesCmd: constDistributionDebianInstallCACertificatesCmd,
 		}
-	case "sles":
-		switch majRelease {
-		case osReleaseMajorVersion["suse12"], osReleaseMajorVersion["suse15"]:
-			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla")
-
-			if !isInstalled {
-				pipe := script.Exec("zypper install -y ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla")
-				pipe.Wait()
-			}
-		default:
-			log.Println("Unknown Suse distribution")
-			os.Exit(1)
+	case constDistributionNameSLES:
+		return certificateManagerCommands{
+			updateRepoListCmd:        constDistributionSLESUpdateRepoListCmd,
+			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
+			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
 		}
-	case "centos", "rhel":
-		switch majRelease {
-		case osReleaseMajorVersion["redhat7"], osReleaseMajorVersion["redhat8"], osReleaseMajorVersion["redhat9"]:
-			isInstalled := IsCaCertificateInstalled("rpm -q ca-certificates openssl")
-
-			if !isInstalled {
-				pipe := script.Exec("yum install -y ca-certificates openssl")
-				pipe.Wait()
-			}
-		default:
-			log.Println("Unknown RedHat distribution")
-			os.Exit(1)
+	case constDistributionNameCentOS, constDistributionNameRHEL:
+		return certificateManagerCommands{
+			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
+			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
+			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
 		}
-		//
 	default:
-		log.Println("Unknown distribution")
+		slog.Error("unknown distribution")
 		os.Exit(1)
+	}
+	return certificateManagerCommands{}
+}
+
+// updateRepositoryList updates repository list for any distribution
+func updateRepositoryList(updateCommand string) {
+	pipe := script.Exec(updateCommand)
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+}
+
+// checkAndInstallCaCertificates handles the installation of CA certificates for any distribution
+func checkAndInstallCaCertificates(checkCommand, installCommand string) {
+	isInstalled := IsCaCertificateInstalled(checkCommand)
+	if !isInstalled {
+		pipe := script.Exec(installCommand)
+		if err := pipe.Wait(); err != nil {
+			slog.Error("failed to install ca-certificates", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -43,12 +43,14 @@ func FetchURL(url string) (*http.Response, error) {
 	puppetPrivKey := script.IfExists(os.Getenv("PUPPETPRIVKEY"))
 
 	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
-		log.Fatal("puppet host cert or puppet private key is not present on the node")
+		slog.Error("puppet host cert or puppet private key is not present on the node")
+		os.Exit(1)
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	t := &http.Transport{
@@ -68,7 +70,8 @@ func FetchURL(url string) (*http.Response, error) {
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Fatalf("Unexpected error received: %s", err)
+		slog.Error("unexpected error received", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	return response, nil
 }

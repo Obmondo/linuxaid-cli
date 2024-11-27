@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 
 	disk "go-scripts/pkg/disk"
@@ -10,12 +11,16 @@ import (
 
 	constants "go-scripts/constants"
 	util "go-scripts/util"
+	"go-scripts/util/logger"
 	os_util "go-scripts/util/os"
 
 	"github.com/schollz/progressbar/v3"
 )
 
 func main() {
+	debug := true
+	logger.InitLogger(debug)
+
 	util.LoadOSReleaseEnv()
 
 	util.CheckUser()
@@ -27,21 +32,21 @@ func main() {
 	util.SupportedOS()
 
 	if err := disk.CheckDiskSize(); err != nil {
-		log.Println("unable to check disk size:", err)
+		slog.Error("unable to check disk size", slog.String("error", err.Error()))
 	}
 
 	certName := os.Getenv("CERTNAME")
 	envErr := os.Setenv("PATH", constants.PuppetPath)
 	if envErr != nil {
-		log.Fatal("failed to set the PATH env, exiting")
+		slog.Error("failed to set the PATH env, exiting")
+		os.Exit(1)
 	}
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certName)
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constants.AgentDisabledLockFile); err == nil {
-		log.Println("Puppet has been disabled from the existing setup, can't proceed")
-		log.Println("puppet agent --enable will enable the puppet agent")
+		slog.Warn("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent")
 		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
 		os.Exit(0)
 	}
@@ -56,7 +61,8 @@ func main() {
 	case "centos", "rhel":
 		os_util.RedHatPuppetAgent()
 	default:
-		log.Fatal("Unknown distribution, exiting")
+		slog.Error("unknown distribution, exiting")
+		os.Exit(1)
 	}
 
 	// Puppet agent setup
@@ -66,38 +72,38 @@ func main() {
 	puppet.DisablePuppetAgentService()
 	fiveErr := bar.Set(constants.BarSizeFive)
 	if fiveErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	puppet.ConfigurePuppetAgent()
 	tenErr := bar.Set(constants.BarSizeTen)
 	if tenErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	puppet.FacterNewSetup()
 	fifteenErr := bar.Set(constants.BarSizeFifteen)
 	if fifteenErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	puppet.WaitForPuppetAgent()
 	twentyErr := bar.Set(constants.BarSizeTwenty)
 	if twentyErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	puppet.RunPuppetAgent(true, "noop")
 	hundredErr := bar.Set(constants.BarSizeHundred)
 	if hundredErr != nil {
-		log.Println("failed to set the progressbar size")
+		slog.Error("failed to set the progressbar size")
 	}
 
 	finishErr := bar.Finish()
 	if finishErr != nil {
-		log.Println("failed to finish the progressbar size")
+		slog.Error("failed to finish the progressbar size")
 	}
 
-	log.Println("\nInstallation succeeded. Please head to https://obmondo.com/server/" + certName + " to continue configuration.")
+	slog.Info("\ninstallation succeeded. To continue configuration please, please head to", slog.String("web", fmt.Sprintf("https://obmondo.com/server/%s", certName)))
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
 }
