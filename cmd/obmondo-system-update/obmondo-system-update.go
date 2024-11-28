@@ -255,7 +255,7 @@ func HandlePuppetRun() error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded() error {
+func CheckKernelAndRebootIfNeeded(reboot bool) error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -284,7 +284,7 @@ func CheckKernelAndRebootIfNeeded() error {
 	}
 
 	// Reboot the node, if we have installed a new kernel
-	if installedKernel != runningKernel {
+	if installedKernel != runningKernel && reboot {
 		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
 		// otherwise reboot won't be triggered
 		cleanup()
@@ -307,6 +307,8 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 
 func main() {
+	reboot := flag.Bool("reboot", true, "Set this flag false to prevent reboot")
+
 	flag.Parse()
 
 	util.LoadOSReleaseEnv()
@@ -383,7 +385,7 @@ func main() {
 
 	log.Println("Service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(*reboot); err != nil {
 		log.Printf("unable to check kernel and reboot: %s", err)
 		return
 	}
