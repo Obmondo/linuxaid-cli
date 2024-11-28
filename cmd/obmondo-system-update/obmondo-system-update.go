@@ -255,7 +255,7 @@ func HandlePuppetRun() error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded(noReboot bool) error {
+func CheckKernelAndRebootIfNeeded() error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -275,6 +275,7 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 		log.Printf("Failed to fetch Running Kernel: %s", err)
 		return err
 	}
+	runningKernel = strings.TrimSpace(runningKernel)
 
 	// Check the disk size
 	if err := disk.CheckDiskSize(); err != nil {
@@ -284,13 +285,11 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 
 	// Reboot the node, if we have installed a new kernel
 	if installedKernel != runningKernel {
-		// Enable the puppet agent, so puppet runs after reboot and dont exit the script
-		// otherwise reboot wont be triggered
+		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
+		// otherwise reboot won't be triggered
 		cleanup()
 		log.Println("Looks like newer kernel is installed, so going ahead with reboot now")
-		if !noReboot {
-			script.Exec("reboot --force")
-		}
+		script.Exec("reboot --force")
 	}
 
 	return nil
@@ -308,7 +307,6 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 
 func main() {
-	noReboot := flag.Bool("no-reboot", false, "Set this flag to prevent reboot")
 	flag.Parse()
 
 	util.LoadOSReleaseEnv()
@@ -385,8 +383,9 @@ func main() {
 
 	log.Println("Service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(*noReboot); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(); err != nil {
 		log.Printf("unable to check kernel and reboot: %s", err)
 		return
 	}
+
 }
