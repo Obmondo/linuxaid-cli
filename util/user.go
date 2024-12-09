@@ -1,7 +1,8 @@
 package util
 
 import (
-	"log"
+	"log/slog"
+	"os"
 	"os/user"
 )
 
@@ -10,10 +11,12 @@ import (
 func CheckUser() {
 	user, err := user.Current()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 	if user.Username == "root" {
 		return
 	}
-	log.Fatal("exiting, script needs to be run as root, current user is ", user.Username)
+	slog.Error("exiting, script needs to be run as root", slog.String("current_user", user.Username))
+	os.Exit(1)
 }

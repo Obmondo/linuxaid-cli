@@ -1,10 +1,9 @@
-//go:build kube_statefulset_replicas_mismatch
-
 package main
 
 import (
 	"errors"
 	"fmt"
+	"go-scripts/util/logger"
 	"strconv"
 )
 
@@ -31,7 +30,7 @@ var kubeStatefulSetReplicasMismatchAlertStepsInitialSteps = []scriptStep{
 
 	{func() string {
 		return fmt.Sprintf("Are ALL pods in the format %s-<n> ready and in the running state?", scriptInputsMap["statefulSet"])
-	}, promptForConfirmation, "", "If all pods controled by the StatefulSet in question are running and healthy, but some other pods aren't, then this script may not be able to help you.", true, "", false, false},
+	}, promptForConfirmation, "", "If all pods controlled by the StatefulSet in question are running and healthy, but some other pods aren't, then this script may not be able to help you.", true, "", false, false},
 
 	{func() string {
 		return "For this script to help, the stateful set in question must NOT have pods with PVs attached to them"
@@ -88,7 +87,7 @@ var kubeStatefulSetReplicasMismatchAlertLoopSteps = []scriptStep{
 	}, commandPrint, "", "", false, "foundPVC", false, false},
 
 	{func() string {
-		return fmt.Sprintf("Now, find the the name of the volume under 'Volumes' with 'claimName' %s.", scriptInputsMap["currentPVC"])
+		return fmt.Sprintf("Now, find the name of the volume under 'Volumes' with 'claimName' %s.", scriptInputsMap["currentPVC"])
 	}, simplePrint, "", "", false, "foundPVC", false, false},
 
 	{func() string {
@@ -121,7 +120,7 @@ var kubeStatefulSetReplicasMismatchAlertLoopSteps = []scriptStep{
 
 	{func() string { return "Create a test file" }, simplePrint, "", "", false, "foundPVC", false, false},
 
-	{func() string { return fmt.Sprintf(`touch testfile123`) }, commandPrint, "", "", false, "foundPVC", false, false},
+	{func() string { return "touch testfile123" }, commandPrint, "", "", false, "foundPVC", false, false},
 
 	{func() string { return "Were you able to create a test file?" }, promptForConfirmation, "", "Exit the pod you 'execed' into", false, "foundPVC", false, true},
 
@@ -234,7 +233,7 @@ var kubeStatefulSetReplicasMismatchAlertStepsFinalSteps = []scriptStep{
 
 	{func() string { return fmt.Sprintf(`cd %s`, scriptInputsMap["mountPathForPVThatCannotBeWrittenTo"]) }, commandPrint, "", "", false, "", false, false},
 
-	{func() string { return fmt.Sprintf(`pwd`) }, commandPrint, "", "", false, "", false, false},
+	{func() string { return "pwd" }, commandPrint, "", "", false, "", false, false},
 
 	{func() string {
 		return fmt.Sprintf("Is the present working directory %s?", scriptInputsMap["mountPathForPVThatCannotBeWrittenTo"])
@@ -242,7 +241,7 @@ var kubeStatefulSetReplicasMismatchAlertStepsFinalSteps = []scriptStep{
 
 	{func() string { return "Create a test file" }, simplePrint, "", "", false, "", false, false},
 
-	{func() string { return fmt.Sprintf(`touch testfile123`) }, commandPrint, "", "", false, "", false, false},
+	{func() string { return "touch testfile123" }, commandPrint, "", "", false, "", false, false},
 
 	{func() string { return `Were you able to create test file?` }, promptForConfirmation, "", "This script can't help you with the issue as you should have been able to create a test file based on the actions taken so far. Do not forget to the exit the pod you just 'execed' into.", false, "", false, false},
 
@@ -276,7 +275,8 @@ var kubeStatefulSetReplicasMismatchAlertStepsFinalSteps = []scriptStep{
 }
 
 func main() {
-
+	debug := true
+	logger.InitLogger(debug)
 	if err := executeSteps(kubeStatefulSetReplicasMismatchAlertStepsInitialSteps); err != nil {
 		return
 	}

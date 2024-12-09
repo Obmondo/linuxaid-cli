@@ -1,14 +1,15 @@
 package util
 
 import (
-	"log"
+	"log/slog"
 	"os"
 )
 
 func TempDir() string {
 	dir, err := os.MkdirTemp("", "")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	return dir

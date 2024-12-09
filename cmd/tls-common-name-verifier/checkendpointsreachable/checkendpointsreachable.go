@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // DomainConfig represents the configuration for a domain.
@@ -42,16 +42,17 @@ func ObmondoEndpointStatus(config Config) (map[string]bool, error) {
 
 // connectAndVerify connects to the domain and verifies the TLS certificate
 func connectAndVerify(domain *DomainConfig) (bool, error) {
+	timeoutDuration := 5
 	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
+		Timeout: time.Duration(timeoutDuration) * time.Second,
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", domain.IP+":443", &tls.Config{
 		InsecureSkipVerify: true,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			cert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
-				return fmt.Errorf("failed to parse certificate: %v", err)
+				return fmt.Errorf("failed to parse certificate: %w", err)
 			}
 
 			// Verify the Common Name (CN) of the certificate
@@ -95,7 +96,7 @@ func PrintYAML(results map[string]bool) (string, error) {
 
 	yamlOutput, err := yaml.Marshal(output)
 	if err != nil {
-		return "", fmt.Errorf("error marshalling YAML: %v", err)
+		return "", fmt.Errorf("error marshalling YAML: %w", err)
 	}
 
 	return string(yamlOutput), nil

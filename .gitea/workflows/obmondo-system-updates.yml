@@ -26,31 +26,32 @@ jobs:
     runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v3
 
-      # Docker image has go installed, but it still fails with this error
-      # https://gitea.obmondo.com/EnableIT/go-scripts/actions/runs/124/jobs/0
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Lint with golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: https://gitea.obmondo.com/Obmondo/golangci-lint-action@v6.1.1
         with:
-          version: v1.54
+          version: v1.62.2
+          args: --timeout=5m --config=.golangci.yml
 
   test:
     if: github.event.pull_request.merged == false
     runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v3
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Run Tests For System Update Script
         working-directory: cmd/obmondo-system-update
@@ -64,12 +65,13 @@ jobs:
       image: harbor.obmondo.com/obmondo/dockerfiles/package-build:1.0.4
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v3
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Build Package System Update Script
         working-directory: cmd/obmondo-system-update

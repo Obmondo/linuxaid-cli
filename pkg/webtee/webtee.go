@@ -3,7 +3,8 @@ package webtee
 import (
 	"bufio"
 	"io"
-	"log"
+	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -32,17 +33,20 @@ func RemoteLogObmondo(command []string, certname string) {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatalln("Failed to connect to stdout pipe", err)
+		slog.Error("failed to connect to stdout pipe", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatalln("Failed to connect to stderr pipe", err)
+		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	// Start command execution.
 	err = cmd.Start()
 	if err != nil {
-		log.Fatalln("Failed to start command", err)
+		slog.Error("failed to start command", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	// For each line in stdout & stderr, wrap it in an "echo" command and send it to webtee server.
@@ -57,9 +61,8 @@ func RemoteLogObmondo(command []string, certname string) {
 
 	err = cmd.Wait()
 	if err != nil {
-		log.Println("Installation Setup Failed, please contact ops@obmondo.com")
-		log.Println("Don't worry, Obmondo has the failed logs to analyze it")
-		log.Fatal("Command exited with ", err)
+		slog.Error("installation setup failed, please contact ops@obmondo.com\nDon't worry, obmondo has the failed logs to analyze it", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	// Close the lines channel.

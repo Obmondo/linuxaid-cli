@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	constants "go-scripts/constants"
@@ -28,7 +29,9 @@ func SusePuppetAgent() {
 	isPuppetInstalled := fmt.Sprintf("rpm -q %s", packageName)
 
 	pipe := script.Exec(isPuppetInstalled)
-	pipe.Wait()
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to verify is puppet is installed", slog.String("error", err.Error()))
+	}
 	exitStatus := pipe.ExitStatus()
 
 	if exitStatus != 0 {

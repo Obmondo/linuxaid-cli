@@ -1,7 +1,7 @@
 # Makefile for TLS Common Name Verifier
 
 PACKAGE_NAME = tls-common-name-verifier
-PACKAGE_VERSION = 1.0.0
+PACKAGE_VERSION = 1.0.1
 SOURCE_DIR = ./
 PACKAGE_DIR = ./dist
 BINARY_DIR = ./bin
