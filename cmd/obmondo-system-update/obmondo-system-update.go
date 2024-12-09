@@ -161,7 +161,7 @@ func updateDebian() error {
 	if err := script.Exec("apt-get update").Wait(); err != nil {
 		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
 	}
-	pipe := script.Exec("apt-get upgrade -y")
+	pipe := script.Exec("apt-get --with-new-pkgs upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
 		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
