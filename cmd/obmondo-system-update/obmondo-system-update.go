@@ -400,7 +400,6 @@ func main() {
 	securityExporterService := security.NewSecurityExporter(securityExporterURL)
 	if _, err := securityExporterService.GetNumberOfPackageUpdates(); err != nil {
 		slog.Error("failed to response from security exporter for number of package updates endpoint", slog.Any("error", err))
-		return
 	}
 
 	// Close the service window
