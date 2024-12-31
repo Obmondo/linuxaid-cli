@@ -9,6 +9,7 @@ import (
 	disk "go-scripts/pkg/disk"
 	api "go-scripts/pkg/obmondo"
 	puppet "go-scripts/pkg/puppet"
+	"go-scripts/pkg/security"
 	"go-scripts/util"
 	"go-scripts/util/logger"
 	"io"
@@ -21,11 +22,12 @@ import (
 )
 
 const (
-	obmondoAPIURL     = constants.ObmondoAPIURL
-	agentDisabledFile = constants.AgentDisabledLockFile
-	path              = constants.PuppetPath
-	sleepTime         = 5
-	bootDirectory     = "/boot"
+	obmondoAPIURL       = constants.ObmondoAPIURL
+	agentDisabledFile   = constants.AgentDisabledLockFile
+	path                = constants.PuppetPath
+	sleepTime           = 5
+	bootDirectory       = "/boot"
+	securityExporterURL = "127.254.254.254:63396"
 )
 
 // 202 -> When a certname says it's done but the overall window is not auto-closed
@@ -392,6 +394,12 @@ func main() {
 	// Apt/Yum/Zypper update
 	if err := UpdateSystem(distribution); err != nil {
 		slog.Error("unable to update system", slog.String("error", err.Error()))
+		return
+	}
+
+	securityExporterService := security.NewSecurityExporter(securityExporterURL)
+	if _, err := securityExporterService.GetNumberOfPackageUpdates(); err != nil {
+		slog.Error("failed to response from security exporter for number of package updates endpoint", slog.Any("error", err))
 		return
 	}
 
