@@ -27,7 +27,7 @@ const (
 	path                = constants.PuppetPath
 	sleepTime           = 5
 	bootDirectory       = "/boot"
-	securityExporterURL = "127.254.254.254:63396"
+	securityExporterURL = "http://127.254.254.254:63396"
 )
 
 // 202 -> When a certname says it's done but the overall window is not auto-closed
@@ -399,7 +399,7 @@ func main() {
 
 	securityExporterService := security.NewSecurityExporter(securityExporterURL)
 	if _, err := securityExporterService.GetNumberOfPackageUpdates(); err != nil {
-		slog.Error("failed to response from security exporter for number of package updates endpoint", slog.Any("error", err))
+		slog.Error("failed to get response from security exporter for number of package updates endpoint", slog.Any("error", err))
 	}
 
 	// Close the service window
