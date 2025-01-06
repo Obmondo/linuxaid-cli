@@ -13,17 +13,24 @@ type securityExporter struct {
 }
 
 const (
-	totalNumberOfPackageUpdatesPath = "/total_number_of_package_updates"
+	totalNumberOfPackageUpdatesPath = "/total_number_of_packages_with_update"
 )
 
 func (s *securityExporter) GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWithUpdateResponse, error) {
 	getNumberOfPackageUpdates := &TotalNumberOfPackagesWithUpdateResponse{}
 
-	resp, err := s.httpClient.Get(fmt.Sprintf("%s/%s", s.hostURL, totalNumberOfPackageUpdatesPath))
+	resp, err := s.httpClient.Get(fmt.Sprintf("%s%s", s.hostURL, totalNumberOfPackageUpdatesPath))
 	if err != nil {
 		slog.Debug("failed to get response from exporter's endpoint", slog.Any("error", err))
 		return nil, err
 	}
+	defer func() {
+		if resp != nil {
+			if err := resp.Body.Close(); err != nil {
+				slog.Error("failed to close response body", slog.Any("error", err))
+			}
+		}
+	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		cmdErrRsp := &CommandErrResponse{}
@@ -31,7 +38,7 @@ func (s *securityExporter) GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWi
 			slog.Debug("failed to unmarshall response from exporter's endpoint", slog.Any("error", err))
 			return nil, err
 		}
-		slog.Debug("error occured in security exporter", slog.Any("error", cmdErrRsp.Error), slog.Any("output", cmdErrRsp.CmdOutput))
+		slog.Debug("error occurred in security exporter", slog.Any("error", cmdErrRsp.Error), slog.Any("output", cmdErrRsp.CmdOutput))
 		return nil, cmdErrRsp.Error
 	}
 
