@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/tls"
 	"errors"
+	"go-scripts/pkg/checkconnectivity"
+	"go-scripts/util"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,9 +21,10 @@ const (
 
 	puppetCertEnvKey       = "PUPPETCERT"
 	puppetPrivateKeyEnvKey = "PUPPETPRIVKEY"
+	httpTimeout            = 15
 )
 
-// ParseResponse reads a response, returning the status code, body and error that occured.
+// ParseResponse reads a response, returning the status code, body and error that occurred.
 func ParseResponse(response *http.Response) (int, []byte, error) {
 	defer response.Body.Close()
 
@@ -61,7 +64,7 @@ func FetchURL(url string) (*http.Response, error) {
 			Certificates: []tls.Certificate{cert},
 		},
 	}
-	httpClient := http.Client{Transport: t, Timeout: 15 * time.Second}
+	httpClient := http.Client{Transport: t, Timeout: httpTimeout * time.Second}
 
 	request, err := http.NewRequest(http.MethodPut, url, http.NoBody)
 	if err != nil {
@@ -81,7 +84,7 @@ func FetchURL(url string) (*http.Response, error) {
 }
 
 // Get puppet state from obmondo api
-func get_puppet_state() (state bool, err error) {
+func getPuppetState() (state bool, err error) {
 	slog.Info("fetching puppet state", slog.String("url", obmondoBasepathAPIURL+serverPingAndGetNoopAPIURL))
 	// Get a response from api, currently it only returns true (200), 4xx, or 5xx
 	response, err := FetchURL(obmondoBasepathAPIURL + serverPingAndGetNoopAPIURL)
@@ -113,7 +116,7 @@ func get_puppet_state() (state bool, err error) {
 }
 
 // Run the puppet agent in noop mode for now
-func run_puppet() error {
+func runPuppet() error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -152,7 +155,16 @@ func run_puppet() error {
 
 // Entry point
 func main() {
-	noopStatus, err := get_puppet_state()
+
+	util.LoadPuppetEnv()
+
+	allAPIReachable := checkconnectivity.CheckTCPConnection()
+	if !allAPIReachable {
+		slog.Error("unable to connect to obmondo api, aborting", slog.String("error", "api not accessible"))
+		return
+	}
+
+	noopStatus, err := getPuppetState()
 	if err != nil {
 		slog.Error("unable to get the puppet state", slog.String("error", err.Error()))
 		return
@@ -161,7 +173,7 @@ func main() {
 	// Since we want the state of the puppet agent run on client.
 	// So it can be either noop or no-noop
 	if noopStatus {
-		if err := run_puppet(); err != nil {
+		if err := runPuppet(); err != nil {
 			slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 			return
 		}
@@ -170,7 +182,7 @@ func main() {
 	}
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := run_puppet(); err != nil {
+	if err := runPuppet(); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 		return
 	}

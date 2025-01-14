@@ -1,13 +1,17 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-run-puppet
-export RELEASE=1.0.4
-export VERSION=1.0.4
+export RELEASE=1.0.5
+export VERSION=1.0.5
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
 SOURCES := run_puppet
 
 packages: deb rpm deb_arm64
+
+
+test: ## Run unittests
+	@go test -v ./...
 
 run_puppet:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES)_amd64 main.go
