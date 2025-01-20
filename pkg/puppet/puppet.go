@@ -89,11 +89,11 @@ func isPuppetAgentRunning() bool {
 	_, err := os.Stat(constants.AgentRunningLockFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			slog.Error("unable to find puppet agent lock file", slog.String("error", err.Error()))
+			webtee.RemoteLogObmondo([]string{"echo unable to find puppet agent lock file"}, certName)
 			return false
 		}
 
-		slog.Error("unable to fetch puppet agent lock file details", slog.String("error", err.Error()))
+		webtee.RemoteLogObmondo([]string{"echo unable to fetch puppet agent lock file details"}, certName)
 		return false
 	}
 

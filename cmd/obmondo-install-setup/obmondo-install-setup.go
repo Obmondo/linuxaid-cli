@@ -104,6 +104,6 @@ func main() {
 		slog.Error("failed to finish the progressbar size")
 	}
 
-	slog.Info("\ninstallation succeeded. To continue configuration please, please head to", slog.String("web", fmt.Sprintf("https://obmondo.com/server/%s", certName)))
+	fmt.Sprintf("\ninstallation succeeded. To continue configuration please, please head to web https://obmondo.com/server/%s", certName)
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
 }

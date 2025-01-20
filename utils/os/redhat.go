@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	constants "go-scripts/constants"
+	"go-scripts/constants"
 	"go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
 	utils "go-scripts/utils"
@@ -26,7 +26,7 @@ func RedHatPuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/puppet7/el/%s/x86_64/%s.rpm", majRelease, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("rpm -q %s", packageName)
+	isPuppetInstalled := fmt.Sprintf("rpm -q %s", constants.PuppetPackageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	if err := pipe.Wait(); err != nil {

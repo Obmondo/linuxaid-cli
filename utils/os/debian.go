@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
 	constants "go-scripts/constants"
@@ -29,11 +28,11 @@ func DebianPuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet7/p/puppet-agent/%s", codeName, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", fullPuppetVersion)
+	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", constants.PuppetPackageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to verify if puppet is installed", slog.String("error", err.Error()))
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not installed"}, certName)
 	}
 	exitStatus := pipe.ExitStatus()
 

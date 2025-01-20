@@ -5,6 +5,7 @@ const (
 	ObmondoAPIURL = "https://api.obmondo.com/api"
 
 	// puppet
+	PuppetPackageName  = "puppet-agent"
 	PuppetPath         = "/sbin:/usr/sbin:/bin:/usr/bin:/opt/puppetlabs/puppet/bin"
 	PuppetConfig       = "/etc/puppetlabs/puppet/puppet.conf"
 	PuppetVersion      = "7.32.1-1"
