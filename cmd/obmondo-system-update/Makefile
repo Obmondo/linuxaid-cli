@@ -33,6 +33,8 @@ clean: ## Remove previous build
 run:
 	@go run ./$(SOURECS)
 
+build: $(SOURCES)
+
 $(SOURCES): dep
 	CGO_ENABLED=0 GOARCH=amd64 go build -a -v -ldflags="-extldflags=-static" -o amd64/$(SOURCES) .
 	CGO_ENABLED=0 GOARCH=arm64 go build -a -v -ldflags="-extldflags=-static" -o arm64/$(SOURCES) .

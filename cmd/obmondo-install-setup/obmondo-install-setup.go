@@ -10,9 +10,9 @@ import (
 	webtee "go-scripts/pkg/webtee"
 
 	constants "go-scripts/constants"
-	util "go-scripts/util"
-	"go-scripts/util/logger"
-	os_util "go-scripts/util/os"
+	utils "go-scripts/utils"
+	"go-scripts/utils/logger"
+	os_util "go-scripts/utils/os"
 
 	"github.com/schollz/progressbar/v3"
 )
@@ -21,15 +21,15 @@ func main() {
 	debug := true
 	logger.InitLogger(debug)
 
-	util.LoadOSReleaseEnv()
+	utils.LoadOSReleaseEnv()
 
-	util.CheckUser()
+	utils.CheckUser()
 
 	// Check required envs and OS
-	util.CheckCertNameEnv()
-	util.CheckOSNameEnv()
-	util.CheckOSVersionEnv()
-	util.SupportedOS()
+	utils.CheckCertNameEnv()
+	utils.CheckOSNameEnv()
+	utils.CheckOSVersionEnv()
+	utils.SupportedOS()
 
 	if err := disk.CheckDiskSize(); err != nil {
 		slog.Error("unable to check disk size", slog.String("error", err.Error()))
@@ -104,6 +104,10 @@ func main() {
 		slog.Error("failed to finish the progressbar size")
 	}
 
-	slog.Info("\ninstallation succeeded. To continue configuration please, please head to", slog.String("web", fmt.Sprintf("https://obmondo.com/server/%s", certName)))
+	msg := fmt.Sprintf("\nInstallation succeeded. To continue configuration please, please head to web https://obmondo.com/server/%s", certName)
+
+	//nolint:forbidigo
+	fmt.Println(msg) //nolint:revive
+
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
 }

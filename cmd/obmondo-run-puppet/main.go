@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"go-scripts/pkg/checkconnectivity"
-	"go-scripts/util"
+	"go-scripts/utils"
 	"io"
 	"log/slog"
 	"net/http"
@@ -156,7 +156,7 @@ func runPuppet() error {
 // Entry point
 func main() {
 
-	util.LoadPuppetEnv()
+	utils.LoadPuppetEnv()
 
 	allAPIReachable := checkconnectivity.CheckTCPConnection()
 	if !allAPIReachable {

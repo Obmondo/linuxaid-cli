@@ -1,36 +1,35 @@
-package util
+package utils
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
-	constants "go-scripts/constants"
+	"go-scripts/constants"
 	"go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
-	util "go-scripts/util"
+	utils "go-scripts/utils"
 
 	"github.com/bitfield/script"
 )
 
-func RedHatPuppetAgent() {
+func SusePuppetAgent() {
 	certName := os.Getenv("CERTNAME")
-	webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, certName)
+	webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, certName)
 
-	majRelease := util.GetMajorRelease()
-	tempDir := util.TempDir()
+	majRelease := utils.GetMajorRelease()
+	tempDir := utils.TempDir()
 
 	defer os.RemoveAll(tempDir)
-	fullPuppetVersion := fmt.Sprintf("%s.el%s", constants.PuppetVersion, majRelease)
+	fullPuppetVersion := fmt.Sprintf("%s.sles%s", constants.PuppetVersion, majRelease)
 	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/puppet7/el/%s/x86_64/%s.rpm", majRelease, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/sles/puppet7/%s/x86_64/%s.rpm", majRelease, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("rpm -q %s", packageName)
+	isPuppetInstalled := fmt.Sprintf("rpm -q %s", constants.PuppetPackageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to verify if puppet is installed", slog.String("error", err.Error()))
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not installed"}, certName)
 	}
 	exitStatus := pipe.ExitStatus()
 

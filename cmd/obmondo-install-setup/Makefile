@@ -1,6 +1,6 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-install-setup
-export VERSION=1.0.2
+export VERSION=1.0.3
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
@@ -32,6 +32,8 @@ clean: ## Remove previous build
 
 run:
 	@go run ./$(SOURECS)
+
+build: $(SOURCES)
 
 $(SOURCES): dep
 	CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES) .

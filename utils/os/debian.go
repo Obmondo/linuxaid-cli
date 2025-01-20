@@ -1,27 +1,26 @@
-package util
+package utils
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
 	constants "go-scripts/constants"
 	puppet "go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
-	util "go-scripts/util"
+	utils "go-scripts/utils"
 
 	"github.com/bitfield/script"
 )
 
 func DebianPuppetAgent() {
-	util.CheckUbuntuCodeNameEnv()
+	utils.CheckUbuntuCodeNameEnv()
 
 	certName := os.Getenv("CERTNAME")
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	webtee.RemoteLogObmondo([]string{"apt update"}, certName)
 	webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, certName)
 
-	tempDir := util.TempDir()
+	tempDir := utils.TempDir()
 
 	defer os.RemoveAll(tempDir)
 	fullPuppetVersion := fmt.Sprintf("%s%s", constants.PuppetVersion, codeName)
@@ -29,11 +28,11 @@ func DebianPuppetAgent() {
 	downloadPath := fmt.Sprintf("%s/%s", tempDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet7/p/puppet-agent/%s", codeName, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", fullPuppetVersion)
+	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", constants.PuppetPackageName)
 
 	pipe := script.Exec(isPuppetInstalled)
 	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to verify if puppet is installed", slog.String("error", err.Error()))
+		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not installed"}, certName)
 	}
 	exitStatus := pipe.ExitStatus()
 

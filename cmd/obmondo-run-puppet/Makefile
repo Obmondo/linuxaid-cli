@@ -13,6 +13,8 @@ packages: deb rpm deb_arm64
 test: ## Run unittests
 	@go test -v ./...
 
+build: $(SOURCES)
+
 run_puppet:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES)_amd64 main.go
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES)_arm64 main.go
