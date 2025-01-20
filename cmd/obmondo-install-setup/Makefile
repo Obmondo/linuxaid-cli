@@ -33,6 +33,8 @@ clean: ## Remove previous build
 run:
 	@go run ./$(SOURECS)
 
+build: $(SOURCES)
+
 $(SOURCES): dep
 	CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES) .
 	chmod +x $(SOURCES)

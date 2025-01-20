@@ -10,8 +10,8 @@ import (
 	api "go-scripts/pkg/obmondo"
 	puppet "go-scripts/pkg/puppet"
 	"go-scripts/pkg/security"
-	"go-scripts/util"
-	"go-scripts/util/logger"
+	"go-scripts/utils"
+	"go-scripts/utils/logger"
 	"io"
 	"log/slog"
 	"net/http"
@@ -78,7 +78,7 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, string, er
 	}
 
 	defer resp.Body.Close()
-	statusCode, responseBody, err := util.ParseResponse(resp)
+	statusCode, responseBody, err := utils.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
 		return false, "", err
@@ -331,7 +331,7 @@ func main() {
 
 	flag.Parse()
 
-	util.LoadOSReleaseEnv()
+	utils.LoadOSReleaseEnv()
 
 	envErr := os.Setenv("PATH", constants.PuppetPath)
 	if envErr != nil {
@@ -339,10 +339,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	util.CheckUser()
-	util.CheckPuppetEnv()
-	util.CheckOSNameEnv()
-	util.SupportedOS()
+	utils.CheckUser()
+	utils.CheckPuppetEnv()
+	utils.CheckOSNameEnv()
+	utils.SupportedOS()
 
 	slog.Info("starting obmondo-system-update script")
 

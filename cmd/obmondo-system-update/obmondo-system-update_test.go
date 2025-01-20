@@ -2,7 +2,7 @@ package main
 
 import (
 	mock "go-scripts/mock"
-	"go-scripts/util"
+	"go-scripts/utils"
 	"net/http"
 	"path/filepath"
 	"testing"
@@ -11,7 +11,7 @@ import (
 func TestGetCustomerID(t *testing.T) {
 	certname := "hostname.example"
 	expected := "example"
-	op := util.GetCustomerID(certname)
+	op := utils.GetCustomerID(certname)
 	if op != expected {
 		t.Errorf("Failed to parse customer id, expeceted: %s, output: %s", expected, op)
 	}

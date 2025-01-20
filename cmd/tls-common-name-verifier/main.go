@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"go-scripts/cmd/tls-common-name-verifier/checkendpointsreachable"
-	"go-scripts/util/logger"
+	"go-scripts/utils/logger"
 	"log/slog"
 	"os"
 )

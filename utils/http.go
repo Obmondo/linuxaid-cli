@@ -1,4 +1,4 @@
-package util
+package utils
 
 import (
 	"bytes"
@@ -28,14 +28,14 @@ func ParseResponse(response *http.Response) (int, []byte, error) {
 
 // ParseResponse reads a response, returning the status code, body and error that occurred.
 // func ParseResponse(response *http.Response) (int, []byte, error) {
-// 	code := response.StatusCode
-// 		defer response.Body.Close()
-// 			bts, err := io.ReadAll(response.Body)
-// 				if err != nil {
-// 						return code, nil, err
-// 							}
-// 								return code, bts, nil
-// 								}
+//	code := response.StatusCode
+//		defer response.Body.Close()
+//			bts, err := io.ReadAll(response.Body)
+//				if err != nil {
+//						return code, nil, err
+//							}
+//								return code, bts, nil
+//								}
 
 // FetchURL calls an Obmondo API URL
 func FetchURL(url string) (*http.Response, error) {
