@@ -57,7 +57,8 @@ jobs:
           ALL_CHANGED_DIRS: ${{ steps.filter.outputs.packages_all_changed_files }}
         run: |
           apt update
-          apt install -y ruby fpm rpm
+          apt install -y ruby rpm
+          gem install fpm
           for dir in ${ALL_CHANGED_DIRS}; do
             echo "Build package for ${dir}"
             cd /workspace/$GITHUB_REPOSITORY/$dir
