@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"go-scripts/util/logger"
+	"go-scripts/utils/logger"
 	"strconv"
 )
 

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	constants "go-scripts/constants"
-	"go-scripts/util"
+	"go-scripts/utils"
 )
 
 const (
@@ -68,8 +68,8 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 }
 
 func (*Client) CloseServiceWindow(windowType string) (*http.Response, error) {
-	certname := util.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
-	customerID := util.GetCustomerID(certname)
+	certname := utils.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
+	customerID := utils.GetCustomerID(certname)
 	yearMonthDay := time.Now().Format("2006-01-02")
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", obmondoAPIURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)

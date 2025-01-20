@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-scripts/util"
+	"go-scripts/utils"
 	"log/slog"
 	"time"
 
@@ -28,7 +28,7 @@ var runPuppetMetric *prometheus.GaugeVec
 var registry *prometheus.Registry
 
 func getHostList() ([]string, error) {
-	customerID := util.GetCustomerIDFromEnv()
+	customerID := utils.GetCustomerIDFromEnv()
 	if len(customerID) == 0 {
 		return nil, errors.New("customerID not found")
 	}
