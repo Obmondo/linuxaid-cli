@@ -1,0 +1,43 @@
+name: 'Test'
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
+    steps:
+      - name: Checkout code
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Setup Go
+        uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Get changed files
+        id: filter
+        uses: https://gitea.obmondo.com/Obmondo/changed-files@v43
+        with:
+          dir_names: true
+          dir_names_max_depth: 2
+          dir_names_exclude_current_dir: true
+          files_yaml: |
+            packages:
+              - 'cmd/**'
+
+      - name: Run Test
+        if: ${{ steps.filter.outputs.packages_any_changed == 'true' }}
+        env:
+          ALL_CHANGED_DIRS: ${{ steps.filter.outputs.packages_all_changed_files }}
+        run: |
+          for dir in ${ALL_CHANGED_DIRS}; do
+            echo "Run Test ${dir}"
+            cd /workspace/$GITHUB_REPOSITORY/$dir
+            make test
+          done
