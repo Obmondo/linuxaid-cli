@@ -46,7 +46,7 @@ jobs:
           done
 
       - name: Upload to repos.obmondo.com
-        if: github.event_name == 'push' && contains(github.ref, 'refs/heads/main')
+        if: gitea.event_name == 'push' && contains(gitea.ref, 'refs/heads/main')
         env:
           PUBLIC_PATH: /vol0/data/packagesign01_var/var/lib/packagesign/repos/incoming/public/
           USERNAME: ${{ secrets.PACKAGESIGN_USER }}
