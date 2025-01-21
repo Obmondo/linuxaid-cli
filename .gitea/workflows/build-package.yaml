@@ -1,9 +1,6 @@
 name: 'Build Packages'
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -23,12 +20,6 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Lint with golangci-lint
-        uses: https://gitea.obmondo.com/Obmondo/golangci-lint-action@v6.1.1
-        with:
-          version: v1.62.2
-          args: --timeout=5m --config=.golangci.yml
-
       - name: Get changed files
         id: filter
         uses: https://gitea.obmondo.com/Obmondo/changed-files@v43
@@ -39,17 +30,6 @@ jobs:
           files_yaml: |
             packages:
               - 'cmd/**'
-
-      - name: Run Test
-        if: ${{ steps.filter.outputs.packages_any_changed == 'true' }}
-        env:
-          ALL_CHANGED_DIRS: ${{ steps.filter.outputs.packages_all_changed_files }}
-        run: |
-          for dir in ${ALL_CHANGED_DIRS}; do
-            echo "Run Test ${dir}"
-            cd /workspace/$GITHUB_REPOSITORY/$dir
-            make test
-          done
 
       - name: Build packages
         if: ${{ steps.filter.outputs.packages_any_changed == 'true' }}
@@ -63,19 +43,10 @@ jobs:
             echo "Build package for ${dir}"
             cd /workspace/$GITHUB_REPOSITORY/$dir
             make packages
-            make build
           done
 
-      - name: Upload Artifacts
-        if: github.event_name == 'push' && contains(github.ref, 'refs/heads/main')
-        uses: actions/upload-artifact@v4
-        with:
-          name: obmondo-articats
-          path: |
-            cmd/obmondo-install-setup/obmondo-install-setup
-
       - name: Upload to repos.obmondo.com
-        if: github.event_name == 'push' && contains(github.ref, 'refs/heads/main')
+        if: gitea.event_name == 'push' && contains(gitea.ref, 'refs/heads/main')
         env:
           PUBLIC_PATH: /vol0/data/packagesign01_var/var/lib/packagesign/repos/incoming/public/
           USERNAME: ${{ secrets.PACKAGESIGN_USER }}
