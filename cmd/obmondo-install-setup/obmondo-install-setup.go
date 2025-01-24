@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 
 	disk "go-scripts/pkg/disk"
+	"go-scripts/pkg/prettyfmt"
 	puppet "go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
 
@@ -13,8 +13,6 @@ import (
 	utils "go-scripts/utils"
 	"go-scripts/utils/logger"
 	os_util "go-scripts/utils/os"
-
-	"github.com/schollz/progressbar/v3"
 )
 
 func main() {
@@ -32,7 +30,7 @@ func main() {
 	utils.SupportedOS()
 
 	if err := disk.CheckDiskSize(); err != nil {
-		slog.Error("unable to check disk size", slog.String("error", err.Error()))
+		prettyfmt.PrettyFmt(prettyfmt.FontRed("unable to check disk size", err.Error()))
 	}
 
 	certName := os.Getenv("CERTNAME")
@@ -43,13 +41,16 @@ func main() {
 	}
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certName)
+	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), "\n")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constants.AgentDisabledLockFile); err == nil {
-		slog.Warn("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent")
+		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
 		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
 		os.Exit(0)
 	}
+
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
 	// Pre-requisites
 	distribution := os.Getenv("ID")
@@ -65,47 +66,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Puppet agent setup
-	bar := progressbar.Default(constants.BarProgressSize,
-		"puppet-agent setup...")
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 
 	puppet.DisablePuppetAgentService()
-	fiveErr := bar.Set(constants.BarSizeFive)
-	if fiveErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
 	puppet.ConfigurePuppetAgent()
-	tenErr := bar.Set(constants.BarSizeTen)
-	if tenErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
 	puppet.FacterNewSetup()
-	fifteenErr := bar.Set(constants.BarSizeFifteen)
-	if fifteenErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
+
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Configured Puppet"))
 
 	puppet.WaitForPuppetAgent()
-	twentyErr := bar.Set(constants.BarSizeTwenty)
-	if twentyErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
 	puppet.RunPuppetAgent(true, "noop")
-	hundredErr := bar.Set(constants.BarSizeHundred)
-	if hundredErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
 
-	finishErr := bar.Finish()
-	if finishErr != nil {
-		slog.Error("failed to finish the progressbar size")
-	}
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
 
-	//nolint:forbidigo
-	fmt.Println("\nInstallation succeeded. To continue configuration please head to https://obmondo.com/user/servers") //nolint:revive
+	prettyfmt.PrettyFmt("\n  ", prettyfmt.IconIceCream, prettyfmt.FontGreen("Success!"))
 
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
+
+	prettyfmt.PrettyFmt(prettyfmt.FontWhite("\n    Head to "), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."), "\n")
 }

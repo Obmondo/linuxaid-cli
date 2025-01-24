@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bitfield/script"
-	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -179,11 +178,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	f, _ := os.Create(downloadPath)
 	defer f.Close()
 
-	bar := progressbar.DefaultBytes(
-		resp.ContentLength,
-		"download puppet-agent..",
-	)
-	_, rerr := io.Copy(io.MultiWriter(f, bar), resp.Body)
+	_, rerr := io.Copy(io.MultiWriter(f), resp.Body)
 	if rerr != nil {
 		slog.Error("downloading puppet-agent failed, exiting")
 		os.Exit(1)
