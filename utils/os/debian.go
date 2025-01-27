@@ -8,8 +8,6 @@ import (
 	puppet "go-scripts/pkg/puppet"
 	webtee "go-scripts/pkg/webtee"
 	utils "go-scripts/utils"
-
-	"github.com/bitfield/script"
 )
 
 func DebianPuppetAgent() {
@@ -26,24 +24,12 @@ func DebianPuppetAgent() {
 	fullPuppetVersion := fmt.Sprintf("%s%s", constants.PuppetVersion, codeName)
 	packageName := fmt.Sprintf("puppet-agent_%s_amd64.deb", fullPuppetVersion)
 	downloadPath := fmt.Sprintf("%s/%s", tempDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet7/p/puppet-agent/%s", codeName, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet8/p/puppet-agent/%s", codeName, packageName)
 
-	isPuppetInstalled := fmt.Sprintf("dpkg-query -W %s", constants.PuppetPackageName)
+	puppet.DownloadPuppetAgent(downloadPath, url)
 
-	pipe := script.Exec(isPuppetInstalled)
-	if err := pipe.Wait(); err != nil {
-		webtee.RemoteLogObmondo([]string{"echo puppet-agent is not installed"}, certName)
-	}
-	exitStatus := pipe.ExitStatus()
-
-	if exitStatus != 0 {
-		puppet.DownloadPuppetAgent(downloadPath, url)
-
-		// Install the package
-		installCmd := []string{fmt.Sprintf("dpkg -i %s", downloadPath)}
-		webtee.RemoteLogObmondo(installCmd, certName)
-	} else {
-		puppet.PuppetAgentIsInstalled()
-	}
+	// Install the package
+	installCmd := []string{fmt.Sprintf("apt install %s", downloadPath)}
+	webtee.RemoteLogObmondo(installCmd, certName)
 
 }

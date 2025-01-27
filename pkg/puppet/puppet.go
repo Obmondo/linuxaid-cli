@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bitfield/script"
-	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -163,31 +162,6 @@ func WaitForPuppetAgent() {
 	}
 }
 
-// puppet-agent is already installed
-func PuppetAgentIsInstalled() {
-	bar := progressbar.Default(constants.BarProgressSize,
-		"puppet-agent install...")
-
-	// Just to have a nice progress bar
-	tenErr := bar.Set(constants.BarSizeTen)
-	if tenErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
-	time.Sleep(sleepTime * time.Millisecond)
-	hundredErr := bar.Set(constants.BarSizeHundred)
-	if hundredErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
-	finishErr := bar.Finish()
-	if finishErr != nil {
-		slog.Error("failed to set the progressbar size")
-	}
-
-	webtee.RemoteLogObmondo([]string{"echo puppet-agent is already installed"}, certName)
-}
-
 // download puppet-agent and install it
 func DownloadPuppetAgent(downloadPath string, url string) {
 	resp, err := http.Get(url)
@@ -204,11 +178,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	f, _ := os.Create(downloadPath)
 	defer f.Close()
 
-	bar := progressbar.DefaultBytes(
-		resp.ContentLength,
-		"download puppet-agent..",
-	)
-	_, rerr := io.Copy(io.MultiWriter(f, bar), resp.Body)
+	_, rerr := io.Copy(io.MultiWriter(f), resp.Body)
 	if rerr != nil {
 		slog.Error("downloading puppet-agent failed, exiting")
 		os.Exit(1)
