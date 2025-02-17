@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestGetCustomerID(t *testing.T) {
@@ -19,17 +20,20 @@ func TestGetCustomerID(t *testing.T) {
 
 func TestGetServiceWindowStatus(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	isServiceWindowOpen, windowType, err := GetServiceWindowStatus(mockObmondoClient)
+	serviceWindowNow, err := GetServiceWindowStatus(mockObmondoClient)
 	if err != nil {
 		t.Errorf("o/p: %+v", err)
 	}
 
-	if !isServiceWindowOpen {
-		t.Errorf("Expected service window to be open, but got: %t", isServiceWindowOpen)
+	if !serviceWindowNow.IsWindowOpen {
+		t.Errorf("Expected service window to be open, but got: %t", serviceWindowNow.IsWindowOpen)
 	}
 
-	if windowType != "automatic" {
-		t.Errorf("Expected window type to be 'automatic', but got: %s", windowType)
+	if serviceWindowNow.WindowType != "automatic" {
+		t.Errorf("Expected window type to be 'automatic', but got: %s", serviceWindowNow.WindowType)
+	}
+	if serviceWindowNow.Timezone != "UTC" {
+		t.Errorf("Expected window timezone to be 'UTC', but got: %s", serviceWindowNow.Timezone)
 	}
 
 }
@@ -38,7 +42,7 @@ func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
 	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
 
-	op, err := closeWindow(mockObmondoClient, "automatic")
+	op, err := closeWindow(mockObmondoClient, "automatic", time.UTC.String())
 	if err != nil {
 		t.Errorf("o/p: %+v", op)
 	}
