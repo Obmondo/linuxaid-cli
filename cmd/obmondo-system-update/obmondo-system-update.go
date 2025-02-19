@@ -42,6 +42,7 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 type ServiceWindow struct {
 	IsWindowOpen bool   `json:"is_window_open"`
 	WindowType   string `json:"window_type"`
+	Timezone     string `json:"timezone"`
 }
 
 func cleanup() {
@@ -70,36 +71,36 @@ func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
 	return &serviceWindowResponse.Data, nil
 }
 
-func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (bool, string, error) {
+func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (*ServiceWindow, error) {
 	resp, err := obmondoAPICient.FetchServiceWindowStatus()
 	if err != nil {
 		slog.Error("unexpected error fetching service window url", slog.String("error", err.Error()))
-		return false, "", err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 	statusCode, responseBody, err := utils.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
-		return false, "", err
+		return nil, err
 	}
 
 	if statusCode != http.StatusOK {
 		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
-		return false, "", fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
+		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
 	}
 
 	serviceWindow, err := GetServiceWindowDetails(responseBody)
 	if err != nil {
 		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
-		return false, "", err
+		return nil, err
 	}
 
-	return serviceWindow.IsWindowOpen, serviceWindow.WindowType, nil
+	return serviceWindow, nil
 }
 
-func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) error {
-	closeWindow, err := closeWindow(obmondoAPICient, windowType)
+func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string, location string) error {
+	closeWindow, err := closeWindow(obmondoAPICient, windowType, location)
 	if err != nil {
 		slog.Error("closing service window failed", slog.String("error", err.Error()))
 		return err
@@ -121,8 +122,8 @@ func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string) er
 	return nil
 }
 
-func closeWindow(obmondoAPICient api.ObmondoClient, windowType string) (*http.Response, error) {
-	closeWindow, err := obmondoAPICient.CloseServiceWindow(windowType)
+func closeWindow(obmondoAPICient api.ObmondoClient, windowType string, location string) (*http.Response, error) {
+	closeWindow, err := obmondoAPICient.CloseServiceWindow(windowType, location)
 	if err != nil {
 		slog.Error("failed to close service window", slog.String("error", err.Error()))
 		return nil, err
@@ -353,14 +354,14 @@ func main() {
 	}
 
 	obmondoAPICient := api.NewObmondoClient()
-	isServiceWindow, windowType, err := GetServiceWindowStatus(obmondoAPICient)
+	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPICient)
 	if err != nil {
 		slog.Error("unable to get service window status", slog.String("error", err.Error()))
 		return
 	}
 
 	// lets fail with exit 0, otherwise systemd service will be in failed status
-	if !isServiceWindow {
+	if !serviceWindowNow.IsWindowOpen {
 		slog.Warn("exiting, service window is inactive")
 		return
 	}
@@ -404,7 +405,7 @@ func main() {
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := CloseServiceWindow(obmondoAPICient, windowType); err != nil {
+	if err := CloseServiceWindow(obmondoAPICient, serviceWindowNow.WindowType, serviceWindowNow.Timezone); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}

@@ -17,6 +17,7 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 		"data": map[string]interface{}{
 			"is_window_open": true,
 			"window_type":    "automatic",
+			"timezone":       "UTC",
 		},
 		"message":    "successfully got current service window status",
 		"resolution": "",
@@ -32,7 +33,7 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return response, nil
 }
 
-func (*MockObmondoClient) CloseServiceWindow(_ string) (*http.Response, error) {
+func (*MockObmondoClient) CloseServiceWindow(_ string, _ string) (*http.Response, error) {
 	response := &http.Response{
 		StatusCode: http.StatusAccepted,
 		Body:       io.NopCloser(bytes.NewBufferString("")),

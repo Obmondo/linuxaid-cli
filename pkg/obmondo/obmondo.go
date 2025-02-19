@@ -24,7 +24,7 @@ type Client struct {
 
 type ObmondoClient interface {
 	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType string) (*http.Response, error)
+	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
 }
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
@@ -67,10 +67,15 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 	return fetchURL(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (*Client) CloseServiceWindow(windowType string) (*http.Response, error) {
+func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
 	certname := utils.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
 	customerID := utils.GetCustomerID(certname)
-	yearMonthDay := time.Now().Format("2006-01-02")
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
+		return nil, err
+	}
+	yearMonthDay := time.Now().In(location).Format("2006-01-02")
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", obmondoAPIURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)
 
