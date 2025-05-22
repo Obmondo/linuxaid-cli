@@ -141,6 +141,7 @@ masterport = 443
 report = true
 pluginsync = true
 noop = true
+environment = master
 `
 	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
 	if err != nil {
