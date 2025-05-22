@@ -117,6 +117,20 @@ func FacterNewSetup() {
 // config setup for puppet-agent
 func ConfigurePuppetAgent() {
 	_, customerID, _ := strings.Cut(certName, ".")
+
+	puppetURL := fmt.Sprintf("https://%s.puppet.obmondo.com/status/v1/services", customerID)
+
+	resp, err := http.Get(puppetURL)
+	if err != nil {
+		webtee.RemoteLogObmondo([]string{fmt.Sprintf("Failed to reach Puppet server: %s", err)}, certName)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		customerID = constants.DefaultPuppetServerCustomerID
+	}
+
 	configFmt := `[main]
 server = %s.puppet.obmondo.com
 certname = %s
@@ -128,7 +142,7 @@ report = true
 pluginsync = true
 noop = true
 `
-	_, err := script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
+	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
 	if err != nil {
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
