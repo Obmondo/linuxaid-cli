@@ -1,6 +1,7 @@
 package puppet
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"go-scripts/constants"
@@ -119,15 +120,27 @@ func ConfigurePuppetAgent() {
 	_, customerID, _ := strings.Cut(certName, ".")
 
 	puppetURL := fmt.Sprintf("https://%s.puppet.obmondo.com/status/v1/services", customerID)
-
-	resp, err := http.Get(puppetURL)
-	if err != nil {
-		webtee.RemoteLogObmondo([]string{fmt.Sprintf("Failed to reach Puppet server: %s", err)}, certName)
-		return
+	tlsConfigTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
+	httpClient := &http.Client{
+		Transport: tlsConfigTransport,
+		// nolint: mnd
+		Timeout: 5 * time.Second,
+	}
+	resp, err := httpClient.Get(puppetURL)
+	if err != nil {
+		errMsg := fmt.Sprintf("echo failed to reach Puppet server: %s", err.Error())
+		webtee.RemoteLogObmondo([]string{errMsg}, certName)
+		slog.Error("failed to check status of puppet domain", slog.Any("error", err))
+		os.Exit(1)
+	}
+
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
+	if resp.StatusCode != http.StatusOK {
 		customerID = constants.DefaultPuppetServerCustomerID
 	}
 
