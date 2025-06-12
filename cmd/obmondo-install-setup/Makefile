@@ -1,6 +1,6 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-install-setup
-export VERSION=1.0.8
+export VERSION=1.0.9
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
@@ -36,8 +36,9 @@ run:
 build: $(SOURCES)
 
 $(SOURCES): dep
-	CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES) .
+	CGO_ENABLED=0 go build -a -v -ldflags="-X main.Version=$(VERSION) -extldflags=-static" -o $(SOURCES) .
 	chmod +x $(SOURCES)
+
 
 deb: $(DIST)/$(NAME)_$(VERSION)_amd64.deb
 $(DIST)/$(NAME)_$(VERSION)_amd64.deb: $(SOURCES)

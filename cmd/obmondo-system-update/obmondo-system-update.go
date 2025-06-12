@@ -324,13 +324,19 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-func main() {
-	debug := true
-	logger.InitLogger(debug)
+var Version string
 
+func main() {
 	reboot := flag.Bool("reboot", true, "Set this flag false to prevent reboot")
+	versionFlag := flag.Bool("version", false, "Print version and exit")
+	debugFlag := flag.Bool("debug", false, "Enable debug logs")
 
 	flag.Parse()
+	if *versionFlag {
+		slog.Info("obmondo-install-setup version", "version", Version)
+		os.Exit(0)
+	}
+	logger.InitLogger(*debugFlag)
 
 	utils.LoadOSReleaseEnv()
 
