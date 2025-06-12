@@ -1,23 +1,35 @@
 package main
 
 import (
+	"flag"
 	"log/slog"
 	"os"
 
-	disk "go-scripts/pkg/disk"
+	"go-scripts/pkg/disk"
 	"go-scripts/pkg/prettyfmt"
-	puppet "go-scripts/pkg/puppet"
-	webtee "go-scripts/pkg/webtee"
+	"go-scripts/pkg/puppet"
+	"go-scripts/pkg/webtee"
 
-	constants "go-scripts/constants"
-	utils "go-scripts/utils"
+	"go-scripts/constants"
+	"go-scripts/utils"
 	"go-scripts/utils/logger"
-	os_util "go-scripts/utils/os"
+	osutil "go-scripts/utils/os"
 )
 
+var Version string
+
 func main() {
-	debug := true
-	logger.InitLogger(debug)
+	versionFlag := flag.Bool("version", false, "Print version and exit")
+	debugFlag := flag.Bool("debug", false, "Enable debug logs")
+
+	flag.Parse()
+
+	if *versionFlag {
+		slog.Info("obmondo-install-setup version", "version", Version)
+		os.Exit(0)
+	}
+
+	logger.InitLogger(*debugFlag)
 
 	utils.LoadOSReleaseEnv()
 
@@ -56,11 +68,11 @@ func main() {
 	distribution := os.Getenv("ID")
 	switch distribution {
 	case "ubuntu", "debian":
-		os_util.DebianPuppetAgent()
+		osutil.DebianPuppetAgent()
 	case "sles":
-		os_util.SusePuppetAgent()
+		osutil.SusePuppetAgent()
 	case "centos", "rhel":
-		os_util.RedHatPuppetAgent()
+		osutil.RedHatPuppetAgent()
 	default:
 		slog.Error("unknown distribution, exiting")
 		os.Exit(1)

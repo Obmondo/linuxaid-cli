@@ -89,10 +89,12 @@ func isPuppetAgentRunning() bool {
 	_, err := os.Stat(constants.AgentRunningLockFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
+			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constants.AgentRunningLockFile))
 			webtee.RemoteLogObmondo([]string{"echo unable to find puppet agent lock file"}, certName)
 			return false
 		}
 
+		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constants.AgentRunningLockFile), slog.Any("error", err))
 		webtee.RemoteLogObmondo([]string{"echo unable to fetch puppet agent lock file details"}, certName)
 		return false
 	}
@@ -109,6 +111,7 @@ func FacterNewSetup() {
 
 	_, err := script.Echo(facter).WriteFile(constants.ExternalFacterFile)
 	if err != nil {
+		slog.Debug("failed to write external facter file", slog.String("file_path", constants.ExternalFacterFile), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create external facter file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
@@ -132,9 +135,9 @@ func ConfigurePuppetAgent() {
 	}
 	resp, err := httpClient.Get(puppetURL)
 	if err != nil {
+		slog.Debug("failed to check puppet domain status", slog.String("puppet_url", puppetURL), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo failed to reach Puppet server: %s", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
-		slog.Error("failed to check status of puppet domain", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -158,6 +161,7 @@ environment = master
 `
 	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
 	if err != nil {
+		slog.Debug("failed to configure puppet agent", slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
@@ -200,6 +204,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	defer resp.Body.Close()
 
 	if _, exists := closeWindowSuccessStatuses[resp.StatusCode]; !exists {
+		slog.Debug("puppet agent download failed", "url", url)
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
 	}
 
