@@ -1,6 +1,6 @@
 PATH := ../../../bin:$(PATH)
 export NAME=obmondo-system-update
-export VERSION=1.4.6
+export VERSION=1.4.7
 export DIST=../../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
@@ -36,8 +36,8 @@ run:
 build: $(SOURCES)
 
 $(SOURCES): dep
-	CGO_ENABLED=0 GOARCH=amd64 go build -a -v -ldflags="-extldflags=-static" -o amd64/$(SOURCES) .
-	CGO_ENABLED=0 GOARCH=arm64 go build -a -v -ldflags="-extldflags=-static" -o arm64/$(SOURCES) .
+	CGO_ENABLED=0 GOARCH=amd64 go build -a -v -ldflags="-X main.Version=$(VERSION) -extldflags=-static" -o amd64/$(SOURCES) .
+	CGO_ENABLED=0 GOARCH=arm64 go build -a -v -ldflags="-X main.Version=$(VERSION) -extldflags=-static" -o arm64/$(SOURCES) .
 	chmod +x amd64/$(SOURCES) arm64/$(SOURCES)
 
 deb: $(DIST)/$(NAME)_$(VERSION)_amd64.deb

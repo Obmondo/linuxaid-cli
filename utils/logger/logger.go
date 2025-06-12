@@ -6,15 +6,14 @@ import (
 )
 
 func InitLogger(debug bool) {
-	enableSource := true
 	handlerOptions := &slog.HandlerOptions{
-		AddSource: enableSource,
+		AddSource: true,
 	}
+
 	if debug {
-		loggingLevel := &slog.LevelVar{}
-		loggingLevel.Set(slog.LevelDebug)
-		handlerOptions.Level = loggingLevel
+		handlerOptions.Level = slog.LevelDebug
 	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, handlerOptions))
 	slog.SetDefault(logger)
 }
