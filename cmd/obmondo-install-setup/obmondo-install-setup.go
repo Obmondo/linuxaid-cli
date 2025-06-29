@@ -29,6 +29,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	slog.Info("obmondo-install-setup version", "version", Version)
+
 	logger.InitLogger(*debugFlag)
 
 	utils.LoadOSReleaseEnv()

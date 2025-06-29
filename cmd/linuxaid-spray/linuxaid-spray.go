@@ -15,6 +15,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+var Version string
+
 type Node struct {
 	Hostname string
 	Port     string
@@ -37,6 +39,7 @@ func main() {
 		Run:   run,
 	}
 
+	rootCmd.Version = Version
 	rootCmd.Flags().StringVarP(&inputCSV, "input-csv", "i", "", "Input CSV file with nodes")
 	rootCmd.Flags().StringVarP(&outputCSV, "output-csv", "o", "", "Output CSV file for results (required if input-csv is provided)")
 	rootCmd.Flags().StringVarP(&hostname, "hostname", "H", "", "Hostname of the node")
@@ -49,6 +52,8 @@ func main() {
 }
 
 func run(cmd *cobra.Command, args []string) {
+	log.Printf("ssh-checker version: %s", Version)
+
 	if inputCSV == "" && (hostname == "" || username == "") {
 		log.Fatal("Either --input-csv must be provided or all of --hostname and --username must be specified.")
 	}

@@ -1,7 +1,7 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-run-puppet
 export RELEASE=1.0.5
-export VERSION=1.0.5
+export VERSION=1.0.6
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
@@ -16,8 +16,8 @@ test: ## Run unittests
 build: $(SOURCES)
 
 run_puppet:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES)_amd64 main.go
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -a -v -ldflags="-extldflags=-static" -o $(SOURCES)_arm64 main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -v -ldflags="-X main.Version=${VERSION} -extldflags=-static" -o $(SOURCES)_amd64 main.go
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -a -v -ldflags="-X main.Version=${VERSION} -extldflags=-static" -o $(SOURCES)_arm64 main.go
 	chmod +x $(SOURCES)_amd64
 	chmod +x $(SOURCES)_arm64
 	mv $(SOURCES)_amd64 $(SOURCES)
