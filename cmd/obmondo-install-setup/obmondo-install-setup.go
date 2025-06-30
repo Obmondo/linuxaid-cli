@@ -39,7 +39,10 @@ func main() {
 	utils.CheckCertNameEnv()
 	utils.CheckOSNameEnv()
 	utils.CheckOSVersionEnv()
-	utils.SupportedOS()
+	if _, err := utils.IsSupportedOS(); err != nil {
+		slog.Error("OS not supported", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
 
 	if err := disk.CheckDiskSize(); err != nil {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("unable to check disk size", err.Error()))
