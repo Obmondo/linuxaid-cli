@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"strings"
@@ -41,7 +42,11 @@ func GetMajorRelease() string {
 
 // List of Supported OS
 func SupportedOS() {
-	commands := getCommandsForInstallingCACertificates()
+	commands, err := getCommandsForInstallingCACertificates()
+	if err != nil {
+		slog.Error("can't get commands for installing ca certificates", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 	updateRepositoryList(commands.updateRepoListCmd)
 	checkAndInstallCaCertificates(commands.checkCACertificatesCmd, commands.installCACertificatesCmd)
 }
@@ -50,31 +55,30 @@ func SupportedOS() {
 // 1. command to update repository list
 // 2. command to check if CA certificates are installed
 // 3. command to install CA certificates
-func getCommandsForInstallingCACertificates() certificateManagerCommands {
+func getCommandsForInstallingCACertificates() (certificateManagerCommands, error) {
 	switch os.Getenv("ID") {
 	case constDistributionNameUbuntu, constDistributionNameDebian:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionDebianUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionDebianCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionDebianInstallCACertificatesCmd,
-		}
+		}, nil
 	case constDistributionNameSLES:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionSLESUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
-		}
+		}, nil
 	case constDistributionNameCentOS, constDistributionNameRHEL:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
-		}
+		}, nil
 	default:
-		slog.Error("unknown distribution")
-		os.Exit(1)
+		err := errors.New("unknown distribution")
+		return certificateManagerCommands{}, err
 	}
-	return certificateManagerCommands{}
 }
 
 // updateRepositoryList updates repository list for any distribution
