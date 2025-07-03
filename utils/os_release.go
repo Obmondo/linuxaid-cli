@@ -1,7 +1,8 @@
 package utils
 
 import (
-	"log/slog"
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -40,60 +41,62 @@ func GetMajorRelease() string {
 }
 
 // List of Supported OS
-func SupportedOS() {
-	commands := getCommandsForInstallingCACertificates()
-	updateRepositoryList(commands.updateRepoListCmd)
-	checkAndInstallCaCertificates(commands.checkCACertificatesCmd, commands.installCACertificatesCmd)
+func IsSupportedOS() (certificateManagerCommands, error) {
+	commands, err := getCommandsForInstallingCACertificates()
+	if err != nil {
+		return commands, fmt.Errorf("failed determining the os distribution: %w", err)
+	}
+
+	return commands, nil
 }
 
 // getCommandsForInstallingCACertificates returns the following for any distribution
 // 1. command to update repository list
 // 2. command to check if CA certificates are installed
 // 3. command to install CA certificates
-func getCommandsForInstallingCACertificates() certificateManagerCommands {
+func getCommandsForInstallingCACertificates() (certificateManagerCommands, error) {
 	switch os.Getenv("ID") {
 	case constDistributionNameUbuntu, constDistributionNameDebian:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionDebianUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionDebianCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionDebianInstallCACertificatesCmd,
-		}
+		}, nil
 	case constDistributionNameSLES:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionSLESUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
-		}
+		}, nil
 	case constDistributionNameCentOS, constDistributionNameRHEL:
 		return certificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
-		}
-	default:
-		slog.Error("unknown distribution")
-		os.Exit(1)
+		}, nil
 	}
-	return certificateManagerCommands{}
+	return certificateManagerCommands{}, errors.New("unknown distribution")
 }
 
-// updateRepositoryList updates repository list for any distribution
-func updateRepositoryList(updateCommand string) {
-	pipe := script.Exec(updateCommand)
+// UpdateRepositoryList updates repository list for any distribution
+func (c *certificateManagerCommands) UpdateRepositoryList() error {
+	pipe := script.Exec(c.updateRepoListCmd)
 	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
-// checkAndInstallCaCertificates handles the installation of CA certificates for any distribution
-func checkAndInstallCaCertificates(checkCommand, installCommand string) {
-	isInstalled := IsCaCertificateInstalled(checkCommand)
+// CheckAndInstallCaCertificates handles the installation of CA certificates for any distribution
+func (c *certificateManagerCommands) CheckAndInstallCaCertificates() error {
+	isInstalled := IsCaCertificateInstalled(c.checkCACertificatesCmd)
 	if !isInstalled {
-		pipe := script.Exec(installCommand)
+		pipe := script.Exec(c.installCACertificatesCmd)
 		if err := pipe.Wait(); err != nil {
-			slog.Error("failed to install ca-certificates", slog.String("error", err.Error()))
-			os.Exit(1)
+			return err
 		}
 	}
+
+	return nil
 }
