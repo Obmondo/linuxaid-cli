@@ -2,7 +2,7 @@ package utils
 
 import (
 	"errors"
-	"log/slog"
+	"fmt"
 	"os"
 	"strings"
 
@@ -41,14 +41,13 @@ func GetMajorRelease() string {
 }
 
 // List of Supported OS
-func SupportedOS() {
+func IsSupportedOS() (certificateManagerCommands, error) {
 	commands, err := getCommandsForInstallingCACertificates()
 	if err != nil {
-		slog.Error("can't get commands for installing ca certificates", slog.String("error", err.Error()))
-		os.Exit(1)
+		return commands, fmt.Errorf("failed determining the os distribution: %w", err)
 	}
-	updateRepositoryList(commands.updateRepoListCmd)
-	checkAndInstallCaCertificates(commands.checkCACertificatesCmd, commands.installCACertificatesCmd)
+
+	return commands, nil
 }
 
 // getCommandsForInstallingCACertificates returns the following for any distribution
@@ -75,29 +74,29 @@ func getCommandsForInstallingCACertificates() (certificateManagerCommands, error
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
 		}, nil
-	default:
-		err := errors.New("unknown distribution")
-		return certificateManagerCommands{}, err
 	}
+	return certificateManagerCommands{}, errors.New("unknown distribution")
 }
 
-// updateRepositoryList updates repository list for any distribution
-func updateRepositoryList(updateCommand string) {
-	pipe := script.Exec(updateCommand)
+// UpdateRepositoryList updates repository list for any distribution
+func (c *certificateManagerCommands) UpdateRepositoryList() error {
+	pipe := script.Exec(c.updateRepoListCmd)
 	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
-// checkAndInstallCaCertificates handles the installation of CA certificates for any distribution
-func checkAndInstallCaCertificates(checkCommand, installCommand string) {
-	isInstalled := IsCaCertificateInstalled(checkCommand)
+// CheckAndInstallCaCertificates handles the installation of CA certificates for any distribution
+func (c *certificateManagerCommands) CheckAndInstallCaCertificates() error {
+	isInstalled := IsCaCertificateInstalled(c.checkCACertificatesCmd)
 	if !isInstalled {
-		pipe := script.Exec(installCommand)
+		pipe := script.Exec(c.installCACertificatesCmd)
 		if err := pipe.Wait(); err != nil {
-			slog.Error("failed to install ca-certificates", slog.String("error", err.Error()))
-			os.Exit(1)
+			return err
 		}
 	}
+
+	return nil
 }
