@@ -352,7 +352,11 @@ func main() {
 	utils.CheckUser()
 	utils.CheckPuppetEnv()
 	utils.CheckOSNameEnv()
-	utils.SupportedOS()
+	cmds, err := utils.IsSupportedOS()
+	if err != nil {
+		slog.Error("OS not supported", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
 
 	slog.Info("starting obmondo-system-update script")
 
@@ -376,6 +380,16 @@ func main() {
 	}
 
 	slog.Info("service window is active, going ahead")
+
+	if err := cmds.UpdateRepositoryList(); err != nil {
+		slog.Error("unable to update repository", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+
+	if err := cmds.CheckAndInstallCaCertificates(); err != nil {
+		slog.Error("unable to check if ca certs are installed", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
 
 	// Check if any existing puppet agent is already running
 	puppet.WaitForPuppetAgent()
