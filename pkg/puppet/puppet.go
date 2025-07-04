@@ -208,7 +208,11 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
 	}
 
-	f, _ := os.Create(downloadPath)
+	f, err := os.Create(downloadPath)
+	if err != nil {
+		slog.Error("failed to create file", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 	defer f.Close()
 
 	_, rerr := io.Copy(io.MultiWriter(f), resp.Body)

@@ -30,7 +30,7 @@ type ObmondoClient interface {
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
 	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
 	if err != nil {
-		slog.Error("failed to load host cert & key pair")
+		slog.Error("failed to load host cert & key pair", slog.String("error", err.Error()))
 		return nil, err
 	}
 

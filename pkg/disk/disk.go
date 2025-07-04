@@ -1,7 +1,6 @@
 package disk
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -22,7 +21,7 @@ func listPartitions() ([]gpud.PartitionStat, error) {
 	// Only returns physical devices only (e.g. hard disks, cd-rom drives, USB keys)
 	allPartitions, err := gpud.Partitions(false)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("error while getting partitions", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -45,9 +44,9 @@ func CheckDiskSize() error {
 
 		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
 			if disk.Free <= diskFreeSize[p.Mountpoint] {
-				errMsg := fmt.Sprintf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
-				slog.Error(errMsg)
-				return errors.New(errMsg)
+				err := fmt.Errorf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
+				slog.Error("disk space is low", slog.String("error", err.Error()))
+				return err
 			}
 		}
 	}
