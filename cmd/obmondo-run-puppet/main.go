@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"errors"
+	"flag"
 	"go-scripts/pkg/checkconnectivity"
 	"go-scripts/utils"
 	"io"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/bitfield/script"
 )
+
+var Version string
 
 const (
 	obmondoBasepathAPIURL      = "https://api.obmondo.com/api"
@@ -155,8 +158,18 @@ func runPuppet() error {
 
 // Entry point
 func main() {
+	versionFlag := flag.Bool("version", false, "Print version and exit")
+
+	flag.Parse()
+
+	if *versionFlag {
+		slog.Info("run_puppet version", "version", Version)
+		os.Exit(0)
+	}
 
 	utils.LoadPuppetEnv()
+
+	slog.Info("run_puppet version", "version", Version)
 
 	allAPIReachable := checkconnectivity.CheckTCPConnection()
 	if !allAPIReachable {

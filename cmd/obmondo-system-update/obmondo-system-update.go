@@ -336,6 +336,9 @@ func main() {
 		slog.Info("obmondo-install-setup version", "version", Version)
 		os.Exit(0)
 	}
+
+	slog.Info("obmondo-install-setup version", "version", Version)
+
 	logger.InitLogger(*debugFlag)
 
 	utils.LoadOSReleaseEnv()
