@@ -1,0 +1,25 @@
+{
+    "enabledManagers": [
+        "github-actions",
+        "gomod"
+    ],
+    "extends": [
+        "config:recommended",
+        ":rebaseStalePrs",
+        ":gitSignOff",
+        ":assignAndReview(sidharth)",
+        ":label(Renovate/Dependency)"
+    ],
+    "packageRules": [
+        {
+            "matchDatasources": [
+                "golang-version"
+            ],
+            "rangeStrategy": "bump"
+        }
+    ],
+    "postUpdateOptions": [
+        "gomodUpdateImportPaths",
+        "gomodTidy"
+    ]
+}
