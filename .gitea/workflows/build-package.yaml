@@ -39,6 +39,7 @@ jobs:
           apt update
           apt install -y ruby rpm
           gem install fpm
+          echo "changed directories: ${ALL_CHANGED_DIRS}"
           for dir in ${ALL_CHANGED_DIRS}; do
             echo "Build package for ${dir}"
             cd /workspace/$GITHUB_REPOSITORY/$dir
