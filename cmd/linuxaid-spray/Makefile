@@ -1,23 +1,37 @@
-PATH := ../../bin:$(PATH)
+PATH := ../../../bin:$(PATH)
 export NAME=linuxaid-spray
-export RELEASE=1.0.0
-export DIST=../../dist
 export VERSION=1.0.1
+export DIST=../../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
 SOURCES := linuxaid-spray
 
-.PHONY: all packages dep build deb deb_arm rpm
+.PHONY: all dep build clean test format vet lint run
+
+packages: deb deb_arm rpm
 
 all: build
 
-packages: deb rpm
+lint: ## Lint the files
+	@golangci-lint run --issues-exit-code=1
+
+format: ## Format the files
+	@go fmt ./...
+
+vet: ## Vet the files
+	@go vet ./...
 
 test: ## Run unittests
-	@go test -v
+	@go test -v ./...
 
 dep: ## Get the dependencies
 	@go get -v ./...
+
+clean: ## Remove previous build
+	@go clean
+
+run:
+	@go run ./$(SOURECS)
 
 build: $(SOURCES)
 
