@@ -24,7 +24,7 @@ func DebianPuppetAgent() {
 	fullPuppetVersion := fmt.Sprintf("%s%s", constants.PuppetVersion, codeName)
 	packageName := fmt.Sprintf("puppet-agent_%s_amd64.deb", fullPuppetVersion)
 	downloadPath := fmt.Sprintf("%s/%s", tempDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/puppet7/p/puppet-agent/%s", codeName, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/%s/p/puppet-agent/%s", codeName, constants.PuppetMajorVersion, packageName)
 
 	puppet.DownloadPuppetAgent(downloadPath, url)
 

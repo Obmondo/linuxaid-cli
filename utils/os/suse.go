@@ -21,7 +21,7 @@ func SusePuppetAgent() {
 	fullPuppetVersion := fmt.Sprintf("%s.sles%s", constants.PuppetVersion, majRelease)
 	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/sles/puppet8/%s/x86_64/%s.rpm", majRelease, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/sles/%s/%s/x86_64/%s.rpm", constants.PuppetMajorVersion, majRelease, packageName)
 
 	puppet.DownloadPuppetAgent(downloadPath, url)
 

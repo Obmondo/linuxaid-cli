@@ -34,7 +34,7 @@ func connectToServer(app *application) {
 	isConnected := false
 
 	if err != nil {
-		slog.Error("failed to connect to webtee server", slog.String("error", err.Error()))
+		slog.Debug("failed to connect to webtee server", slog.String("error", err.Error()))
 	} else {
 		isConnected = true
 	}
@@ -43,7 +43,7 @@ func connectToServer(app *application) {
 	// even if connection to server failed.
 
 	if !(isConnected) && !(app.config.ContinueOnDisconnect()) {
-		slog.Error("ContinueOnDisconnect is set to false so quitting without executing command")
+		slog.Debug("ContinueOnDisconnect is set to false so quitting without executing command")
 		os.Exit(1)
 	}
 }
@@ -69,7 +69,7 @@ func webTee(app *application, lines <-chan logLine) {
 	// Start the logging stream.
 	stream, err := client.SendLog(ctx)
 	if err != nil {
-		slog.Error("failed to initialize log stream", slog.String("error", err.Error()))
+		slog.Debug("failed to initialize log stream", slog.String("error", err.Error()))
 		// Since we can't connect to server, accept and discard whatever we receive in the lines channel.
 		for {
 			_, more := <-lines
@@ -87,7 +87,7 @@ func webTee(app *application, lines <-chan logLine) {
 			_, err := stream.CloseAndRecv()
 			// fail here, when cert is not found in db
 			if err != nil {
-				slog.Error("failed to close log stream", slog.String("error", err.Error()))
+				slog.Debug("failed to close log stream", slog.String("error", err.Error()))
 			}
 
 			return
@@ -100,7 +100,7 @@ func webTee(app *application, lines <-chan logLine) {
 		}
 
 		if err := stream.Send(&logLine); err != nil {
-			slog.Error("failed to send", slog.String("log_line", logLine.String()), slog.String("error", err.Error()))
+			slog.Debug("failed to send", slog.String("log_line", logLine.String()), slog.String("error", err.Error()))
 		}
 	}
 

@@ -9,6 +9,7 @@ const (
 	PuppetPath         = "/sbin:/usr/sbin:/bin:/usr/bin:/opt/puppetlabs/puppet/bin"
 	PuppetConfig       = "/etc/puppetlabs/puppet/puppet.conf"
 	PuppetVersion      = "7.33.0-1"
+	PuppetMajorVersion = "puppet7"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 
 	// Lock and Disabled
