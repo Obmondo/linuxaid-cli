@@ -25,11 +25,11 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		slog.Info("obmondo-install-setup version", "version", Version)
+		slog.Info("obmondo-install-setup", "version", Version)
 		os.Exit(0)
 	}
 
-	slog.Info("obmondo-install-setup version", "version", Version)
+	slog.Info("obmondo-install-setup", "version", Version)
 
 	logger.InitLogger(*debugFlag)
 

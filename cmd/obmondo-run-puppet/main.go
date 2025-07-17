@@ -163,13 +163,13 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		slog.Info("run_puppet version", "version", Version)
+		slog.Info("run_puppet", "version", Version)
 		os.Exit(0)
 	}
 
 	utils.LoadPuppetEnv()
 
-	slog.Info("run_puppet version", "version", Version)
+	slog.Info("run_puppet", "version", Version)
 
 	allAPIReachable := checkconnectivity.CheckTCPConnection()
 	if !allAPIReachable {

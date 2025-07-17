@@ -337,7 +337,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	slog.Info("obmondo-install-setup version", "version", Version)
+	slog.Info("obmondo-install-setup", "version", Version)
 
 	logger.InitLogger(*debugFlag)
 

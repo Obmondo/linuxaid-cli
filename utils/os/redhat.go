@@ -21,7 +21,7 @@ func RedHatPuppetAgent() {
 	fullPuppetVersion := fmt.Sprintf("%s.el%s", constants.PuppetVersion, majRelease)
 	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)
 	downloadPath := fmt.Sprintf("%s/%s.rpm", tempDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/puppet7/el/%s/x86_64/%s.rpm", majRelease, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/%s/el/%s/x86_64/%s.rpm", constants.PuppetMajorVersion, majRelease, packageName)
 	puppet.DownloadPuppetAgent(downloadPath, url)
 
 	// Install the package
