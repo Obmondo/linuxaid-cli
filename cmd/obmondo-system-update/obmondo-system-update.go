@@ -349,9 +349,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	utils.CheckUser()
-	utils.CheckPuppetEnv()
-	utils.CheckOSNameEnv()
+	utils.RequireRootUser()
+	utils.RequirePuppetEnv()
+	utils.RequireOSNameEnv()
 	cmds, err := utils.IsSupportedOS()
 	if err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))

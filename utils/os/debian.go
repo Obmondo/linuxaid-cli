@@ -11,7 +11,7 @@ import (
 )
 
 func DebianPuppetAgent() {
-	utils.CheckUbuntuCodeNameEnv()
+	utils.RequireUbuntuCodeNameEnv()
 
 	certName := os.Getenv("CERTNAME")
 	codeName := os.Getenv("UBUNTU_CODENAME")

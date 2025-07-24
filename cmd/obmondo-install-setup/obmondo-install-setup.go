@@ -35,19 +35,19 @@ func main() {
 
 	utils.LoadOSReleaseEnv()
 
-	utils.CheckUser()
+	utils.RequireRootUser()
 
 	// Check required envs and OS
-	utils.CheckCertNameEnv()
-	utils.CheckOSNameEnv()
-	utils.CheckOSVersionEnv()
+	utils.RequireCertNameEnv()
+	utils.RequireOSNameEnv()
+	utils.RequireOSVersionEnv()
 	if _, err := utils.IsSupportedOS(); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
 
 	if err := disk.CheckDiskSize(); err != nil {
-		prettyfmt.PrettyFmt(prettyfmt.FontRed("unable to check disk size", err.Error()))
+		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 	}
 
 	certName := os.Getenv("CERTNAME")

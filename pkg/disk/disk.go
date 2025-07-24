@@ -31,22 +31,22 @@ func listPartitions() ([]gpud.PartitionStat, error) {
 func CheckDiskSize() error {
 	partitions, err := listPartitions()
 	if err != nil {
-		slog.Error("failed to fetch partitions", slog.String("error", err.Error()))
-		return err
+		slog.Error("failed to fetch disk partitions", slog.String("error", err.Error()))
+		return fmt.Errorf("failed to fetch disk partitions: %w", err)
 	}
 
 	for _, p := range partitions {
 		disk, err := gpud.Usage(p.Mountpoint)
 		if err != nil {
 			slog.Error("failed to fetch file system usage", slog.String("error", err.Error()))
-			return err
+			return fmt.Errorf("failed to fetch file system usage: %w", err)
 		}
 
 		if p.Mountpoint == "/boot" || p.Mountpoint == "/" {
 			if disk.Free <= diskFreeSize[p.Mountpoint] {
 				err := fmt.Errorf("%s has %v bytes of space left, exiting", p.Mountpoint, disk.Free)
 				slog.Error("disk space is low", slog.String("error", err.Error()))
-				return err
+				return fmt.Errorf("disk space is low: %w", err)
 			}
 		}
 	}

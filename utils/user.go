@@ -9,7 +9,7 @@ import (
 
 // Check if the current user is root or not
 // fail if user is not root
-func CheckUser() {
+func RequireRootUser() {
 	user, err := user.Current()
 	if err != nil {
 		slog.Error(err.Error())
