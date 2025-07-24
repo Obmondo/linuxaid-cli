@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func CheckPuppetEnv() {
+func RequirePuppetEnv() {
 	_, certOk := os.LookupEnv("PUPPETCERT")
 	if !certOk {
 		slog.Error("PUPPETCERT env variable not set")
@@ -21,7 +21,7 @@ func CheckPuppetEnv() {
 	}
 }
 
-func CheckCertNameEnv() {
+func RequireCertNameEnv() {
 	_, certnameOk := os.LookupEnv("CERTNAME")
 	if !certnameOk {
 		slog.Error("CERTNAME env variable not set")
@@ -29,7 +29,7 @@ func CheckCertNameEnv() {
 	}
 }
 
-func CheckOSNameEnv() {
+func RequireOSNameEnv() {
 	_, codeName := os.LookupEnv("NAME")
 	if !codeName {
 		slog.Error("NAME env variable not set")
@@ -37,7 +37,7 @@ func CheckOSNameEnv() {
 	}
 }
 
-func CheckOSVersionEnv() {
+func RequireOSVersionEnv() {
 	_, codeName := os.LookupEnv("VERSION")
 	if !codeName {
 		slog.Error("VERSION env variable not set")
@@ -45,7 +45,7 @@ func CheckOSVersionEnv() {
 	}
 }
 
-func CheckUbuntuCodeNameEnv() {
+func RequireUbuntuCodeNameEnv() {
 	_, codeName := os.LookupEnv("UBUNTU_CODENAME")
 	if !codeName {
 		slog.Error("UBUNTU_CODENAME env variable not set")
