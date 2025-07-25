@@ -62,6 +62,7 @@ func RemoteLogObmondo(command []string, certname string) {
 
 	err = cmd.Wait()
 	if err != nil {
+		slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
 		//nolint:forbidigo
 		fmt.Printf("\nInstallation setup failed, please contact ops@obmondo.com\nDon't worry, obmondo has the failed logs to analyze it.\n") //nolint:revive
 		os.Exit(1)
