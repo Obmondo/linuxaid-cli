@@ -206,6 +206,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 	if _, exists := closeWindowSuccessStatuses[resp.StatusCode]; !exists {
 		slog.Debug("puppet agent download failed", "url", url)
 		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
+		os.Exit(1)
 	}
 
 	f, err := os.Create(downloadPath)
