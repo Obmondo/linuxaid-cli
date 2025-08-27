@@ -16,6 +16,7 @@ const (
 	AgentDisabledLockFile         = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
 	AgentRunningLockFile          = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
 	DefaultPuppetServerCustomerID = "enableit"
+	DefaultPuppetServerDomain     = "puppet.obmondo.com"
 
 	// Progress Bar
 	BarProgressSize    = 100

@@ -122,7 +122,7 @@ func FacterNewSetup() {
 func ConfigurePuppetAgent() {
 	_, customerID, _ := strings.Cut(certName, ".")
 
-	puppetURL := fmt.Sprintf("https://%s.puppet.obmondo.com/status/v1/services", customerID)
+	puppetURL := fmt.Sprintf("https://%s.%s/status/v1/services", customerID, constants.DefaultPuppetServerDomain)
 	tlsConfigTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -148,7 +148,7 @@ func ConfigurePuppetAgent() {
 	}
 
 	configFmt := `[main]
-server = %s.puppet.obmondo.com
+server = %s.%s
 certname = %s
 stringify_facts = false
 masterport = 443
@@ -159,7 +159,7 @@ pluginsync = true
 noop = true
 environment = master
 `
-	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
+	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName, constants.DefaultPuppetServerDomain)).WriteFile(constants.PuppetConfig)
 	if err != nil {
 		slog.Debug("failed to configure puppet agent", slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())

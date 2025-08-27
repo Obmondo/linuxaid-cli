@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-scripts/constants"
 	"go-scripts/utils"
 	"log/slog"
 	"time"
@@ -13,10 +14,9 @@ import (
 )
 
 const (
-	puppetSuffix = ".puppet.obmondo.com"
-	port         = "443"
-	timeout      = time.Second * 5
-	metricsFile  = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
+	port        = "443"
+	timeout     = time.Second * 5
+	metricsFile = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
 )
 
 var enableitHosts = []string{
@@ -33,7 +33,7 @@ func getHostList() ([]string, error) {
 		return nil, errors.New("customerID not found")
 	}
 
-	return append(enableitHosts, customerID+puppetSuffix), nil
+	return append(enableitHosts, customerID+constants.DefaultPuppetServerDomain), nil
 }
 
 func init() {
