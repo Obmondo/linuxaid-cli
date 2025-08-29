@@ -1,10 +1,10 @@
-linters:
-  disable-all: false
+version: "2"
 
+linters:
   # The below linters are 'additional' linters that are enabled over and
   # above the default linters mentioned in: https://golangci-lint.run/usage/linters/
   enable:
-    - tenv
+    - usetesting
     - unparam
     - usestdlibvars
     - reassign
@@ -16,7 +16,6 @@ linters:
     - maintidx
     - importas
     - mnd
-    - gofmt
     - godox
     - goconst
     - gocognit
@@ -30,58 +29,66 @@ linters:
     - misspell
     - bodyclose
 
+  settings:
+    errcheck:
+      exclude-functions:
+        - "(io.Closer).Close"
+        - "(*database/sql.Rows).Close"
+    funlen:
+      lines: 70
+      statements: 50
+      ignore-comments: true
+    revive:
+      severity: error
+      rules:
+        - name: bool-literal-in-expr
+        - name: comment-spacings
+        - name: constant-logical-expr
+        - name: context-as-argument
+        - name: datarace
+        - name: nested-structs
+        - name: defer
+        - name: duplicated-imports
+        - name: early-return
+        - name: empty-block
+        - name: error-naming
+        - name: error-strings
+        - name: errorf
+        - name: identical-branches
+        - name: increment-decrement
+        - name: modifies-value-receiver
+        - name: range
+        - name: range-val-address
+        - name: receiver-naming
+        - name: string-of-int
+        - name: struct-tag
+        - name: superfluous-else
+        - name: time-equal
+        - name: time-naming
+        - name: var-naming
+        - name: var-declaration
+        - name: unconditional-recursion
+        - name: unexported-naming
+        - name: unhandled-error
+        - name: unnecessary-stmt
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: unused-receiver
+        - name: useless-break
+        - name: waitgroup-by-value
 
-linters-settings:
-  funlen:
-    lines: 70
-    statements: 50
-    ignore-comments: true
-  revive:
-    severity: error
+  exclusions:
     rules:
-      - name: bool-literal-in-expr
-      - name: comment-spacings
-      - name: constant-logical-expr
-      - name: context-as-argument
-      - name: datarace
-      - name: nested-structs
-      - name: defer
-      - name: duplicated-imports
-      - name: early-return
-      - name: empty-block
-      - name: error-naming
-      - name: error-strings
-      - name: errorf
-      - name: identical-branches
-      - name: increment-decrement
-      - name: modifies-value-receiver
-      - name: range
-      - name: range-val-address
-      - name: receiver-naming
-      - name: string-of-int
-      - name: struct-tag
-      - name: superfluous-else
-      - name: time-equal
-      - name: time-naming
-      - name: var-naming
-      - name: var-declaration
-      - name: unconditional-recursion
-      - name: unexported-naming
-      - name: unhandled-error
-      - name: unnecessary-stmt
-      - name: unreachable-code
-      - name: unused-parameter
-      - name: unused-receiver
-      - name: useless-break
-      - name: waitgroup-by-value
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - unparam
-        - bodyclose
-    - path: mock/.*
-      linters:
-        - mnd
+      - path: _test\.go
+        linters:
+          - funlen
+          - unparam
+          - bodyclose
+      - path: mock/.*
+        linters:
+          - gomnd
+      - path: code.gitea.io/sdk/gitea/client.go
+        linters:
+          - unparam
+          - unused-parameter
+          - unused-receiver
