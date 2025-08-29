@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"go-scripts/config"
-	"go-scripts/constants"
-	"go-scripts/utils/logger"
+	"gitea.obmondo.com/go-scripts/config"
+	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/utils/logger"
 )
 
 var Version string

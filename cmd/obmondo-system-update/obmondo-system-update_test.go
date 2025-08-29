@@ -1,8 +1,8 @@
 package main
 
 import (
-	mock "go-scripts/mock"
-	"go-scripts/utils"
+	mock "gitea.obmondo.com/go-scripts/mock"
+	"gitea.obmondo.com/go-scripts/utils"
 	"net/http"
 	"path/filepath"
 	"testing"

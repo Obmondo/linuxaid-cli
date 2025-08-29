@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-scripts/constants"
-	"go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/utils"
 	"log/slog"
 	"time"
 

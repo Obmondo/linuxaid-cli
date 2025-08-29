@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/bitfield/script"
-	"go-scripts/config"
-	"go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/config"
+	"gitea.obmondo.com/go-scripts/constants"
 )
 
 const (

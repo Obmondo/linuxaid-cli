@@ -4,15 +4,15 @@ import (
 	"log/slog"
 	"os"
 
-	"go-scripts/pkg/disk"
-	"go-scripts/pkg/prettyfmt"
-	"go-scripts/pkg/puppet"
-	"go-scripts/pkg/webtee"
+	"gitea.obmondo.com/go-scripts/pkg/disk"
+	"gitea.obmondo.com/go-scripts/pkg/prettyfmt"
+	"gitea.obmondo.com/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/go-scripts/pkg/webtee"
 
-	"go-scripts/config"
-	"go-scripts/constants"
-	"go-scripts/utils"
-	osutil "go-scripts/utils/os"
+	"gitea.obmondo.com/go-scripts/config"
+	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/utils"
+	osutil "gitea.obmondo.com/go-scripts/utils/os"
 )
 
 func obmondoInstallSetup() {

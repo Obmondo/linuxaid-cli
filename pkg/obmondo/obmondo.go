@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"go-scripts/constants"
-	"go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/utils"
 )
 
 const (

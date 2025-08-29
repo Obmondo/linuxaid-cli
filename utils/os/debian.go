@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"go-scripts/config"
-	"go-scripts/constants"
-	"go-scripts/pkg/puppet"
-	"go-scripts/pkg/webtee"
-	"go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/config"
+	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/go-scripts/utils"
 )
 
 func DebianPuppetAgent() {
