@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var Version string
@@ -51,7 +51,7 @@ func main() {
 	}
 }
 
-func run(cmd *cobra.Command, args []string) {
+func run(*cobra.Command, []string) {
 	log.Printf("ssh-checker version: %s", Version)
 
 	if inputCSV == "" && (hostname == "" || username == "") {
@@ -72,6 +72,7 @@ func run(cmd *cobra.Command, args []string) {
 	} else {
 		// Parse the hostname to extract user and hostname
 		if strings.Contains(hostname, "@") {
+			// nolint: mnd
 			parts := strings.SplitN(hostname, "@", 2)
 			username = parts[0]
 			hostname = parts[1]
@@ -100,7 +101,7 @@ func readCSV(file string) ([]Node, error) {
 		return nil, err
 	}
 
-	var nodes []Node
+	nodes := make([]Node, 0, len(records[1:]))
 	for _, record := range records[1:] { // Skip header
 		port := record[1]
 		if port == "" {
@@ -119,6 +120,7 @@ func readCSV(file string) ([]Node, error) {
 
 func checkNodes(nodes []Node, outputFile string) {
 	var wg sync.WaitGroup
+	// nolint: mnd
 	sem := make(chan struct{}, 10) // Limit to 10 concurrent goroutines
 
 	for _, node := range nodes {
@@ -134,17 +136,21 @@ func checkNodes(nodes []Node, outputFile string) {
 					if outputFile != "" {
 						appendToFile(outputFile, fmt.Sprintf("Success: %s (%s)\n", n.Port, n.Hostname))
 					}
-				} else {
-					log.Printf("SSH Auth failed for (%s) on port %s", n.Hostname, n.Port)
-					if outputFile != "" {
-						appendToFile(outputFile, fmt.Sprintf("Failed: %s (%s)\n", n.Port, n.Hostname))
-					}
+
+					return
 				}
-			} else {
-				log.Printf("Port %s is not open for (%s)", n.Port, n.Hostname)
+
+				log.Printf("SSH Auth failed for (%s) on port %s", n.Hostname, n.Port)
 				if outputFile != "" {
-					appendToFile(outputFile, fmt.Sprintf("Port Closed: %s (%s)\n", n.Port, n.Hostname))
+					appendToFile(outputFile, fmt.Sprintf("Failed: %s (%s)\n", n.Port, n.Hostname))
 				}
+
+				return
+			}
+
+			log.Printf("Port %s is not open for (%s)", n.Port, n.Hostname)
+			if outputFile != "" {
+				appendToFile(outputFile, fmt.Sprintf("Port Closed: %s (%s)\n", n.Port, n.Hostname))
 			}
 		}(node)
 	}
@@ -154,6 +160,7 @@ func checkNodes(nodes []Node, outputFile string) {
 
 func isPortOpen(ip, port string) bool {
 	address := net.JoinHostPort(ip, port)
+	// nolint: mnd
 	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
 		return false
@@ -166,10 +173,12 @@ func checkSSHAuth(node Node) bool {
 	var password string
 
 	if node.Password == "" {
+		// nolint: forbidigo
+		// Handle the lint here since we accepting password on the same line
 		fmt.Print("Enter Password: ")
 		passwordInput, err := readPassword()
 		if err != nil {
-			fmt.Println("Error reading password:", err)
+			log.Println("Error reading password:", err)
 			return false
 		}
 		password = passwordInput
@@ -195,16 +204,18 @@ func checkSSHAuth(node Node) bool {
 }
 
 func readPassword() (string, error) {
-	bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return "", err
 	}
+	// nolint: forbidigo
+	// Adding a new line after accepting password from the terminal
 	fmt.Println()
 	return string(bytePassword), nil
 }
 
 func appendToFile(filename, text string) {
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		log.Fatalf("Error opening output file: %v", err)
 	}

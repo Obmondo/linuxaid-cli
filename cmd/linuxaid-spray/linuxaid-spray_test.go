@@ -8,6 +8,7 @@ import (
 
 	"crypto/rand"
 	"crypto/rsa"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -110,7 +111,7 @@ func TestReadCSV(t *testing.T) {
 	//}
 
 	// Create a temporary CSV file for testing
-	tempFile, err := os.CreateTemp("", "test.csv")
+	tempFile, err := os.CreateTemp(t.TempDir(), "test.csv")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constant"
-	"gitea.obmondo.com/go-scripts/helper"
-	"gitea.obmondo.com/go-scripts/pkg/puppet"
-	"gitea.obmondo.com/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 )
 
 func SusePuppetAgent() {

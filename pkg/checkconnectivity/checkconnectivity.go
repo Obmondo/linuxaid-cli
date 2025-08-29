@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gitea.obmondo.com/go-scripts/constant"
-	"gitea.obmondo.com/go-scripts/helper"
 	"log/slog"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tevino/tcp-shaker"

@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 
 	"github.com/bitfield/script"
 )

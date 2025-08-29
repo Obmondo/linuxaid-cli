@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"github.com/bitfield/script"
 )
 

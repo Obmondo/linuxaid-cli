@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gitea.obmondo.com/go-scripts/helper"
-	"gitea.obmondo.com/go-scripts/mock"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/mock"
 )
 
 func TestGetCustomerID(t *testing.T) {

@@ -4,14 +4,15 @@ import (
 	"crypto/tls"
 	"errors"
 	"flag"
-	"gitea.obmondo.com/go-scripts/pkg/checkconnectivity"
-	"gitea.obmondo.com/go-scripts/helper"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
 
 	"github.com/bitfield/script"
 )

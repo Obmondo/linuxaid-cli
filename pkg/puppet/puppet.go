@@ -4,15 +4,16 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constant"
-	"gitea.obmondo.com/go-scripts/pkg/webtee"
 	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
 	"github.com/bitfield/script"
 )

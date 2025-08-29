@@ -3,9 +3,10 @@ package mock
 import (
 	"bytes"
 	"encoding/json"
-	api "gitea.obmondo.com/go-scripts/pkg/obmondo"
 	"io"
 	"net/http"
+
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 )
 
 type MockObmondoClient struct{}

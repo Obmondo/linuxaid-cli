@@ -34,6 +34,8 @@ linters:
       exclude-functions:
         - "(io.Closer).Close"
         - "(*os.File).Close"
+        - (net.Conn).Close
+        - (golang.org/x/crypto/ssh.Conn).Close
         - (*github.com/spf13/cobra.Command).Help
         - (*github.com/spf13/viper.Viper).BindPFlag
         - (*github.com/spf13/viper.Viper).BindEnv
@@ -73,6 +75,10 @@ linters:
         - name: unconditional-recursion
         - name: unexported-naming
         - name: unhandled-error
+          arguments:
+            - fmt.Println
+            - fmt.Printf
+            - fmt.Print
         - name: unnecessary-stmt
         - name: unreachable-code
         - name: unused-parameter
@@ -87,6 +93,8 @@ linters:
           - funlen
           - unparam
           - bodyclose
+          - errcheck
+          - revive
       - path: mock/.*
         linters:
           - gomnd
