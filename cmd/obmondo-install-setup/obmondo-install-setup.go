@@ -84,7 +84,6 @@ func main() {
 	utils.RequireRootUser()
 
 	// Check required envs and OS
-	utils.RequireCertNameEnv()
 	utils.RequireOSNameEnv()
 	utils.RequireOSVersionEnv()
 	if _, err := utils.IsSupportedOS(); err != nil {

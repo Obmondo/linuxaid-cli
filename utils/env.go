@@ -21,14 +21,6 @@ func RequirePuppetEnv() {
 	}
 }
 
-func RequireCertNameEnv() {
-	_, certnameOk := os.LookupEnv("CERTNAME")
-	if !certnameOk {
-		slog.Error("CERTNAME env variable not set")
-		os.Exit(1)
-	}
-}
-
 func RequireOSNameEnv() {
 	_, codeName := os.LookupEnv("NAME")
 	if !codeName {
