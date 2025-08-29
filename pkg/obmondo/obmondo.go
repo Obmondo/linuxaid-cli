@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	constants "go-scripts/constants"
+	"go-scripts/constants"
 	"go-scripts/utils"
 )
 
@@ -28,7 +28,7 @@ type ObmondoClient interface {
 }
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
-	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
+	cert, err := tls.LoadX509KeyPair(os.Getenv(constants.PuppetCertEnv), os.Getenv(constants.PuppetPrivKeyEnv))
 	if err != nil {
 		slog.Error("failed to load host cert & key pair", slog.String("error", err.Error()))
 		return nil, err
@@ -68,8 +68,8 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 }
 
 func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
-	certname := utils.GetCommonNameFromCertFile(os.Getenv("PUPPETCERT"))
-	customerID := utils.GetCustomerID(certname)
+	certname := utils.GetCommonNameFromCertFile(os.Getenv(constants.PuppetCertEnv))
+	customerID := utils.GetCustomerID()
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))

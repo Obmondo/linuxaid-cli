@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"go-scripts/config"
 	"go-scripts/constants"
 	"go-scripts/pkg/puppet"
-	webtee "go-scripts/pkg/webtee"
-	utils "go-scripts/utils"
+	"go-scripts/pkg/webtee"
+	"go-scripts/utils"
 )
 
 func SusePuppetAgent() {
-	certName := os.Getenv("CERTNAME")
+	certName := config.GetCertName()
 	webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, certName)
 
 	majRelease := utils.GetMajorRelease()

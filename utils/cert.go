@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/bitfield/script"
+	"go-scripts/config"
+	"go-scripts/constants"
 )
 
 const (
@@ -36,13 +38,26 @@ func GetCommonNameFromCertFile(certPath string) string {
 	return cert.Subject.CommonName
 }
 
-func GetCustomerID(certname string) string {
-	parts := strings.Split(certname, ".")
-	if len(parts) < two {
-		slog.Error("incorrect format for certname")
-		return ""
+func getCustomerIDFromPuppetCertString(puppetCertString string) string {
+	if strings.Contains(puppetCertString, ".") && len(strings.Split(puppetCertString, ".")) == 3 && len(strings.Split(puppetCertString, ".")[1]) > 0 {
+		return strings.Split(puppetCertString, ".")[1]
 	}
-	return parts[1]
+	return ""
+}
+
+func GetCustomerID() string {
+	certName := config.GetCertName()
+	parts := strings.Split(certName, ".")
+	if len(parts) >= two {
+		return parts[1]
+	}
+
+	puppetCert, puppetCertExists := os.LookupEnv(constants.PuppetCertEnv)
+	if puppetCertExists && len(puppetCert) > 0 {
+		return getCustomerIDFromPuppetCertString(puppetCert)
+	}
+
+	return ""
 }
 
 // Need this, otherwise remotelog func wont work

@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"go-scripts/constants"
+
 	"github.com/bitfield/script"
 )
 
@@ -26,28 +28,17 @@ func ParseResponse(response *http.Response) (int, []byte, error) {
 	return code, bts, nil
 }
 
-// ParseResponse reads a response, returning the status code, body and error that occurred.
-// func ParseResponse(response *http.Response) (int, []byte, error) {
-//	code := response.StatusCode
-//		defer response.Body.Close()
-//			bts, err := io.ReadAll(response.Body)
-//				if err != nil {
-//						return code, nil, err
-//							}
-//								return code, bts, nil
-//								}
-
 // FetchURL calls an Obmondo API URL
 func FetchURL(url string) (*http.Response, error) {
-	puppetCert := script.IfExists(os.Getenv("PUPPETCERT"))
-	puppetPrivKey := script.IfExists(os.Getenv("PUPPETPRIVKEY"))
+	puppetCert := script.IfExists(os.Getenv(constants.PuppetCertEnv))
+	puppetPrivKey := script.IfExists(os.Getenv(constants.PuppetPrivKeyEnv))
 
 	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
 		slog.Error("puppet host cert or puppet private key is not present on the node")
 		os.Exit(1)
 	}
 
-	cert, err := tls.LoadX509KeyPair(os.Getenv("PUPPETCERT"), os.Getenv("PUPPETPRIVKEY"))
+	cert, err := tls.LoadX509KeyPair(os.Getenv(constants.PuppetCertEnv), os.Getenv(constants.PuppetPrivKeyEnv))
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)

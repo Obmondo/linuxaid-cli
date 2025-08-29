@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"go-scripts/config"
 	"go-scripts/constants"
 	"go-scripts/pkg/puppet"
-	webtee "go-scripts/pkg/webtee"
-	utils "go-scripts/utils"
+	"go-scripts/pkg/webtee"
+	"go-scripts/utils"
 )
 
 func RedHatPuppetAgent() {
-	certName := os.Getenv("CERTNAME")
+	certName := config.GetCertName()
 	webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, certName)
 
 	majRelease := utils.GetMajorRelease()
@@ -25,7 +26,7 @@ func RedHatPuppetAgent() {
 	puppet.DownloadPuppetAgent(downloadPath, url)
 
 	// Install the package
-	installCmd := []string{fmt.Sprintf("yum install  %s  -y", downloadPath)}
+	installCmd := []string{fmt.Sprintf("yum install %s -y", downloadPath)}
 	webtee.RemoteLogObmondo(installCmd, certName)
 
 }
