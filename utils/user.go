@@ -18,7 +18,7 @@ func RequireRootUser() {
 	if user.Username == "root" {
 		return
 	}
-	slog.Error("exiting, script needs to be run as root", slog.String("current_user", user.Username))
+	slog.Error("exiting, script needs to be run as root user,", slog.String("current_user", user.Username))
 	os.Exit(1)
 }
 

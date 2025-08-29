@@ -1,9 +1,11 @@
 package main
 
 import (
-	"flag"
 	"log/slog"
 	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"go-scripts/pkg/disk"
 	"go-scripts/pkg/prettyfmt"
@@ -18,23 +20,67 @@ import (
 
 var Version string
 
+var (
+	versionFlag      bool
+	debugFlag        bool
+	certNameFlag     string
+	puppetServerFlag string
+)
+
+var rootCmd = &cobra.Command{
+	Use:     "obmondo-install-setup",
+	Short:   "An Obmondo linuxaid install script to setup on a linux node",
+	Example: `  # obmondo-install-setup --certname web01.customerid`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		// Handle version flag first
+		if versionFlag {
+			slog.Info("obmondo-install-setup", "version", Version)
+			os.Exit(0)
+		}
+
+		// Get certname from viper (flag or env)
+		certName := viper.GetString("certname")
+		if certName == "" {
+			slog.Error("certname is required. Provide via --certname flag or CERTNAME environment variable")
+			os.Exit(1)
+		}
+
+		logger.InitLogger(debugFlag)
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
+func init() {
+	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
+	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
+	rootCmd.Flags().StringVar(&certNameFlag, constants.CobraFlagCertName, "", "Certificate name (required)")
+	rootCmd.Flags().StringVar(&puppetServerFlag, constants.CobraFlagPuppetServer, "", "Puppet server hostname")
+
+	// Bind flags to viper
+	viper.BindPFlag(constants.CobraFlagDebug, rootCmd.Flags().Lookup(constants.CobraFlagDebug))
+	viper.BindPFlag(constants.CobraFlagCertName, rootCmd.Flags().Lookup(constants.CobraFlagCertName))
+	viper.BindPFlag(constants.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constants.CobraFlagPuppetServer))
+
+	// Bind environment variables
+	viper.BindEnv(constants.CobraFlagCertName, "CERTNAME")
+	viper.BindEnv(constants.CobraFlagPuppetServer, "PUPPET_SERVER")
+
+	// Set default values
+	viper.SetDefault(constants.CobraFlagPuppetServer, constants.DefaultPuppetServerCustomerID+constants.DefaultPuppetServerDomain)
+}
+
 func main() {
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	debugFlag := flag.Bool("debug", false, "Enable debug logs")
 
-	flag.Parse()
-
-	if *versionFlag {
-		slog.Info("obmondo-install-setup", "version", Version)
-		os.Exit(0)
+	if err := rootCmd.Execute(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
-	slog.Info("obmondo-install-setup", "version", Version)
-
-	logger.InitLogger(*debugFlag)
-
+	// Sanity check
 	utils.LoadOSReleaseEnv()
-
 	utils.RequireRootUser()
 
 	// Check required envs and OS
@@ -50,7 +96,7 @@ func main() {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 	}
 
-	certName := os.Getenv("CERTNAME")
+	certName := viper.GetString("certName")
 	envErr := os.Setenv("PATH", constants.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")

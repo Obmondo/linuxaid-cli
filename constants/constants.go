@@ -1,10 +1,10 @@
 package constants
 
 const (
-	// for system update script
+	// Obmondo API
 	ObmondoAPIURL = "https://api.obmondo.com/api"
 
-	// puppet
+	// Puppet
 	PuppetPackageName  = "puppet-agent"
 	PuppetPath         = "/sbin:/usr/sbin:/bin:/usr/bin:/opt/puppetlabs/puppet/bin"
 	PuppetConfig       = "/etc/puppetlabs/puppet/puppet.conf"
@@ -28,4 +28,9 @@ const (
 	BarSizeFifty       = 50
 	BarSizeSeventyFive = 75
 	BarSizeHundred     = 100
+
+	// Cobra Flags
+	CobraFlagDebug        = "debug"
+	CobraFlagCertName     = "certname"
+	CobraFlagPuppetServer = "puppet-server"
 )
