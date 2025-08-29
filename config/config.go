@@ -1,6 +1,7 @@
 package config
 
 import (
+	"gitea.obmondo.com/go-scripts/constants"
 	"github.com/spf13/viper"
 )
 
@@ -13,13 +14,17 @@ func Initialize() *viper.Viper {
 }
 
 func GetCertName() string {
-	return viperConfig.GetString("certname")
+	return viperConfig.GetString(constants.CobraFlagCertName)
 }
 
 func GetPupeptServer() string {
-	return viperConfig.GetString("puppet-server")
+	return viperConfig.GetString(constants.CobraFlagPuppetServer)
 }
 
 func GetDebug() bool {
-	return viperConfig.GetBool("debug")
+	return viperConfig.GetBool(constants.CobraFlagDebug)
+}
+
+func DoReboot() bool {
+	return viperConfig.GetBool(constants.CobraFlagReboot)
 }

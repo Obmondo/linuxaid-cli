@@ -11,14 +11,15 @@ jobs:
     runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
-        uses: https://gitea.obmondo.com/Obmondo/checkout@v3
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v4.2.2
         with:
           fetch-depth: 2
 
       - name: Setup Go
         uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Get changed files
         id: filter

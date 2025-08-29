@@ -3,13 +3,14 @@ package utils
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 
-	"github.com/bitfield/script"
 	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constants"
+	"github.com/bitfield/script"
 )
 
 const (
@@ -52,6 +53,7 @@ func GetCustomerID() string {
 		return parts[1]
 	}
 
+	fmt.Println(certName)
 	puppetCert, puppetCertExists := os.LookupEnv(constants.PuppetCertEnv)
 	if puppetCertExists && len(puppetCert) > 0 {
 		return getCustomerIDFromPuppetCertString(puppetCert)

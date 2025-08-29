@@ -3,15 +3,14 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
+	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constants"
-	disk "gitea.obmondo.com/go-scripts/pkg/disk"
+	"gitea.obmondo.com/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/go-scripts/pkg/obmondo"
-	puppet "gitea.obmondo.com/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/go-scripts/pkg/security"
 	"gitea.obmondo.com/go-scripts/utils"
-	"gitea.obmondo.com/go-scripts/utils/logger"
 	"io"
 	"log/slog"
 	"net/http"
@@ -324,22 +323,9 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-var Version string
+func obmondoSystemUpdate() {
 
-func main() {
-	reboot := flag.Bool("reboot", true, "Set this flag false to prevent reboot")
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	debugFlag := flag.Bool("debug", false, "Enable debug logs")
-
-	flag.Parse()
-	if *versionFlag {
-		slog.Info("obmondo-install-setup version", "version", Version)
-		os.Exit(0)
-	}
-
-	slog.Info("obmondo-install-setup", "version", Version)
-
-	logger.InitLogger(*debugFlag)
+	reboot := config.DoReboot()
 
 	utils.LoadOSReleaseEnv()
 
@@ -435,7 +421,7 @@ func main() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(*reboot); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(reboot); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}

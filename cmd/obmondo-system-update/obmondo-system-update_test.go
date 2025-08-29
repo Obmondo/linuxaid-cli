@@ -1,18 +1,20 @@
 package main
 
 import (
-	mock "gitea.obmondo.com/go-scripts/mock"
-	"gitea.obmondo.com/go-scripts/utils"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"gitea.obmondo.com/go-scripts/mock"
+	"gitea.obmondo.com/go-scripts/utils"
 )
 
 func TestGetCustomerID(t *testing.T) {
-	certname := "hostname.example"
+	os.Setenv("CERTNAME", "hostname.example")
 	expected := "example"
-	op := utils.GetCustomerID(certname)
+	op := utils.GetCustomerID()
 	if op != expected {
 		t.Errorf("Failed to parse customer id, expeceted: %s, output: %s", expected, op)
 	}
