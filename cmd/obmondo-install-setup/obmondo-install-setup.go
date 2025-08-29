@@ -11,8 +11,8 @@ import (
 
 	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constants"
-	"gitea.obmondo.com/go-scripts/utils"
-	osutil "gitea.obmondo.com/go-scripts/utils/os"
+	"gitea.obmondo.com/go-scripts/helper"
+	osutil "gitea.obmondo.com/go-scripts/helper/os"
 )
 
 func obmondoInstallSetup() {
@@ -20,13 +20,13 @@ func obmondoInstallSetup() {
 	puppetServer := config.GetPupeptServer()
 
 	// Sanity check
-	utils.LoadOSReleaseEnv()
-	utils.RequireRootUser()
+	helper.LoadOSReleaseEnv()
+	helper.RequireRootUser()
 
 	// Check required envs and OS
-	utils.RequireOSNameEnv()
-	utils.RequireOSVersionEnv()
-	if _, err := utils.IsSupportedOS(); err != nil {
+	helper.RequireOSNameEnv()
+	helper.RequireOSVersionEnv()
+	if _, err := helper.IsSupportedOS(); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)
 	}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 	"gitea.obmondo.com/go-scripts/pkg/checkconnectivity"
-	"gitea.obmondo.com/go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/helper"
 	"io"
 	"log/slog"
 	"net/http"
@@ -167,7 +167,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	utils.LoadPuppetEnv()
+	helper.LoadPuppetEnv()
 
 	slog.Info("run_puppet", "version", Version)
 

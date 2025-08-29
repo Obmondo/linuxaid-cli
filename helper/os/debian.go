@@ -1,4 +1,4 @@
-package utils
+package helper
 
 import (
 	"fmt"
@@ -6,20 +6,20 @@ import (
 
 	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/helper"
 	"gitea.obmondo.com/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/go-scripts/pkg/webtee"
-	"gitea.obmondo.com/go-scripts/utils"
 )
 
 func DebianPuppetAgent() {
-	utils.RequireUbuntuCodeNameEnv()
+	helper.RequireUbuntuCodeNameEnv()
 
 	certName := config.GetCertName()
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	webtee.RemoteLogObmondo([]string{"apt update"}, certName)
 	webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, certName)
 
-	tempDir := utils.TempDir()
+	tempDir := helper.TempDir()
 
 	defer os.RemoveAll(tempDir)
 	fullPuppetVersion := fmt.Sprintf("%s%s", constants.PuppetVersion, codeName)

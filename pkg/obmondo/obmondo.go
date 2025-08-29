@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"gitea.obmondo.com/go-scripts/constants"
-	"gitea.obmondo.com/go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/helper"
 )
 
 const (
@@ -68,8 +68,8 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 }
 
 func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
-	certname := utils.GetCommonNameFromCertFile(os.Getenv(constants.PuppetCertEnv))
-	customerID := utils.GetCustomerID()
+	certname := helper.GetCommonNameFromCertFile(os.Getenv(constants.PuppetCertEnv))
+	customerID := helper.GetCustomerID()
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))

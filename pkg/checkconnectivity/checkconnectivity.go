@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gitea.obmondo.com/go-scripts/constants"
-	"gitea.obmondo.com/go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/helper"
 	"log/slog"
 	"time"
 
@@ -28,7 +28,7 @@ var runPuppetMetric *prometheus.GaugeVec
 var registry *prometheus.Registry
 
 func getHostList() ([]string, error) {
-	customerID := utils.GetCustomerID()
+	customerID := helper.GetCustomerID()
 	if len(customerID) == 0 {
 		return nil, errors.New("customerID not found")
 	}

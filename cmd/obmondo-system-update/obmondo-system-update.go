@@ -10,7 +10,7 @@ import (
 	api "gitea.obmondo.com/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/go-scripts/pkg/security"
-	"gitea.obmondo.com/go-scripts/utils"
+	"gitea.obmondo.com/go-scripts/helper"
 	"io"
 	"log/slog"
 	"net/http"
@@ -78,7 +78,7 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (*ServiceWindow, 
 	}
 
 	defer resp.Body.Close()
-	statusCode, responseBody, err := utils.ParseResponse(resp)
+	statusCode, responseBody, err := helper.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
 		return nil, err
@@ -327,7 +327,7 @@ func obmondoSystemUpdate() {
 
 	reboot := config.DoReboot()
 
-	utils.LoadOSReleaseEnv()
+	helper.LoadOSReleaseEnv()
 
 	envErr := os.Setenv("PATH", constants.PuppetPath)
 	if envErr != nil {
@@ -335,10 +335,10 @@ func obmondoSystemUpdate() {
 		os.Exit(1)
 	}
 
-	utils.RequireRootUser()
-	utils.RequirePuppetEnv()
-	utils.RequireOSNameEnv()
-	cmds, err := utils.IsSupportedOS()
+	helper.RequireRootUser()
+	helper.RequirePuppetEnv()
+	helper.RequireOSNameEnv()
+	cmds, err := helper.IsSupportedOS()
 	if err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)

@@ -1,9 +1,8 @@
-package utils
+package helper
 
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -53,7 +52,6 @@ func GetCustomerID() string {
 		return parts[1]
 	}
 
-	fmt.Println(certName)
 	puppetCert, puppetCertExists := os.LookupEnv(constants.PuppetCertEnv)
 	if puppetCertExists && len(puppetCert) > 0 {
 		return getCustomerIDFromPuppetCertString(puppetCert)

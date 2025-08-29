@@ -8,7 +8,7 @@ import (
 
 	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constants"
-	"gitea.obmondo.com/go-scripts/utils/logger"
+	"gitea.obmondo.com/go-scripts/helper/logger"
 )
 
 var Version string
@@ -23,7 +23,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:     "obmondo-install-setup",
 	Example: `  # obmondo-install-setup --certname web01.customerid`,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	PreRunE: func(*cobra.Command, []string) error {
 		// Handle version flag first
 		if versionFlag {
 			slog.Info("obmondo-install-setup", "version", Version)
@@ -34,7 +34,7 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _ []string) {
 		// Get certname from viper (flag or env)
 		certName := config.GetCertName()
 		if certName == "" {
