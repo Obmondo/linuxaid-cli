@@ -12,7 +12,7 @@ type MockObmondoClient struct{}
 
 func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	data := map[string]interface{}{
-		"status":  200,
+		"status":  http.StatusOK,
 		"success": true,
 		"data": map[string]interface{}{
 			"is_window_open": true,

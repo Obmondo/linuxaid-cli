@@ -6,9 +6,9 @@ import (
 
 	"gitea.obmondo.com/go-scripts/config"
 	"gitea.obmondo.com/go-scripts/constant"
+	"gitea.obmondo.com/go-scripts/helper"
 	"gitea.obmondo.com/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/go-scripts/pkg/webtee"
-	"gitea.obmondo.com/go-scripts/helper"
 )
 
 func RedHatPuppetAgent() {
@@ -18,6 +18,7 @@ func RedHatPuppetAgent() {
 	majRelease := helper.GetMajorRelease()
 	tempDir := helper.TempDir()
 
+	// nolint: errcheck
 	defer os.RemoveAll(tempDir)
 	fullPuppetVersion := fmt.Sprintf("%s.el%s", constant.PuppetVersion, majRelease)
 	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)

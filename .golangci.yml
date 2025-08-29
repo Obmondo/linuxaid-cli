@@ -33,7 +33,7 @@ linters:
     errcheck:
       exclude-functions:
         - "(io.Closer).Close"
-        - "(*database/sql.Rows).Close"
+        - "(*os.File).Close"
         - (*github.com/spf13/cobra.Command).Help
         - (*github.com/spf13/viper.Viper).BindPFlag
         - (*github.com/spf13/viper.Viper).BindEnv

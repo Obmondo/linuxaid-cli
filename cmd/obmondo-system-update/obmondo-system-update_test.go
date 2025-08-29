@@ -2,17 +2,16 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"gitea.obmondo.com/go-scripts/mock"
 	"gitea.obmondo.com/go-scripts/helper"
+	"gitea.obmondo.com/go-scripts/mock"
 )
 
 func TestGetCustomerID(t *testing.T) {
-	os.Setenv("CERTNAME", "hostname.example")
+	t.Setenv("CERTNAME", "hostname.example")
 	expected := "example"
 	op := helper.GetCustomerID()
 	if op != expected {

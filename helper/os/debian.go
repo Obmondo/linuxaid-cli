@@ -21,6 +21,7 @@ func DebianPuppetAgent() {
 
 	tempDir := helper.TempDir()
 
+	// nolint: errcheck
 	defer os.RemoveAll(tempDir)
 	fullPuppetVersion := fmt.Sprintf("%s%s", constant.PuppetVersion, codeName)
 	packageName := fmt.Sprintf("puppet-agent_%s_amd64.deb", fullPuppetVersion)
