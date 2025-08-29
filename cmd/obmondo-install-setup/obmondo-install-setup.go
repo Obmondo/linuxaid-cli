@@ -35,6 +35,9 @@ func obmondoInstallSetup() {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 	}
 
+	// Check if Puppetserver is alive and active
+	puppet.CheckPuppetServerStatus()
+
 	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")
