@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/helper"
 	"log/slog"
 	"time"
@@ -33,7 +33,7 @@ func getHostList() ([]string, error) {
 		return nil, errors.New("customerID not found")
 	}
 
-	return append(enableitHosts, customerID+constants.DefaultPuppetServerDomain), nil
+	return append(enableitHosts, customerID+constant.DefaultPuppetServerDomain), nil
 }
 
 func init() {

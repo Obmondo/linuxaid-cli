@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/go-scripts/pkg/puppet"
@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	obmondoAPIURL       = constants.ObmondoAPIURL
-	agentDisabledFile   = constants.AgentDisabledLockFile
-	path                = constants.PuppetPath
+	obmondoAPIURL       = constant.ObmondoAPIURL
+	agentDisabledFile   = constant.AgentDisabledLockFile
+	path                = constant.PuppetPath
 	sleepTime           = 5
 	bootDirectory       = "/boot"
 	securityExporterURL = "http://127.254.254.254:63396"
@@ -329,7 +329,7 @@ func obmondoSystemUpdate() {
 
 	helper.LoadOSReleaseEnv()
 
-	envErr := os.Setenv("PATH", constants.PuppetPath)
+	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")
 		os.Exit(1)

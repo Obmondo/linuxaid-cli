@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/helper/logger"
 )
 
@@ -51,24 +51,24 @@ func init() {
 
 	viperConfig := config.Initialize()
 
-	defaultServer := constants.DefaultPuppetServerCustomerID + "." + constants.DefaultPuppetServerDomain
+	defaultServer := constant.DefaultPuppetServerCustomerID + "." + constant.DefaultPuppetServerDomain
 
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constants.CobraFlagCertName, "", "Certificate name (required)")
-	rootCmd.Flags().StringVar(&puppetServerFlag, constants.CobraFlagPuppetServer, defaultServer, "Puppet server hostname")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
+	rootCmd.Flags().StringVar(&puppetServerFlag, constant.CobraFlagPuppetServer, defaultServer, "Puppet server hostname")
 
 	// Bind flags to viper
-	viperConfig.BindPFlag(constants.CobraFlagDebug, rootCmd.Flags().Lookup(constants.CobraFlagDebug))
-	viperConfig.BindPFlag(constants.CobraFlagCertName, rootCmd.Flags().Lookup(constants.CobraFlagCertName))
-	viperConfig.BindPFlag(constants.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constants.CobraFlagPuppetServer))
+	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
+	viperConfig.BindPFlag(constant.CobraFlagCertName, rootCmd.Flags().Lookup(constant.CobraFlagCertName))
+	viperConfig.BindPFlag(constant.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constant.CobraFlagPuppetServer))
 
 	// Bind environment variables
-	viperConfig.BindEnv(constants.CobraFlagCertName, "CERTNAME")
-	viperConfig.BindEnv(constants.CobraFlagPuppetServer, "PUPPET_SERVER")
+	viperConfig.BindEnv(constant.CobraFlagCertName, "CERTNAME")
+	viperConfig.BindEnv(constant.CobraFlagPuppetServer, "PUPPET_SERVER")
 
 	// Set default values
-	viperConfig.SetDefault(constants.CobraFlagPuppetServer, defaultServer)
+	viperConfig.SetDefault(constant.CobraFlagPuppetServer, defaultServer)
 }
 
 func main() {

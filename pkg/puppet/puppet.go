@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/pkg/webtee"
 	"io"
 	"io/fs"
@@ -82,15 +82,15 @@ func RunPuppetAgent(remoteLog bool, noopStatus string) int {
 // check if puppet agent is running or not
 func isPuppetAgentRunning() bool {
 	certName := config.GetCertName()
-	_, err := os.Stat(constants.AgentRunningLockFile)
+	_, err := os.Stat(constant.AgentRunningLockFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constants.AgentRunningLockFile))
+			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constant.AgentRunningLockFile))
 			webtee.RemoteLogObmondo([]string{"echo unable to find puppet agent lock file"}, certName)
 			return false
 		}
 
-		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constants.AgentRunningLockFile), slog.Any("error", err))
+		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constant.AgentRunningLockFile), slog.Any("error", err))
 		webtee.RemoteLogObmondo([]string{"echo unable to fetch puppet agent lock file details"}, certName)
 		return false
 	}
@@ -106,9 +106,9 @@ func FacterNewSetup() {
 	currentTime := time.Now()
 	facter := fmt.Sprintf("---\ninstall_date: %d%d%d\n", currentTime.Year(), currentTime.Month(), currentTime.Day())
 
-	_, err := script.Echo(facter).WriteFile(constants.ExternalFacterFile)
+	_, err := script.Echo(facter).WriteFile(constant.ExternalFacterFile)
 	if err != nil {
-		slog.Debug("failed to write external facter file", slog.String("file_path", constants.ExternalFacterFile), slog.Any("error", err))
+		slog.Debug("failed to write external facter file", slog.String("file_path", constant.ExternalFacterFile), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create external facter file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
@@ -162,7 +162,7 @@ pluginsync = true
 noop = true
 environment = master
 `
-	_, err := script.Echo(fmt.Sprintf(configFmt, puppetServer, certName)).WriteFile(constants.PuppetConfig)
+	_, err := script.Echo(fmt.Sprintf(configFmt, puppetServer, certName)).WriteFile(constant.PuppetConfig)
 	if err != nil {
 		slog.Debug("failed to configure puppet agent", slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
@@ -198,7 +198,7 @@ func WaitForPuppetAgent() {
 			break
 		}
 
-		time.Sleep(constants.SleepTime * time.Second)
+		time.Sleep(constant.SleepTime * time.Second)
 	}
 }
 

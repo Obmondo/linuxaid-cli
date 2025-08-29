@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 
 	"github.com/bitfield/script"
 )
@@ -30,15 +30,15 @@ func ParseResponse(response *http.Response) (int, []byte, error) {
 
 // FetchURL calls an Obmondo API URL
 func FetchURL(url string) (*http.Response, error) {
-	puppetCert := script.IfExists(os.Getenv(constants.PuppetCertEnv))
-	puppetPrivKey := script.IfExists(os.Getenv(constants.PuppetPrivKeyEnv))
+	puppetCert := script.IfExists(os.Getenv(constant.PuppetCertEnv))
+	puppetPrivKey := script.IfExists(os.Getenv(constant.PuppetPrivKeyEnv))
 
 	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
 		slog.Error("puppet host cert or puppet private key is not present on the node")
 		os.Exit(1)
 	}
 
-	cert, err := tls.LoadX509KeyPair(os.Getenv(constants.PuppetCertEnv), os.Getenv(constants.PuppetPrivKeyEnv))
+	cert, err := tls.LoadX509KeyPair(os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv))
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)

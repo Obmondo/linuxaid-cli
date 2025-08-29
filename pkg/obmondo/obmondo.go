@@ -10,13 +10,13 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/helper"
 )
 
 const (
 	apiTimeOut    = 15
-	obmondoAPIURL = constants.ObmondoAPIURL
+	obmondoAPIURL = constant.ObmondoAPIURL
 )
 
 type Client struct {
@@ -28,7 +28,7 @@ type ObmondoClient interface {
 }
 
 func fetchURL(url string, data []byte, requestType string) (*http.Response, error) {
-	cert, err := tls.LoadX509KeyPair(os.Getenv(constants.PuppetCertEnv), os.Getenv(constants.PuppetPrivKeyEnv))
+	cert, err := tls.LoadX509KeyPair(os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv))
 	if err != nil {
 		slog.Error("failed to load host cert & key pair", slog.String("error", err.Error()))
 		return nil, err
@@ -68,7 +68,7 @@ func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
 }
 
 func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
-	certname := helper.GetCommonNameFromCertFile(os.Getenv(constants.PuppetCertEnv))
+	certname := helper.GetCommonNameFromCertFile(os.Getenv(constant.PuppetCertEnv))
 	customerID := helper.GetCustomerID()
 	location, err := time.LoadLocation(timezone)
 	if err != nil {

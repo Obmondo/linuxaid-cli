@@ -10,7 +10,7 @@ import (
 	"gitea.obmondo.com/go-scripts/pkg/webtee"
 
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/helper"
 	osutil "gitea.obmondo.com/go-scripts/helper/os"
 )
@@ -35,7 +35,7 @@ func obmondoInstallSetup() {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 	}
 
-	envErr := os.Setenv("PATH", constants.PuppetPath)
+	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")
 		os.Exit(1)
@@ -45,7 +45,7 @@ func obmondoInstallSetup() {
 	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
 
 	// check if agent disable file exists
-	if _, err := os.Stat(constants.AgentDisabledLockFile); err == nil {
+	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
 		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
 		os.Exit(0)

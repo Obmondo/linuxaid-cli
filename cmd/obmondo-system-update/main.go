@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"gitea.obmondo.com/go-scripts/helper/logger"
 )
 
@@ -44,14 +44,14 @@ func init() {
 	viperConfig := config.Initialize()
 
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
-	rootCmd.Flags().BoolVar(&debugFlag, constants.CobraFlagDebug, false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constants.CobraFlagCertName, "", "Certificate name (required)")
-	rootCmd.Flags().BoolVar(&rebootFlag, constants.CobraFlagReboot, true, "Set this flag false to prevent reboot")
+	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
+	rootCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
 
 	// Bind flags to viper
-	viperConfig.BindPFlag(constants.CobraFlagDebug, rootCmd.Flags().Lookup(constants.CobraFlagDebug))
-	viperConfig.BindPFlag(constants.CobraFlagReboot, rootCmd.Flags().Lookup(constants.CobraFlagReboot))
+	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
+	viperConfig.BindPFlag(constant.CobraFlagReboot, rootCmd.Flags().Lookup(constant.CobraFlagReboot))
 
 	// Bind environment variables
-	viperConfig.BindEnv(constants.CobraFlagCertName, "CERTNAME")
+	viperConfig.BindEnv(constant.CobraFlagCertName, "CERTNAME")
 }

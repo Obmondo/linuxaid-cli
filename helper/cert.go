@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"gitea.obmondo.com/go-scripts/config"
-	"gitea.obmondo.com/go-scripts/constants"
+	"gitea.obmondo.com/go-scripts/constant"
 	"github.com/bitfield/script"
 )
 
@@ -52,7 +52,7 @@ func GetCustomerID() string {
 		return parts[1]
 	}
 
-	puppetCert, puppetCertExists := os.LookupEnv(constants.PuppetCertEnv)
+	puppetCert, puppetCertExists := os.LookupEnv(constant.PuppetCertEnv)
 	if puppetCertExists && len(puppetCert) > 0 {
 		return getCustomerIDFromPuppetCertString(puppetCert)
 	}
