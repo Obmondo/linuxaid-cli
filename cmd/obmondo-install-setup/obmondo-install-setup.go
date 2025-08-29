@@ -54,10 +54,13 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+
+	defaultServer := constants.DefaultPuppetServerCustomerID + "." + constants.DefaultPuppetServerDomain
+
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
 	rootCmd.Flags().StringVar(&certNameFlag, constants.CobraFlagCertName, "", "Certificate name (required)")
-	rootCmd.Flags().StringVar(&puppetServerFlag, constants.CobraFlagPuppetServer, "", "Puppet server hostname")
+	rootCmd.Flags().StringVar(&puppetServerFlag, constants.CobraFlagPuppetServer, defaultServer, "Puppet server hostname")
 
 	// Bind flags to viper
 	viper.BindPFlag(constants.CobraFlagDebug, rootCmd.Flags().Lookup(constants.CobraFlagDebug))
@@ -69,7 +72,7 @@ func init() {
 	viper.BindEnv(constants.CobraFlagPuppetServer, "PUPPET_SERVER")
 
 	// Set default values
-	viper.SetDefault(constants.CobraFlagPuppetServer, constants.DefaultPuppetServerCustomerID+constants.DefaultPuppetServerDomain)
+	viper.SetDefault(constants.CobraFlagPuppetServer, defaultServer)
 }
 
 func main() {
