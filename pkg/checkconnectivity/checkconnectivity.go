@@ -4,19 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-scripts/utils"
 	"log/slog"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tevino/tcp-shaker"
 )
 
 const (
-	puppetSuffix = ".puppet.obmondo.com"
-	port         = "443"
-	timeout      = time.Second * 5
-	metricsFile  = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
+	port        = "443"
+	timeout     = time.Second * 5
+	metricsFile = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
 )
 
 var enableitHosts = []string{
@@ -28,12 +29,12 @@ var runPuppetMetric *prometheus.GaugeVec
 var registry *prometheus.Registry
 
 func getHostList() ([]string, error) {
-	customerID := utils.GetCustomerIDFromEnv()
+	customerID := helper.GetCustomerID()
 	if len(customerID) == 0 {
 		return nil, errors.New("customerID not found")
 	}
 
-	return append(enableitHosts, customerID+puppetSuffix), nil
+	return append(enableitHosts, customerID+constant.DefaultPuppetServerDomain), nil
 }
 
 func init() {

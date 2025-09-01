@@ -1,47 +1,32 @@
 package main
 
 import (
-	"flag"
 	"log/slog"
 	"os"
 
-	"go-scripts/pkg/disk"
-	"go-scripts/pkg/prettyfmt"
-	"go-scripts/pkg/puppet"
-	"go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
-	"go-scripts/constants"
-	"go-scripts/utils"
-	"go-scripts/utils/logger"
-	osutil "go-scripts/utils/os"
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	osutil "gitea.obmondo.com/EnableIT/go-scripts/helper/os"
 )
 
-var Version string
+func obmondoInstallSetup() {
+	certName := config.GetCertName()
+	puppetServer := config.GetPupeptServer()
 
-func main() {
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	debugFlag := flag.Bool("debug", false, "Enable debug logs")
-
-	flag.Parse()
-
-	if *versionFlag {
-		slog.Info("obmondo-install-setup", "version", Version)
-		os.Exit(0)
-	}
-
-	slog.Info("obmondo-install-setup", "version", Version)
-
-	logger.InitLogger(*debugFlag)
-
-	utils.LoadOSReleaseEnv()
-
-	utils.RequireRootUser()
+	// Sanity check
+	helper.LoadOSReleaseEnv()
+	helper.RequireRootUser()
 
 	// Check required envs and OS
-	utils.RequireCertNameEnv()
-	utils.RequireOSNameEnv()
-	utils.RequireOSVersionEnv()
-	if _, err := utils.IsSupportedOS(); err != nil {
+	helper.RequireOSNameEnv()
+	helper.RequireOSVersionEnv()
+	if _, err := helper.IsSupportedOS(); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
@@ -50,18 +35,20 @@ func main() {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 	}
 
-	certName := os.Getenv("CERTNAME")
-	envErr := os.Setenv("PATH", constants.PuppetPath)
+	// Check if Puppetserver is alive and active
+	puppet.CheckPuppetServerStatus()
+
+	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")
 		os.Exit(1)
 	}
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certName)
-	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), "\n")
+	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
 
 	// check if agent disable file exists
-	if _, err := os.Stat(constants.AgentDisabledLockFile); err == nil {
+	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
 		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
 		os.Exit(0)

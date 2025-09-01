@@ -3,16 +3,17 @@ package mock
 import (
 	"bytes"
 	"encoding/json"
-	api "go-scripts/pkg/obmondo"
 	"io"
 	"net/http"
+
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 )
 
 type MockObmondoClient struct{}
 
 func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	data := map[string]interface{}{
-		"status":  200,
+		"status":  http.StatusOK,
 		"success": true,
 		"data": map[string]interface{}{
 			"is_window_open": true,

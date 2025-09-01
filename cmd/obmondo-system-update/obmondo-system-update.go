@@ -3,28 +3,28 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"go-scripts/constants"
-	disk "go-scripts/pkg/disk"
-	api "go-scripts/pkg/obmondo"
-	puppet "go-scripts/pkg/puppet"
-	"go-scripts/pkg/security"
-	"go-scripts/utils"
-	"go-scripts/utils/logger"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/security"
+
 	"github.com/bitfield/script"
 )
 
 const (
-	obmondoAPIURL       = constants.ObmondoAPIURL
-	agentDisabledFile   = constants.AgentDisabledLockFile
-	path                = constants.PuppetPath
+	obmondoAPIURL       = constant.ObmondoAPIURL
+	agentDisabledFile   = constant.AgentDisabledLockFile
+	path                = constant.PuppetPath
 	sleepTime           = 5
 	bootDirectory       = "/boot"
 	securityExporterURL = "http://127.254.254.254:63396"
@@ -79,7 +79,7 @@ func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (*ServiceWindow, 
 	}
 
 	defer resp.Body.Close()
-	statusCode, responseBody, err := utils.ParseResponse(resp)
+	statusCode, responseBody, err := helper.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
 		return nil, err
@@ -324,35 +324,22 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-var Version string
+func obmondoSystemUpdate() {
 
-func main() {
-	reboot := flag.Bool("reboot", true, "Set this flag false to prevent reboot")
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	debugFlag := flag.Bool("debug", false, "Enable debug logs")
+	reboot := config.DoReboot()
 
-	flag.Parse()
-	if *versionFlag {
-		slog.Info("obmondo-install-setup version", "version", Version)
-		os.Exit(0)
-	}
+	helper.LoadOSReleaseEnv()
 
-	slog.Info("obmondo-install-setup", "version", Version)
-
-	logger.InitLogger(*debugFlag)
-
-	utils.LoadOSReleaseEnv()
-
-	envErr := os.Setenv("PATH", constants.PuppetPath)
+	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
 		slog.Error("failed to set the PATH env, exiting")
 		os.Exit(1)
 	}
 
-	utils.RequireRootUser()
-	utils.RequirePuppetEnv()
-	utils.RequireOSNameEnv()
-	cmds, err := utils.IsSupportedOS()
+	helper.RequireRootUser()
+	helper.RequirePuppetEnv()
+	helper.RequireOSNameEnv()
+	cmds, err := helper.IsSupportedOS()
 	if err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)
@@ -435,7 +422,7 @@ func main() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(*reboot); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(reboot); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}

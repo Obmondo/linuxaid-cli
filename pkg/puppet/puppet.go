@@ -4,24 +4,19 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"go-scripts/constants"
-	"go-scripts/pkg/webtee"
 	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
 	"github.com/bitfield/script"
 )
-
-const (
-	sleepTime = 5
-)
-
-var certName = os.Getenv("CERTNAME")
 
 // 200 HTTP code
 var closeWindowSuccessStatuses = map[int]struct{}{
@@ -63,6 +58,7 @@ func DisablePuppetAgent(msg string) bool {
 
 // run puppet-agent
 func RunPuppetAgent(remoteLog bool, noopStatus string) int {
+	certName := config.GetCertName()
 	cmdString := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopStatus)
 	if remoteLog {
 		webtee.RemoteLogObmondo([]string{cmdString}, certName)
@@ -86,15 +82,16 @@ func RunPuppetAgent(remoteLog bool, noopStatus string) int {
 
 // check if puppet agent is running or not
 func isPuppetAgentRunning() bool {
-	_, err := os.Stat(constants.AgentRunningLockFile)
+	certName := config.GetCertName()
+	_, err := os.Stat(constant.AgentRunningLockFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constants.AgentRunningLockFile))
+			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constant.AgentRunningLockFile))
 			webtee.RemoteLogObmondo([]string{"echo unable to find puppet agent lock file"}, certName)
 			return false
 		}
 
-		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constants.AgentRunningLockFile), slog.Any("error", err))
+		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constant.AgentRunningLockFile), slog.Any("error", err))
 		webtee.RemoteLogObmondo([]string{"echo unable to fetch puppet agent lock file details"}, certName)
 		return false
 	}
@@ -104,25 +101,26 @@ func isPuppetAgentRunning() bool {
 
 // facter for new installation
 func FacterNewSetup() {
+	certName := config.GetCertName()
 	script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d")
 
 	currentTime := time.Now()
 	facter := fmt.Sprintf("---\ninstall_date: %d%d%d\n", currentTime.Year(), currentTime.Month(), currentTime.Day())
 
-	_, err := script.Echo(facter).WriteFile(constants.ExternalFacterFile)
+	_, err := script.Echo(facter).WriteFile(constant.ExternalFacterFile)
 	if err != nil {
-		slog.Debug("failed to write external facter file", slog.String("file_path", constants.ExternalFacterFile), slog.Any("error", err))
+		slog.Debug("failed to write external facter file", slog.String("file_path", constant.ExternalFacterFile), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create external facter file: %s ", err.Error())
 		webtee.RemoteLogObmondo([]string{errMsg}, certName)
 	}
 
 }
 
-// config setup for puppet-agent
-func ConfigurePuppetAgent() {
-	_, customerID, _ := strings.Cut(certName, ".")
-
-	puppetURL := fmt.Sprintf("https://%s.puppet.obmondo.com/status/v1/services", customerID)
+// Check if puppet server is alive
+func CheckPuppetServerStatus() {
+	certName := config.GetCertName()
+	puppetServer := config.GetPupeptServer()
+	puppetURL := fmt.Sprintf("https://%s/status/v1/services", puppetServer)
 	tlsConfigTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -144,11 +142,17 @@ func ConfigurePuppetAgent() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		customerID = constants.DefaultPuppetServerCustomerID
+		slog.Error("Puppetserver is not reachable", slog.Int("http-status", resp.StatusCode))
+		os.Exit(1)
 	}
+}
 
+// config setup for puppet-agent
+func ConfigurePuppetAgent() {
+	certName := config.GetCertName()
+	puppetServer := config.GetPupeptServer()
 	configFmt := `[main]
-server = %s.puppet.obmondo.com
+server = %s
 certname = %s
 stringify_facts = false
 masterport = 443
@@ -159,7 +163,7 @@ pluginsync = true
 noop = true
 environment = master
 `
-	_, err = script.Echo(fmt.Sprintf(configFmt, customerID, certName)).WriteFile(constants.PuppetConfig)
+	_, err := script.Echo(fmt.Sprintf(configFmt, puppetServer, certName)).WriteFile(constant.PuppetConfig)
 	if err != nil {
 		slog.Debug("failed to configure puppet agent", slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
@@ -169,6 +173,11 @@ environment = master
 
 // disable puppet-agent running as a service (sanity-check)
 func DisablePuppetAgentService() {
+	certName := config.GetCertName()
+	// Disable unattended-upgrades, so puppet-agent package does not update or any other package
+	webtee.RemoteLogObmondo([]string{"puppet resource service unattended-upgrades ensure=stopped enable=false"}, certName)
+
+	// Stop puppet agent service, since we manage via run_puppet service
 	webtee.RemoteLogObmondo([]string{"puppet resource service puppet ensure=stopped enable=false"}, certName)
 }
 
@@ -190,7 +199,7 @@ func WaitForPuppetAgent() {
 			break
 		}
 
-		time.Sleep(sleepTime * time.Second)
+		time.Sleep(constant.SleepTime * time.Second)
 	}
 }
 

@@ -4,14 +4,15 @@ import (
 	"crypto/tls"
 	"errors"
 	"flag"
-	"go-scripts/pkg/checkconnectivity"
-	"go-scripts/utils"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
 
 	"github.com/bitfield/script"
 )
@@ -167,7 +168,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	utils.LoadPuppetEnv()
+	helper.LoadPuppetEnv()
 
 	slog.Info("run_puppet", "version", Version)
 

@@ -22,6 +22,7 @@ func RemoteLogObmondo(command []string, certname string) {
 		config: WebTeeConfig{"api.obmondo.com:443", true, command, certname, false},
 	}
 	connectToServer(app)
+	// nolint: errcheck
 	defer app.conn.Close()
 
 	lines := make(chan logLine)

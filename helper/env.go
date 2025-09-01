@@ -1,4 +1,4 @@
-package utils
+package helper
 
 import (
 	"log/slog"
@@ -17,14 +17,6 @@ func RequirePuppetEnv() {
 	_, keyOk := os.LookupEnv("PUPPETPRIVKEY")
 	if !keyOk {
 		slog.Error("PUPPETPRIVKEY env variable not set")
-		os.Exit(1)
-	}
-}
-
-func RequireCertNameEnv() {
-	_, certnameOk := os.LookupEnv("CERTNAME")
-	if !certnameOk {
-		slog.Error("CERTNAME env variable not set")
 		os.Exit(1)
 	}
 }

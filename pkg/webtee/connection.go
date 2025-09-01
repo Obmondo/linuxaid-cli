@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	rpc "go-scripts/rpc"
+	rpc "gitea.obmondo.com/EnableIT/go-scripts/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
