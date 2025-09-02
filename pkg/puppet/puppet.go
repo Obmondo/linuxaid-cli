@@ -13,6 +13,7 @@ import (
 
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
 	"github.com/bitfield/script"
@@ -57,11 +58,11 @@ func DisablePuppetAgent(msg string) bool {
 }
 
 // run puppet-agent
-func RunPuppetAgent(remoteLog bool, noopStatus string) int {
+func RunPuppetAgent(obmondoAPI api.ObmondoClient, remoteLog bool, noopStatus string) int {
 	certName := config.GetCertName()
 	cmdString := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopStatus)
 	if remoteLog {
-		webtee.RemoteLogObmondo([]string{cmdString}, certName)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{cmdString}, certName)
 		return 0
 	}
 
@@ -81,18 +82,18 @@ func RunPuppetAgent(remoteLog bool, noopStatus string) int {
 }
 
 // check if puppet agent is running or not
-func isPuppetAgentRunning() bool {
+func isPuppetAgentRunning(obmondoAPI api.ObmondoClient) bool {
 	certName := config.GetCertName()
 	_, err := os.Stat(constant.AgentRunningLockFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Debug("puppet agent lock file not found", slog.String("lock_file", constant.AgentRunningLockFile))
-			webtee.RemoteLogObmondo([]string{"echo unable to find puppet agent lock file"}, certName)
+			webtee.RemoteLogObmondo(obmondoAPI, []string{"echo unable to find puppet agent lock file"}, certName)
 			return false
 		}
 
 		slog.Debug("error checking puppet agent lock file", slog.String("lock_file", constant.AgentRunningLockFile), slog.Any("error", err))
-		webtee.RemoteLogObmondo([]string{"echo unable to fetch puppet agent lock file details"}, certName)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{"echo unable to fetch puppet agent lock file details"}, certName)
 		return false
 	}
 
@@ -100,7 +101,7 @@ func isPuppetAgentRunning() bool {
 }
 
 // facter for new installation
-func FacterNewSetup() {
+func FacterNewSetup(obmondoAPI api.ObmondoClient) {
 	certName := config.GetCertName()
 	script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d")
 
@@ -111,13 +112,13 @@ func FacterNewSetup() {
 	if err != nil {
 		slog.Debug("failed to write external facter file", slog.String("file_path", constant.ExternalFacterFile), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create external facter file: %s ", err.Error())
-		webtee.RemoteLogObmondo([]string{errMsg}, certName)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{errMsg}, certName)
 	}
 
 }
 
 // Check if puppet server is alive
-func CheckPuppetServerStatus() {
+func CheckPuppetServerStatus(obmondoAPI api.ObmondoClient) {
 	certName := config.GetCertName()
 	puppetServer := config.GetPupeptServer()
 	puppetURL := fmt.Sprintf("https://%s/status/v1/services", puppetServer)
@@ -135,7 +136,7 @@ func CheckPuppetServerStatus() {
 	if err != nil {
 		slog.Debug("failed to check puppet domain status", slog.String("puppet_url", puppetURL), slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo failed to reach Puppet server: %s", err.Error())
-		webtee.RemoteLogObmondo([]string{errMsg}, certName)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{errMsg}, certName)
 		os.Exit(1)
 	}
 
@@ -148,7 +149,7 @@ func CheckPuppetServerStatus() {
 }
 
 // config setup for puppet-agent
-func ConfigurePuppetAgent() {
+func ConfigurePuppetAgent(obmondoAPI api.ObmondoClient) {
 	certName := config.GetCertName()
 	puppetServer := config.GetPupeptServer()
 	configFmt := `[main]
@@ -167,18 +168,18 @@ environment = master
 	if err != nil {
 		slog.Debug("failed to configure puppet agent", slog.Any("error", err))
 		errMsg := fmt.Sprintf("echo can not create puppet configuration file: %s ", err.Error())
-		webtee.RemoteLogObmondo([]string{errMsg}, certName)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{errMsg}, certName)
 	}
 }
 
 // disable puppet-agent running as a service (sanity-check)
-func DisablePuppetAgentService() {
+func DisablePuppetAgentService(obmondoAPI api.ObmondoClient) {
 	certName := config.GetCertName()
 	// Disable unattended-upgrades, so puppet-agent package does not update or any other package
-	webtee.RemoteLogObmondo([]string{"puppet resource service unattended-upgrades ensure=stopped enable=false"}, certName)
+	webtee.RemoteLogObmondo(obmondoAPI, []string{"puppet resource service unattended-upgrades ensure=stopped enable=false"}, certName)
 
 	// Stop puppet agent service, since we manage via run_puppet service
-	webtee.RemoteLogObmondo([]string{"puppet resource service puppet ensure=stopped enable=false"}, certName)
+	webtee.RemoteLogObmondo(obmondoAPI, []string{"puppet resource service puppet ensure=stopped enable=false"}, certName)
 }
 
 // If Puppet is already running we wait for up to 10 minutes before exiting.
@@ -186,10 +187,10 @@ func DisablePuppetAgentService() {
 // Note that if for some reason Puppet agent is running in daemon mode we'll end
 // up here waiting for it to terminate, which will never happen. If that becomes
 // an issue we might want to actively kill Puppet, but let's wait and see.
-func WaitForPuppetAgent() {
+func WaitForPuppetAgent(obmondoAPI api.ObmondoClient) {
 	timeoutDuration := 600
 	timeout := time.Now().Add(time.Duration(timeoutDuration) * time.Second)
-	for isPuppetAgentRunning() {
+	for isPuppetAgentRunning(obmondoAPI) {
 		// time.Since calculates the time difference between time.Now() and the provided time in the argument.
 		// Since we're comparing with a future time, the difference will be negative.
 		// Hence, we'll timeout once the time difference becomes positive.
@@ -204,7 +205,7 @@ func WaitForPuppetAgent() {
 }
 
 // download puppet-agent and install it
-func DownloadPuppetAgent(downloadPath string, url string) {
+func DownloadPuppetAgent(obmondoAPI api.ObmondoClient, downloadPath string, url string) {
 	resp, err := http.Get(url)
 	if err != nil {
 		slog.Error(err.Error())
@@ -214,7 +215,7 @@ func DownloadPuppetAgent(downloadPath string, url string) {
 
 	if _, exists := closeWindowSuccessStatuses[resp.StatusCode]; !exists {
 		slog.Debug("puppet agent download failed", "url", url)
-		webtee.RemoteLogObmondo([]string{"echo puppet-agent debian file not present at this url"}, url)
+		webtee.RemoteLogObmondo(obmondoAPI, []string{"echo puppet-agent debian file not present at this url"}, url)
 		os.Exit(1)
 	}
 

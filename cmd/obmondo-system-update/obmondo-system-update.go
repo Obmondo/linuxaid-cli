@@ -241,7 +241,7 @@ func updateRedHat() error {
 // ------------------------------------------------
 
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
-func HandlePuppetRun() error {
+func HandlePuppetRun(obmondoAPI api.ObmondoClient) error {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
 	var puppetExitCodes = map[string]int{
@@ -251,7 +251,7 @@ func HandlePuppetRun() error {
 		"four": 4,
 		"six":  6,
 	}
-	exitCode := puppet.RunPuppetAgent(false, "noop")
+	exitCode := puppet.RunPuppetAgent(obmondoAPI, false, "noop")
 
 	switch exitCode {
 	case puppetExitCodes["zero"], puppetExitCodes["two"]:
@@ -353,8 +353,8 @@ func obmondoSystemUpdate() {
 		return
 	}
 
-	obmondoAPICient := api.NewObmondoClient()
-	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPICient)
+	obmondoAPI := api.NewObmondoClient(false)
+	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPI)
 	if err != nil {
 		slog.Error("unable to get service window status", slog.String("error", err.Error()))
 		return
@@ -379,10 +379,10 @@ func obmondoSystemUpdate() {
 	}
 
 	// Check if any existing puppet agent is already running
-	puppet.WaitForPuppetAgent()
+	puppet.WaitForPuppetAgent(obmondoAPI)
 
 	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-	if err := HandlePuppetRun(); err != nil {
+	if err := HandlePuppetRun(obmondoAPI); err != nil {
 		slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
 		return
 	}
@@ -415,7 +415,7 @@ func obmondoSystemUpdate() {
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := CloseServiceWindow(obmondoAPICient, serviceWindowNow.WindowType, serviceWindowNow.Timezone); err != nil {
+	if err := CloseServiceWindow(obmondoAPI, serviceWindowNow.WindowType, serviceWindowNow.Timezone); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}
