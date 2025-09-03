@@ -13,6 +13,7 @@ type application struct {
 	wg     sync.WaitGroup
 }
 
+// nolint: revive
 type WebTeeConfig struct {
 	server               string   // Server Address
 	continueOnDisconnect bool     // Continue executing command even if connection failed

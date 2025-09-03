@@ -97,7 +97,7 @@ func (*Client) readPuppetLastRunReport() ([]byte, error) {
 	return data, nil
 }
 
-func (c *Client) ServerPing() error {
+func (*Client) ServerPing() error {
 
 	url := fmt.Sprintf("%s/servers/ping", constant.ObmondoAPIURL)
 
@@ -242,4 +242,3 @@ func NewObmondoClient(notifyInstallScriptFailure bool) ObmondoClient {
 		notifyInstallScriptFailure: notifyInstallScriptFailure,
 	}
 }
-

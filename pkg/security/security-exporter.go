@@ -50,6 +50,7 @@ func (s *securityExporter) GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWi
 	return getNumberOfPackageUpdates, nil
 }
 
+// nolint: revive
 type SecurityExporter interface {
 	GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWithUpdateResponse, error)
 }

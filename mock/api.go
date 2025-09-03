@@ -9,20 +9,21 @@ import (
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 )
 
+// nolint: revive
 type MockObmondoClient struct{}
 
 // NotifyInstallScriptFailure implements api.ObmondoClient.
-func (m *MockObmondoClient) NotifyInstallScriptFailure(input *api.InstallScriptFailureInput) error {
+func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptFailureInput) error {
 	return nil
 }
 
 // ServerPing implements api.ObmondoClient.
-func (m *MockObmondoClient) ServerPing() error {
+func (*MockObmondoClient) ServerPing() error {
 	return nil
 }
 
 // UpdatePuppetLastRunReport implements api.ObmondoClient.
-func (m *MockObmondoClient) UpdatePuppetLastRunReport() error {
+func (*MockObmondoClient) UpdatePuppetLastRunReport() error {
 	return nil
 }
 
