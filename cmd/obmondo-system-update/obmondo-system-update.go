@@ -17,6 +17,7 @@ import (
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/security"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
 	"github.com/bitfield/script"
 )
@@ -45,8 +46,8 @@ type ServiceWindow struct {
 	Timezone     string `json:"timezone"`
 }
 
-func cleanup() {
-	if !puppet.EnablePuppetAgent() {
+func cleanup(puppetService *puppet.Service) {
+	if err := puppetService.EnableAgent(); err != nil {
 		slog.Error("unable to remove agent disable file and enable puppet agent")
 	}
 
@@ -241,7 +242,7 @@ func updateRedHat() error {
 // ------------------------------------------------
 
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
-func HandlePuppetRun(obmondoAPI api.ObmondoClient) error {
+func HandlePuppetRun(puppetService *puppet.Service) error {
 	// NOTE: Added to avoid magic number issue with puppet exit codes
 	//nolint:all
 	var puppetExitCodes = map[string]int{
@@ -251,7 +252,7 @@ func HandlePuppetRun(obmondoAPI api.ObmondoClient) error {
 		"four": 4,
 		"six":  6,
 	}
-	exitCode := puppet.RunPuppetAgent(obmondoAPI, false, "noop")
+	exitCode := puppetService.RunAgent(false, "noop")
 
 	switch exitCode {
 	case puppetExitCodes["zero"], puppetExitCodes["two"]:
@@ -273,7 +274,7 @@ func HandlePuppetRun(obmondoAPI api.ObmondoClient) error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded(reboot bool) error {
+func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service, reboot bool) error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -305,7 +306,7 @@ func CheckKernelAndRebootIfNeeded(reboot bool) error {
 	if installedKernel != runningKernel && reboot {
 		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
 		// otherwise reboot won't be triggered
-		cleanup()
+		cleanup(puppetService)
 		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
 		script.Exec("reboot --force")
 	}
@@ -354,6 +355,8 @@ func obmondoSystemUpdate() {
 	}
 
 	obmondoAPI := api.NewObmondoClient(false)
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
+
 	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPI)
 	if err != nil {
 		slog.Error("unable to get service window status", slog.String("error", err.Error()))
@@ -379,22 +382,22 @@ func obmondoSystemUpdate() {
 	}
 
 	// Check if any existing puppet agent is already running
-	puppet.WaitForPuppetAgent(obmondoAPI)
+	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
 	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-	if err := HandlePuppetRun(obmondoAPI); err != nil {
+	if err := HandlePuppetRun(puppetService); err != nil {
 		slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
 		return
 	}
 
 	// Disable puppet-agent, since we'll be running upgrade commands
-	if !puppet.DisablePuppetAgent("puppet has been disabled by the obmondo-system-update script.") {
-		slog.Error("unable to disable the puppet agent")
+	if err := puppetService.DisableAgent("puppet has been disabled by the obmondo-system-update script."); err != nil {
+		slog.Error("failed to disable agent", slog.Any("error", err))
 		return
 	}
 
 	// Ensure the cleanup is done regardless of the outcome of the update script execution
-	defer cleanup()
+	defer cleanup(puppetService)
 
 	distribution, distIDExists := os.LookupEnv("ID")
 	if !distIDExists {
@@ -422,7 +425,7 @@ func obmondoSystemUpdate() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(reboot); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(puppetService, reboot); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	puppetinstaller "gitea.obmondo.com/EnableIT/go-scripts/helper/puppet_installer"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
@@ -13,7 +14,6 @@ import (
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	osutil "gitea.obmondo.com/EnableIT/go-scripts/helper/os"
 )
 
 func obmondoInstallSetup() {
@@ -21,7 +21,8 @@ func obmondoInstallSetup() {
 	puppetServer := config.GetPupeptServer()
 
 	obmondoAPI := api.NewObmondoClient(true)
-
+	webtee := webtee.NewWebtee(obmondoAPI)
+	puppetService := puppet.NewService(obmondoAPI, webtee)
 	// Sanity check
 	helper.LoadOSReleaseEnv()
 	helper.RequireRootUser()
@@ -39,7 +40,10 @@ func obmondoInstallSetup() {
 	}
 
 	// Check if Puppetserver is alive and active
-	puppet.CheckPuppetServerStatus(obmondoAPI)
+	if err := puppetService.CheckServerStatus(); err != nil {
+		slog.Error("puppet server check failed", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
@@ -47,27 +51,37 @@ func obmondoInstallSetup() {
 		os.Exit(1)
 	}
 
-	webtee.RemoteLogObmondo(obmondoAPI, []string{"echo Starting Obmondo Setup "}, certName)
+	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certName)
 	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
-		webtee.RemoteLogObmondo(obmondoAPI, []string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
+		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
 		os.Exit(0)
 	}
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
+	osutil := puppetinstaller.NewInstallerService(obmondoAPI, puppetService)
 	// Pre-requisites
 	distribution := os.Getenv("ID")
 	switch distribution {
 	case "ubuntu", "debian":
-		osutil.DebianPuppetAgent(obmondoAPI)
+		if err := osutil.InstallDebian(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
 	case "sles":
-		osutil.SusePuppetAgent(obmondoAPI)
+		if err := osutil.InstallSuse(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
 	case "centos", "rhel":
-		osutil.RedHatPuppetAgent(obmondoAPI)
+		if err := osutil.InstallRedHat(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
 	default:
 		slog.Error("unknown distribution, exiting")
 		os.Exit(1)
@@ -75,21 +89,20 @@ func obmondoInstallSetup() {
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 
-	puppet.DisablePuppetAgentService(obmondoAPI)
-	puppet.ConfigurePuppetAgent(obmondoAPI)
-	puppet.FacterNewSetup(obmondoAPI)
+	puppetService.DisableAgentService()
+	puppetService.ConfigureAgent()
+	puppetService.FacterNewSetup()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Configured Puppet"))
 
-	puppet.WaitForPuppetAgent(obmondoAPI)
-	puppet.RunPuppetAgent(obmondoAPI, true, "noop")
+	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
+	puppetService.RunAgent(true, "noop")
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
 
 	prettyfmt.PrettyFmt("\n  ", prettyfmt.IconIceCream, prettyfmt.FontGreen("Success!"))
 
-	webtee.RemoteLogObmondo(obmondoAPI, []string{"echo Finished Obmondo Setup "}, certName)
+	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
 
 	prettyfmt.PrettyFmt(prettyfmt.FontWhite("\n    Head to "), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."), "\n")
 }
-

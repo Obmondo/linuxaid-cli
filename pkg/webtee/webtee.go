@@ -18,7 +18,11 @@ const (
 	pipeNameStderr = "stderr"
 )
 
-func RemoteLogObmondo(obmondoAPI api.ObmondoClient, command []string, certname string) {
+type Webtee struct {
+	obmondoAPI api.ObmondoClient
+}
+
+func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	app := &application{
 		config: WebTeeConfig{"api.obmondo.com:443", true, command, certname, false},
 	}
@@ -37,7 +41,7 @@ func RemoteLogObmondo(obmondoAPI api.ObmondoClient, command []string, certname s
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		// nolint: errcheck
-		obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
 			Certname: certname,
 		})
 
@@ -47,7 +51,7 @@ func RemoteLogObmondo(obmondoAPI api.ObmondoClient, command []string, certname s
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		//nolint:errcheck
-		obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
 			Certname: certname,
 		})
 		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
@@ -58,7 +62,7 @@ func RemoteLogObmondo(obmondoAPI api.ObmondoClient, command []string, certname s
 	err = cmd.Start()
 	if err != nil {
 		//nolint:errcheck
-		obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
 			Certname: certname,
 		})
 		slog.Error("failed to start command", slog.String("error", err.Error()))
@@ -79,7 +83,7 @@ func RemoteLogObmondo(obmondoAPI api.ObmondoClient, command []string, certname s
 	if err != nil {
 		slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
 		//nolint:forbidigo, errcheck
-		obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
 			Certname: certname,
 		})
 		os.Exit(1)
@@ -114,3 +118,8 @@ func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.Wa
 	}
 }
 
+func NewWebtee(obmondoAPI api.ObmondoClient) *Webtee {
+	return &Webtee{
+		obmondoAPI: obmondoAPI,
+	}
+}

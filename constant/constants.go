@@ -39,3 +39,7 @@ const (
 	CobraFlagReboot       = "reboot"
 	CobraFlagVersion      = "version"
 )
+
+const (
+	PuppetWaitForCertTimeOut = 600
+)
