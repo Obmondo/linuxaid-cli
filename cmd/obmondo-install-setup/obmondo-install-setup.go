@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	puppetinstaller "gitea.obmondo.com/EnableIT/go-scripts/helper/puppet_installer"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper/puppet_provisioner"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
@@ -23,6 +23,8 @@ func obmondoInstallSetup() {
 	obmondoAPI := api.NewObmondoClient(true)
 	webtee := webtee.NewWebtee(obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
+	puppetProvisionerService := puppet_provisioner.NewService(obmondoAPI, puppetService)
+
 	// Sanity check
 	helper.LoadOSReleaseEnv()
 	helper.RequireRootUser()
@@ -63,29 +65,7 @@ func obmondoInstallSetup() {
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
-	osutil := puppetinstaller.NewInstallerService(obmondoAPI, puppetService)
-	// Pre-requisites
-	distribution := os.Getenv("ID")
-	switch distribution {
-	case "ubuntu", "debian":
-		if err := osutil.InstallDebian(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
-	case "sles":
-		if err := osutil.InstallSuse(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
-	case "centos", "rhel":
-		if err := osutil.InstallRedHat(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
-	default:
-		slog.Error("unknown distribution, exiting")
-		os.Exit(1)
-	}
+	puppetProvisionerService.ProvisionPuppet()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 

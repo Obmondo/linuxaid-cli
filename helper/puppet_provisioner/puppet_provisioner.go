@@ -1,7 +1,8 @@
-package puppetinstaller
+package puppet_provisioner
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -13,7 +14,7 @@ import (
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 )
 
-type InstallerService struct {
+type PuppetProvisioner struct {
 	webtee    *webtee.Webtee
 	apiClient api.ObmondoClient
 	puppet    *puppet.Service
@@ -22,17 +23,41 @@ type InstallerService struct {
 
 const tmpDir = "/tmp"
 
-// NewInstallerService creates a new Puppet installer service.
-func NewInstallerService(apiClient api.ObmondoClient, puppet *puppet.Service) *InstallerService {
-	return &InstallerService{
+// NewService creates a new Puppet installer service.
+func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *PuppetProvisioner {
+	return &PuppetProvisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
 		certName:  config.GetCertName(),
 	}
 }
 
-// InstallDebian installs puppet-agent on Ubuntu/Debian systems
-func (s *InstallerService) InstallDebian() error {
+func (s *PuppetProvisioner) ProvisionPuppet() {
+	distribution := os.Getenv("ID")
+	switch distribution {
+	case "ubuntu", "debian":
+		if err := s.provisionForDebian(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
+	case "sles":
+		if err := s.provisionForSuse(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
+	case "centos", "rhel":
+		if err := s.provisionForRedHat(); err != nil {
+			slog.Error("failed to install puppet", slog.Any("error", err))
+			os.Exit(1)
+		}
+	default:
+		slog.Error("unknown distribution, exiting")
+		os.Exit(1)
+	}
+}
+
+// provisionForDebian installs puppet-agent on Ubuntu/Debian systems
+func (s *PuppetProvisioner) provisionForDebian() error {
 	helper.RequireUbuntuCodeNameEnv()
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
@@ -55,8 +80,8 @@ func (s *InstallerService) InstallDebian() error {
 	return nil
 }
 
-// InstallRedHat installs puppet-agent on RHEL/CentOS systems
-func (s *InstallerService) InstallRedHat() error {
+// provisionForRedHat installs puppet-agent on RHEL/CentOS systems
+func (s *PuppetProvisioner) provisionForRedHat() error {
 	s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName)
 
 	majRelease := helper.GetMajorRelease()
@@ -77,8 +102,8 @@ func (s *InstallerService) InstallRedHat() error {
 	return nil
 }
 
-// InstallSuse installs puppet-agent on SUSE systems
-func (s *InstallerService) InstallSuse() error {
+// provisionForSuse installs puppet-agent on SUSE systems
+func (s *PuppetProvisioner) provisionForSuse() error {
 	s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName)
 
 	majRelease := helper.GetMajorRelease()
