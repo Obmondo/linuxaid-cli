@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/helper/puppet_provisioner"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper/provisioner"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
@@ -23,7 +23,7 @@ func obmondoInstallSetup() {
 	obmondoAPI := api.NewObmondoClient(true)
 	webtee := webtee.NewWebtee(obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
-	puppetProvisionerService := puppet_provisioner.NewService(obmondoAPI, puppetService)
+	provisioner := provisioner.NewService(obmondoAPI, puppetService)
 
 	// Sanity check
 	helper.LoadOSReleaseEnv()
@@ -65,7 +65,7 @@ func obmondoInstallSetup() {
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
-	puppetProvisionerService.ProvisionPuppet()
+	provisioner.ProvisionPuppet()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 

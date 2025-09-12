@@ -1,4 +1,4 @@
-package puppet_provisioner
+package provisioner
 
 import (
 	"fmt"
@@ -14,27 +14,26 @@ import (
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 )
 
-type PuppetProvisioner struct {
+const tmpDir = "/tmp"
+
+type Provisioner struct {
 	webtee    *webtee.Webtee
 	apiClient api.ObmondoClient
 	puppet    *puppet.Service
 	certName  string
 }
 
-const tmpDir = "/tmp"
-
 // NewService creates a new Puppet installer service.
-func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *PuppetProvisioner {
-	return &PuppetProvisioner{
+func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *Provisioner {
+	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
 		certName:  config.GetCertName(),
 	}
 }
 
-func (s *PuppetProvisioner) ProvisionPuppet() {
-	distribution := os.Getenv("ID")
-	switch distribution {
+func (s *Provisioner) ProvisionPuppet() {
+	switch os.Getenv("ID") {
 	case "ubuntu", "debian":
 		if err := s.provisionForDebian(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
@@ -57,7 +56,7 @@ func (s *PuppetProvisioner) ProvisionPuppet() {
 }
 
 // provisionForDebian installs puppet-agent on Ubuntu/Debian systems
-func (s *PuppetProvisioner) provisionForDebian() error {
+func (s *Provisioner) provisionForDebian() error {
 	helper.RequireUbuntuCodeNameEnv()
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
@@ -81,7 +80,7 @@ func (s *PuppetProvisioner) provisionForDebian() error {
 }
 
 // provisionForRedHat installs puppet-agent on RHEL/CentOS systems
-func (s *PuppetProvisioner) provisionForRedHat() error {
+func (s *Provisioner) provisionForRedHat() error {
 	s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName)
 
 	majRelease := helper.GetMajorRelease()
@@ -103,7 +102,7 @@ func (s *PuppetProvisioner) provisionForRedHat() error {
 }
 
 // provisionForSuse installs puppet-agent on SUSE systems
-func (s *PuppetProvisioner) provisionForSuse() error {
+func (s *Provisioner) provisionForSuse() error {
 	s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName)
 
 	majRelease := helper.GetMajorRelease()
