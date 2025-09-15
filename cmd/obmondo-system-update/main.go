@@ -47,6 +47,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
 	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
 	rootCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
+	logger.InitLogger(debugFlag)
 
 	// Bind flags to viper
 	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
@@ -54,4 +55,12 @@ func init() {
 
 	// Bind environment variables
 	viperConfig.BindEnv(constant.CobraFlagCertName, "CERTNAME")
+}
+
+func main() {
+
+	if err := rootCmd.Execute(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
 }
