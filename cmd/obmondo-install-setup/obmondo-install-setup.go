@@ -4,7 +4,9 @@ import (
 	"log/slog"
 	"os"
 
+	"gitea.obmondo.com/EnableIT/go-scripts/helper/provisioner"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
@@ -12,12 +14,16 @@ import (
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	osutil "gitea.obmondo.com/EnableIT/go-scripts/helper/os"
 )
 
 func obmondoInstallSetup() {
 	certName := config.GetCertName()
 	puppetServer := config.GetPupeptServer()
+
+	obmondoAPI := api.NewObmondoClient(true)
+	webtee := webtee.NewWebtee(obmondoAPI)
+	puppetService := puppet.NewService(obmondoAPI, webtee)
+	provisioner := provisioner.NewService(obmondoAPI, puppetService)
 
 	// Sanity check
 	helper.LoadOSReleaseEnv()
@@ -36,7 +42,10 @@ func obmondoInstallSetup() {
 	}
 
 	// Check if Puppetserver is alive and active
-	puppet.CheckPuppetServerStatus()
+	if err := puppetService.CheckServerStatus(); err != nil {
+		slog.Error("puppet server check failed", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
@@ -56,30 +65,18 @@ func obmondoInstallSetup() {
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
-	// Pre-requisites
-	distribution := os.Getenv("ID")
-	switch distribution {
-	case "ubuntu", "debian":
-		osutil.DebianPuppetAgent()
-	case "sles":
-		osutil.SusePuppetAgent()
-	case "centos", "rhel":
-		osutil.RedHatPuppetAgent()
-	default:
-		slog.Error("unknown distribution, exiting")
-		os.Exit(1)
-	}
+	provisioner.ProvisionPuppet()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 
-	puppet.DisablePuppetAgentService()
-	puppet.ConfigurePuppetAgent()
-	puppet.FacterNewSetup()
+	puppetService.DisableAgentService()
+	puppetService.ConfigureAgent()
+	puppetService.FacterNewSetup()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Configured Puppet"))
 
-	puppet.WaitForPuppetAgent()
-	puppet.RunPuppetAgent(true, "noop")
+	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
+	puppetService.RunAgent(true, "noop")
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
 

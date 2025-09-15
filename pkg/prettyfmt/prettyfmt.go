@@ -12,6 +12,7 @@ const (
 	IconIceCream = "🎉"
 )
 
+// nolint: revive
 var FontRed, FontGreen, FontBlue, FontWhite, FontYellow func(a ...interface{}) string
 
 func init() {

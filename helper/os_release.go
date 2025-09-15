@@ -29,7 +29,7 @@ const (
 	constDistributionRHELInstallCACertificatesCmd   = "yum install -y ca-certificates openssl"
 )
 
-type certificateManagerCommands struct {
+type CertificateManagerCommands struct {
 	updateRepoListCmd        string
 	checkCACertificatesCmd   string
 	installCACertificatesCmd string
@@ -41,7 +41,7 @@ func GetMajorRelease() string {
 }
 
 // List of Supported OS
-func IsSupportedOS() (certificateManagerCommands, error) {
+func IsSupportedOS() (CertificateManagerCommands, error) {
 	commands, err := getCommandsForInstallingCACertificates()
 	if err != nil {
 		return commands, fmt.Errorf("failed determining the os distribution: %w", err)
@@ -54,32 +54,32 @@ func IsSupportedOS() (certificateManagerCommands, error) {
 // 1. command to update repository list
 // 2. command to check if CA certificates are installed
 // 3. command to install CA certificates
-func getCommandsForInstallingCACertificates() (certificateManagerCommands, error) {
+func getCommandsForInstallingCACertificates() (CertificateManagerCommands, error) {
 	switch os.Getenv("ID") {
 	case constDistributionNameUbuntu, constDistributionNameDebian:
-		return certificateManagerCommands{
+		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionDebianUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionDebianCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionDebianInstallCACertificatesCmd,
 		}, nil
 	case constDistributionNameSLES:
-		return certificateManagerCommands{
+		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionSLESUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
 		}, nil
 	case constDistributionNameCentOS, constDistributionNameRHEL:
-		return certificateManagerCommands{
+		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
 		}, nil
 	}
-	return certificateManagerCommands{}, errors.New("unknown distribution")
+	return CertificateManagerCommands{}, errors.New("unknown distribution")
 }
 
 // UpdateRepositoryList updates repository list for any distribution
-func (c *certificateManagerCommands) UpdateRepositoryList() error {
+func (c *CertificateManagerCommands) UpdateRepositoryList() error {
 	pipe := script.Exec(c.updateRepoListCmd)
 	if err := pipe.Wait(); err != nil {
 		return err
@@ -89,7 +89,7 @@ func (c *certificateManagerCommands) UpdateRepositoryList() error {
 }
 
 // CheckAndInstallCaCertificates handles the installation of CA certificates for any distribution
-func (c *certificateManagerCommands) CheckAndInstallCaCertificates() error {
+func (c *CertificateManagerCommands) CheckAndInstallCaCertificates() error {
 	isInstalled := IsCaCertificateInstalled(c.checkCACertificatesCmd)
 	if !isInstalled {
 		pipe := script.Exec(c.installCACertificatesCmd)

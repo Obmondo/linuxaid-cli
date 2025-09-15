@@ -1,6 +1,6 @@
 PATH := ../../../bin:$(PATH)
 export NAME=obmondo-system-update
-export VERSION=1.4.11
+export VERSION=1.4.12
 export DIST=../../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/

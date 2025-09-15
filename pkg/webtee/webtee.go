@@ -2,13 +2,14 @@ package webtee
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+
+	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 )
 
 // Pipenames
@@ -17,7 +18,11 @@ const (
 	pipeNameStderr = "stderr"
 )
 
-func RemoteLogObmondo(command []string, certname string) {
+type Webtee struct {
+	obmondoAPI api.ObmondoClient
+}
+
+func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	app := &application{
 		config: WebTeeConfig{"api.obmondo.com:443", true, command, certname, false},
 	}
@@ -35,11 +40,20 @@ func RemoteLogObmondo(command []string, certname string) {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		// nolint: errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+			Certname: certname,
+		})
+
 		slog.Error("failed to connect to stdout pipe", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		//nolint:errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+			Certname: certname,
+		})
 		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
@@ -47,6 +61,10 @@ func RemoteLogObmondo(command []string, certname string) {
 	// Start command execution.
 	err = cmd.Start()
 	if err != nil {
+		//nolint:errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+			Certname: certname,
+		})
 		slog.Error("failed to start command", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
@@ -64,8 +82,10 @@ func RemoteLogObmondo(command []string, certname string) {
 	err = cmd.Wait()
 	if err != nil {
 		slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
-		//nolint:forbidigo
-		fmt.Printf("\nInstallation setup failed, please contact ops@obmondo.com\nDon't worry, obmondo has the failed logs to analyze it.\n") //nolint:revive
+		//nolint:forbidigo, errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+			Certname: certname,
+		})
 		os.Exit(1)
 	}
 
@@ -95,5 +115,11 @@ func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.Wa
 				pipe: pipeNameStderr,
 			}
 		}
+	}
+}
+
+func NewWebtee(obmondoAPI api.ObmondoClient) *Webtee {
+	return &Webtee{
+		obmondoAPI: obmondoAPI,
 	}
 }
