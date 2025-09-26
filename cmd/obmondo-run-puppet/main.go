@@ -1,17 +1,62 @@
 package main
 
 import (
-	"flag"
 	"log/slog"
 	"os"
 
+	"gitea.obmondo.com/EnableIT/go-scripts/config"
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"github.com/bitfield/script"
+	"github.com/spf13/cobra"
 )
 
 var Version string
+
+var (
+	versionFlag  bool
+	debugFlag    bool
+	certNameFlag string
+)
+
+var rootCmd = &cobra.Command{
+	Use:     "obmondo-run-puppet",
+	Example: `  # obmondo-run-puppet --certname web01.customerid`,
+	PreRunE: func(*cobra.Command, []string) error {
+		// Handle version flag first
+		if versionFlag {
+			slog.Info("obmondo-run-puppet", "version", Version)
+			os.Exit(0)
+		}
+
+		return nil
+	},
+
+	Run: func(cmd *cobra.Command, _ []string) {
+		certName := config.GetCertName()
+		if certName == "" {
+			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
+			cmd.Help()
+			os.Exit(1)
+		}
+		obmondoRunPuppet()
+	},
+}
+
+func init() {
+
+	viperConfig := config.Initialize()
+	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
+	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
+
+	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
+	viperConfig.BindPFlag(constant.CobraFlagCertName, rootCmd.Flags().Lookup(constant.CobraFlagCertName))
+	logger.InitLogger(debugFlag)
+}
 
 // Run the puppet agent in noop mode for now
 func runPuppet() error {
@@ -52,15 +97,7 @@ func runPuppet() error {
 }
 
 // Entry point
-func main() {
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-
-	flag.Parse()
-
-	if *versionFlag {
-		slog.Info("run_puppet", "version", Version)
-		os.Exit(0)
-	}
+func obmondoRunPuppet() {
 
 	helper.LoadPuppetEnv()
 
@@ -86,3 +123,10 @@ func main() {
 	obmondoAPI.UpdatePuppetLastRunReport()
 }
 
+func main() {
+
+	if err := rootCmd.Execute(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+}
