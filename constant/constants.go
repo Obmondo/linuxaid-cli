@@ -16,10 +16,10 @@ const (
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 
 	// Lock and Disabled
-	AgentDisabledLockFile         = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
-	AgentRunningLockFile          = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
-	DefaultPuppetServerCustomerID = "enableit"
-	DefaultPuppetServerDomain     = "puppet.obmondo.com"
+	AgentDisabledLockFile           = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
+	AgentRunningLockFile            = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
+	DefaultPuppetServerCustomerID   = "enableit"
+	DefaultPuppetServerDomainSuffix = ".puppet.obmondo.com"
 
 	// Progress Bar
 	BarProgressSize    = 100

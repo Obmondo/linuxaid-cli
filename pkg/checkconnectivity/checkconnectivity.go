@@ -34,7 +34,7 @@ func getHostList() ([]string, error) {
 		return nil, errors.New("customerID not found")
 	}
 
-	return append(enableitHosts, customerID+constant.DefaultPuppetServerDomain), nil
+	return append(enableitHosts, customerID+constant.DefaultPuppetServerDomainSuffix), nil
 }
 
 func init() {
