@@ -51,7 +51,7 @@ func init() {
 
 	viperConfig := config.Initialize()
 
-	defaultServer := constant.DefaultPuppetServerCustomerID + "." + constant.DefaultPuppetServerDomain
+	defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
