@@ -17,14 +17,12 @@ import (
 var Version string
 
 var (
-	versionFlag  bool
-	debugFlag    bool
-	certNameFlag string
+	versionFlag bool
+	debugFlag   bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "obmondo-run-puppet",
-	Example: `  # obmondo-run-puppet --certname web01.customerid`,
+	Use: "obmondo-run-puppet",
 	PreRunE: func(*cobra.Command, []string) error {
 		// Handle version flag first
 		if versionFlag {
@@ -32,29 +30,21 @@ var rootCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
+		helper.RequirePuppetEnv()
 		return nil
 	},
 
-	Run: func(cmd *cobra.Command, _ []string) {
-		certName := config.GetCertName()
-		if certName == "" {
-			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
-			cmd.Help()
-			os.Exit(1)
-		}
+	Run: func(_ *cobra.Command, _ []string) {
 		obmondoRunPuppet()
 	},
 }
 
 func init() {
-
 	viperConfig := config.Initialize()
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
 
 	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
-	viperConfig.BindPFlag(constant.CobraFlagCertName, rootCmd.Flags().Lookup(constant.CobraFlagCertName))
 	logger.InitLogger(debugFlag)
 }
 
