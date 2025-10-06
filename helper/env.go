@@ -1,22 +1,24 @@
 package helper
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"github.com/joho/godotenv"
 )
 
 func RequirePuppetEnv() {
-	_, certOk := os.LookupEnv("PUPPETCERT")
+	_, certOk := os.LookupEnv(constant.PuppetCertEnv)
 	if !certOk {
-		slog.Error("PUPPETCERT env variable not set")
+		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetCertEnv))
 		os.Exit(1)
 	}
 
-	_, keyOk := os.LookupEnv("PUPPETPRIVKEY")
+	_, keyOk := os.LookupEnv(constant.PuppetPrivKeyEnv)
 	if !keyOk {
-		slog.Error("PUPPETPRIVKEY env variable not set")
+		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetPrivKeyEnv))
 		os.Exit(1)
 	}
 }

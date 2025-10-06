@@ -46,15 +46,15 @@ func getCustomerIDFromPuppetCertString(puppetCertString string) string {
 }
 
 func GetCustomerID() string {
+	puppetCert, puppetCertExists := os.LookupEnv(constant.PuppetCertEnv)
+	if puppetCertExists && len(puppetCert) > 0 {
+		return getCustomerIDFromPuppetCertString(puppetCert)
+	}
+
 	certName := config.GetCertName()
 	parts := strings.Split(certName, ".")
 	if len(parts) >= two {
 		return parts[1]
-	}
-
-	puppetCert, puppetCertExists := os.LookupEnv(constant.PuppetCertEnv)
-	if puppetCertExists && len(puppetCert) > 0 {
-		return getCustomerIDFromPuppetCertString(puppetCert)
 	}
 
 	return ""
