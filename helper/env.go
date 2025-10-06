@@ -55,7 +55,7 @@ func LoadOSReleaseEnv() {
 
 // LoadPuppetEnv doesnt throw error if the file doesnt exist
 func LoadPuppetEnv() {
-	err := godotenv.Load("/etc/default/runPuppet")
+	err := godotenv.Load("/etc/default/run_puppet")
 	if os.IsNotExist(err) {
 		return
 	}
