@@ -49,6 +49,8 @@ func (s *Provisioner) ProvisionPuppet() {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
+	case "turrisos":
+		s.provisionForTurris()
 	default:
 		slog.Error("unknown distribution, exiting")
 		os.Exit(1)
@@ -121,4 +123,13 @@ func (s *Provisioner) provisionForSuse() error {
 	s.webtee.RemoteLogObmondo(installCmd, s.certName)
 
 	return nil
+}
+
+// provisionForTurris installs puppet via gem on TurrisOS
+func (s *Provisioner) provisionForTurris() {
+	s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName)
+	s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-full ruby-gems"}, s.certName)
+
+	installCmd := []string{fmt.Sprintf("gem install puppet -v %s --no-document", constant.PuppetVersion)}
+	s.webtee.RemoteLogObmondo(installCmd, s.certName)
 }
