@@ -64,13 +64,19 @@ func (s *Provisioner) provisionForDebian() error {
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName)
 	s.webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, s.certName)
+	var ubuntuVersion string
+	switch codeName {
+	case "jammy":
+		ubuntuVersion = "ubuntu22.04"
+	case "noble":
+		ubuntuVersion = "ubuntu24.04"
+	}
 
-	fullPuppetVersion := fmt.Sprintf("%s%s", constant.PuppetVersion, codeName)
-	packageName := fmt.Sprintf("puppet-agent_%s_amd64.deb", fullPuppetVersion)
+	fullPuppetVersion := fmt.Sprintf("%s-1+%s", constant.PuppetVersion, ubuntuVersion)
+	packageName := fmt.Sprintf("openvox-agent_%s_amd64.deb", fullPuppetVersion)
 	downloadPath := filepath.Join(tmpDir, packageName)
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/apt/pool/%s/%s/p/puppet-agent/%s",
-		codeName, constant.PuppetMajorVersion, packageName)
-
+	url := fmt.Sprintf("https://repos.obmondo.com/openvox/apt/pool/%s/o/openvox-agent/%s",
+		constant.PuppetMajorVersion, packageName)
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
 		return err
 	}
@@ -87,10 +93,10 @@ func (s *Provisioner) provisionForRedHat() error {
 
 	majRelease := helper.GetMajorRelease()
 
-	fullPuppetVersion := fmt.Sprintf("%s.el%s", constant.PuppetVersion, majRelease)
-	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)
+	fullPuppetVersion := fmt.Sprintf("%s-1.el%s", constant.PuppetVersion, majRelease)
+	packageName := fmt.Sprintf("openvox-agent-%s.x86_64", fullPuppetVersion)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/yum/%s/el/%s/x86_64/%s.rpm",
+	url := fmt.Sprintf("https://repos.obmondo.com/openvox/yum/%s/el/%s/x86_64/%s.rpm",
 		constant.PuppetMajorVersion, majRelease, packageName)
 
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
@@ -109,10 +115,10 @@ func (s *Provisioner) provisionForSuse() error {
 
 	majRelease := helper.GetMajorRelease()
 
-	fullPuppetVersion := fmt.Sprintf("%s.sles%s", constant.PuppetVersion, majRelease)
-	packageName := fmt.Sprintf("puppet-agent-%s.x86_64", fullPuppetVersion)
+	fullPuppetVersion := fmt.Sprintf("%s-1.sles%s", constant.PuppetVersion, majRelease)
+	packageName := fmt.Sprintf("openvox-agent-%s.x86_64", fullPuppetVersion)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/puppetlabs/sles/%s/%s/x86_64/%s.rpm",
+	url := fmt.Sprintf("https://repos.obmondo.com/openvox/sles/%s/%s/x86_64/%s.rpm",
 		constant.PuppetMajorVersion, majRelease, packageName)
 
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
