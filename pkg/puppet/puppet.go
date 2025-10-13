@@ -61,7 +61,7 @@ func (s *Service) DisableAgentService() {
 		"puppet resource service puppet ensure=stopped enable=false",
 	}, s.certName)
 
-	slog.Info("puppet agent service disabled")
+	slog.Debug("puppet agent service disabled")
 }
 
 // Disable agent with message
@@ -220,5 +220,5 @@ func (s *Service) FacterNewSetup() {
 		os.Exit(1)
 	}
 
-	slog.Info("facter external setup file created", slog.String("path", constant.ExternalFacterFile))
+	slog.Debug("facter external setup file created", slog.String("path", constant.ExternalFacterFile))
 }
