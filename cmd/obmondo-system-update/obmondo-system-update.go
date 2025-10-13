@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
@@ -243,31 +243,14 @@ func updateRedHat() error {
 
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
 func HandlePuppetRun(puppetService *puppet.Service) error {
-	// NOTE: Added to avoid magic number issue with puppet exit codes
-	//nolint:all
-	var puppetExitCodes = map[string]int{
-		"zero": 0,
-		"one":  1,
-		"two":  2,
-		"four": 4,
-		"six":  6,
-	}
 	exitCode := puppetService.RunAgent(false, "noop")
-
-	switch exitCode {
-	case puppetExitCodes["zero"], puppetExitCodes["two"]:
+	if slices.Contains(constant.PuppetSuccessExitCodes, exitCode) {
 		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
-	case puppetExitCodes["one"]:
-		slog.Error("puppet run failed, or wasn't attempted due to another run already in progress.")
-		return errors.New("unable to run puppet, or it's already running")
-	case puppetExitCodes["four"], puppetExitCodes["six"]:
-		slog.Warn("puppet has pending changes, aborting.")
-		return errors.New("aborting: puppet has pending changes")
-	default:
-		slog.Error("puppet failed, aborting.", slog.Int("exit_code", exitCode))
-		return fmt.Errorf("puppet failed with exit code: %d", exitCode)
 	}
+
+	slog.Error("puppet failed, aborting.", slog.Int("exit_code", exitCode))
+	return fmt.Errorf("puppet failed with exit code: %d", exitCode)
 }
 
 // ------------------------------------------------

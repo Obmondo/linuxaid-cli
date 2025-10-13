@@ -43,3 +43,7 @@ const (
 const (
 	PuppetWaitForCertTimeOut = 600
 )
+
+var (
+	PuppetSuccessExitCodes = []int{0, 2}
+)

@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 
+	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 )
 
@@ -80,13 +82,19 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	pipeWg.Wait()
 
 	err = cmd.Wait()
-	if err != nil {
-		slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
-		//nolint:forbidigo, errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
-			Certname: certname,
-		})
-		os.Exit(1)
+
+	// Don't complain if the command being run is puppet agent and the exit status is mentioned in the constant.PuppetSuccessExitCodes.
+	// Else, check the error and complain about the same.
+	if !shouldIgnorePuppetAgentError(command, cmd.ProcessState.ExitCode()) {
+		if err != nil {
+			slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
+			//nolint:forbidigo, errcheck
+			w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+				Certname: certname,
+			})
+
+			os.Exit(1)
+		}
 	}
 
 	// Close the lines channel.
@@ -94,6 +102,10 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 
 	// Wait for goroutines (like the grpc stream) to finish.
 	app.wg.Wait()
+}
+
+func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
+	return strings.Contains(strings.Join(command, " "), "puppet agent") && slices.Contains(constant.PuppetSuccessExitCodes, exitCode)
 }
 
 // readPipe reads a pipe, wraps every line in an "echo" command, prints it, and sends the line to
