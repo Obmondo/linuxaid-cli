@@ -131,6 +131,10 @@ func (c *Client) NotifyInstallScriptFailure(input *InstallScriptFailureInput) er
 		return err
 	}
 	resp, err := client.Do(request)
+	if err != nil {
+		slog.Error("error occurred after notifying script failure", slog.Any("error", err), slog.String("url", url))
+		return err
+	}
 	defer func() {
 		if resp.Body != nil {
 			if err := resp.Body.Close(); err != nil {
@@ -138,10 +142,6 @@ func (c *Client) NotifyInstallScriptFailure(input *InstallScriptFailureInput) er
 			}
 		}
 	}()
-	if err != nil {
-		slog.Error("error occurred after notifying script failure", slog.Any("error", err), slog.String("url", url))
-		return err
-	}
 
 	const scriptFailureLogErrorMessage = "failed to notify about script failure to obmondo"
 	switch resp.StatusCode {
