@@ -338,6 +338,7 @@ func obmondoSystemUpdate() {
 	}
 
 	obmondoAPI := api.NewObmondoClient(false)
+
 	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 
 	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPI)

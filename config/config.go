@@ -13,18 +13,28 @@ func Initialize() *viper.Viper {
 	return viperConfig
 }
 
+func initIfNil() {
+	if viperConfig == nil {
+		Initialize()
+	}
+}
+
 func GetCertName() string {
+	initIfNil()
 	return viperConfig.GetString(constant.CobraFlagCertName)
 }
 
 func GetPupeptServer() string {
+	initIfNil()
 	return viperConfig.GetString(constant.CobraFlagPuppetServer)
 }
 
 func GetDebug() bool {
+	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagDebug)
 }
 
 func DoReboot() bool {
+	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagReboot)
 }

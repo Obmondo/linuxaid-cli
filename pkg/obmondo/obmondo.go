@@ -24,6 +24,8 @@ const (
 
 type Client struct {
 	notifyInstallScriptFailure bool
+	certPath                   string
+	keyPath                    string
 }
 
 func (c *Client) UpdatePuppetLastRunReport() error {
@@ -33,7 +35,7 @@ func (c *Client) UpdatePuppetLastRunReport() error {
 		return err
 	}
 
-	resp, err := apiCallWithTransport(url, data, http.MethodPut)
+	resp, err := c.apiCallWithTransport(url, data, http.MethodPut)
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			if cerr := resp.Body.Close(); cerr != nil {
@@ -97,11 +99,11 @@ func (*Client) readPuppetLastRunReport() ([]byte, error) {
 	return data, nil
 }
 
-func (*Client) ServerPing() error {
+func (c *Client) ServerPing() error {
 
 	url := fmt.Sprintf("%s/servers/ping", constant.ObmondoAPIURL)
 
-	resp, err := apiCallWithTransport(url, nil, http.MethodPut)
+	resp, err := c.apiCallWithTransport(url, nil, http.MethodPut)
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			if cerr := resp.Body.Close(); cerr != nil {
@@ -175,9 +177,10 @@ type ObmondoClient interface {
 	UpdatePuppetLastRunReport() error
 }
 
-func getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
-	cert, err := tls.LoadX509KeyPair(os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv))
+func (c *Client) getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
+	cert, err := tls.LoadX509KeyPair(c.certPath, c.keyPath)
 	if err != nil {
+		slog.Error("failed to load certifcate", slog.Any("error", err), slog.String("cert", c.certPath), slog.String("cert", c.keyPath))
 		return nil, err
 	}
 	t := &http.Transport{
@@ -188,8 +191,8 @@ func getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
 	return t, nil
 }
 
-func apiCallWithTransport(url string, data []byte, requestType string) (*http.Response, error) {
-	t, err := getCustomHTTPTransportWithPuppetCerts()
+func (c *Client) apiCallWithTransport(url string, data []byte, requestType string) (*http.Response, error) {
+	t, err := c.getCustomHTTPTransportWithPuppetCerts()
 	if err != nil {
 		slog.Error("failed to load host cert & key pair", slog.String("error", err.Error()))
 		return nil, err
@@ -217,13 +220,13 @@ func apiCallWithTransport(url string, data []byte, requestType string) (*http.Re
 	return response, nil
 }
 
-func (*Client) FetchServiceWindowStatus() (*http.Response, error) {
+func (c *Client) FetchServiceWindowStatus() (*http.Response, error) {
 	serviceWindowURL := fmt.Sprintf("%s/window/now", constant.ObmondoAPIURL)
-	return apiCallWithTransport(serviceWindowURL, nil, http.MethodGet)
+	return c.apiCallWithTransport(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
-	certname := helper.GetCommonNameFromCertFile(os.Getenv(constant.PuppetCertEnv))
+func (c *Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
+	certname := helper.GetCertname()
 	customerID := helper.GetCustomerID()
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -234,11 +237,13 @@ func (*Client) CloseServiceWindow(windowType string, timezone string) (*http.Res
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", constant.ObmondoAPIURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)
 
-	return apiCallWithTransport(closeWindowURL, data, http.MethodPut)
+	return c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
 }
 
 func NewObmondoClient(notifyInstallScriptFailure bool) ObmondoClient {
 	return &Client{
 		notifyInstallScriptFailure: notifyInstallScriptFailure,
+		certPath:                   fmt.Sprintf("/etc/puppetlabs/puppet/ssl/certs/%s.pem", helper.GetCertname()),
+		keyPath:                    fmt.Sprintf("%s/%s.pem", constant.PuppetPrivKeyPath, helper.GetCertname()),
 	}
 }

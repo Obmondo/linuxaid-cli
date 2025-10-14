@@ -38,20 +38,49 @@ func GetCommonNameFromCertFile(certPath string) string {
 	return cert.Subject.CommonName
 }
 
-func getCustomerIDFromPuppetCertString(puppetCertString string) string {
-	if strings.Contains(puppetCertString, ".") && len(strings.Split(puppetCertString, ".")) == 3 && len(strings.Split(puppetCertString, ".")[1]) > 0 {
-		return strings.Split(puppetCertString, ".")[1]
+func getCertnameFromPrivateKey() string {
+	items, err := os.ReadDir(constant.PuppetPrivKeyPath)
+	if err != nil {
+		slog.Error("failed to list directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
+		return ""
 	}
+
+	for _, item := range items {
+		if item.IsDir() {
+			continue
+		}
+		certname, ok := strings.CutSuffix(item.Name(), ".pem")
+		if !ok {
+			continue
+		}
+		return certname
+	}
+
+	slog.Error("no file found in the directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
 	return ""
 }
 
-func GetCustomerID() string {
+func GetCertname() string {
 	puppetCert, puppetCertExists := os.LookupEnv(constant.PuppetCertEnv)
-	if puppetCertExists && len(puppetCert) > 0 {
-		return getCustomerIDFromPuppetCertString(puppetCert)
+	if puppetCertExists {
+		return GetCommonNameFromCertFile(puppetCert)
 	}
 
-	certName := config.GetCertName()
+	certname := getCertnameFromPrivateKey()
+	if len(certname) > 0 {
+		return certname
+	}
+
+	certname = config.GetCertName()
+	if len(certname) == 0 {
+		slog.Error("failed to find certname, exiting")
+	}
+
+	return certname
+}
+
+func GetCustomerID() string {
+	certName := GetCertname()
 	parts := strings.Split(certName, ".")
 	if len(parts) >= two {
 		return parts[1]

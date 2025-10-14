@@ -17,9 +17,8 @@ import (
 )
 
 func obmondoInstallSetup() {
-	certName := config.GetCertName()
+	certname := config.GetCertName()
 	puppetServer := config.GetPupeptServer()
-
 	obmondoAPI := api.NewObmondoClient(true)
 	webtee := webtee.NewWebtee(obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
@@ -53,13 +52,13 @@ func obmondoInstallSetup() {
 		os.Exit(1)
 	}
 
-	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certName)
-	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certName), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
+	webtee.RemoteLogObmondo([]string{"echo Starting Obmondo Setup "}, certname)
+	prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
-		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certName)
+		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, certname)
 		os.Exit(0)
 	}
 
@@ -84,7 +83,7 @@ func obmondoInstallSetup() {
 
 	prettyfmt.PrettyFmt("\n  ", prettyfmt.IconIceCream, prettyfmt.FontGreen("Success!"))
 
-	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certName)
+	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
 
 	prettyfmt.PrettyFmt(prettyfmt.FontWhite("\n    Head to "), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."), "\n")
 }
