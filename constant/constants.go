@@ -14,6 +14,7 @@ const (
 	PuppetCertEnv      = "PUPPETCERT"
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
+	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
 
 	// Lock and Disabled
 	AgentDisabledLockFile           = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"

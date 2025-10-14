@@ -13,6 +13,7 @@ import (
 
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
 
@@ -28,9 +29,10 @@ type Service struct {
 
 // NewService initializes a new Puppet service instance
 func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
+
 	return &Service{
 		apiClient:    apiClient,
-		certName:     config.GetCertName(),
+		certName:     helper.GetCertname(),
 		puppetServer: config.GetPupeptServer(),
 		webtee:       webtee,
 	}

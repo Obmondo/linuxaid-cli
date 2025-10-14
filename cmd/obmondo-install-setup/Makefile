@@ -1,6 +1,6 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-install-setup
-export VERSION=1.0.23
+export VERSION=1.0.24
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/

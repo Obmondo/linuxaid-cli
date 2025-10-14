@@ -1,6 +1,6 @@
 PATH := ../../bin:$(PATH)
 export NAME=obmondo-run-puppet
-export VERSION=1.1.2
+export VERSION=1.1.3
 export DIST=../../dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/
