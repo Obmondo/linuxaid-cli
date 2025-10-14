@@ -77,6 +77,8 @@ func obmondoInstallSetup() {
 
 	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 	puppetService.RunAgent(true, "noop")
+	// nolint:errcheck
+	obmondoAPI.UpdatePuppetLastRunReport()
 
 	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
 
