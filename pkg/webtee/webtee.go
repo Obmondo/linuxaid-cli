@@ -21,12 +21,13 @@ const (
 )
 
 type Webtee struct {
-	obmondoAPI api.ObmondoClient
+	obmondoAPIURL string
+	obmondoAPI    api.ObmondoClient
 }
 
 func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	app := &application{
-		config: WebTeeConfig{"api.obmondo.com:443", true, command, certname, false},
+		config: WebTeeConfig{w.obmondoAPIURL, true, command, certname, false},
 	}
 	connectToServer(app)
 	// nolint: errcheck
@@ -130,8 +131,9 @@ func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.Wa
 	}
 }
 
-func NewWebtee(obmondoAPI api.ObmondoClient) *Webtee {
+func NewWebtee(obmondoAPIURL string, obmondoAPI api.ObmondoClient) *Webtee {
 	return &Webtee{
-		obmondoAPI: obmondoAPI,
+		obmondoAPIURL: obmondoAPIURL + ":443",
+		obmondoAPI:    obmondoAPI,
 	}
 }
