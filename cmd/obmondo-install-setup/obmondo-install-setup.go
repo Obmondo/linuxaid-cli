@@ -62,26 +62,26 @@ func obmondoInstallSetup() {
 		os.Exit(0)
 	}
 
-	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheckPass), " ", prettyfmt.FontWhite("Compatibility Check Successful"))
 
 	provisioner.ProvisionPuppet()
 
-	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheckPass), " ", prettyfmt.FontWhite("Successfully Installed Puppet"))
 
 	puppetService.DisableAgentService()
 	puppetService.ConfigureAgent()
 	puppetService.FacterNewSetup()
 
-	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Successfully Configured Puppet"))
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheckPass), " ", prettyfmt.FontWhite("Successfully Configured Puppet"))
 
 	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 	puppetService.RunAgent(true, "noop")
 	// nolint:errcheck
 	obmondoAPI.UpdatePuppetLastRunReport()
 
-	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheck), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
+	prettyfmt.PrettyFmt("  ", prettyfmt.FontGreen(prettyfmt.IconCheckPass), " ", prettyfmt.FontWhite("Puppet Ran Successfully"))
 
-	prettyfmt.PrettyFmt("\n  ", prettyfmt.IconIceCream, prettyfmt.FontGreen("Success!"))
+	prettyfmt.PrettyFmt("\n  ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
 
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
 
