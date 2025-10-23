@@ -8,6 +8,7 @@ import (
 
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
 )
 
@@ -31,6 +32,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		logger.InitLogger(config.GetDebug())
+
+		// Get certname from viper (cert, flag, or env)
+		if helper.GetCertname() == "" {
+			slog.Error("failed to fetch the certname")
+			os.Exit(1)
+		}
 		return nil
 	},
 
@@ -45,7 +52,7 @@ func init() {
 
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertName, "", "Certificate name (required)")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
 	rootCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
 	logger.InitLogger(debugFlag)
 
@@ -54,7 +61,7 @@ func init() {
 	viperConfig.BindPFlag(constant.CobraFlagReboot, rootCmd.Flags().Lookup(constant.CobraFlagReboot))
 
 	// Bind environment variables
-	viperConfig.BindEnv(constant.CobraFlagCertName, "CERTNAME")
+	viperConfig.BindEnv(constant.CobraFlagCertname, "CERTNAME")
 }
 
 func main() {

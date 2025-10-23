@@ -227,7 +227,7 @@ func (c *Client) FetchServiceWindowStatus() (*http.Response, error) {
 
 func (c *Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
 	certname := helper.GetCertname()
-	customerID := helper.GetCustomerID()
+	customerID := helper.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
@@ -241,9 +241,11 @@ func (c *Client) CloseServiceWindow(windowType string, timezone string) (*http.R
 }
 
 func NewObmondoClient(notifyInstallScriptFailure bool) ObmondoClient {
+	certname := helper.GetCertname()
+
 	return &Client{
 		notifyInstallScriptFailure: notifyInstallScriptFailure,
-		certPath:                   fmt.Sprintf("/etc/puppetlabs/puppet/ssl/certs/%s.pem", helper.GetCertname()),
-		keyPath:                    fmt.Sprintf("%s/%s.pem", constant.PuppetPrivKeyPath, helper.GetCertname()),
+		certPath:                   fmt.Sprintf("/etc/puppetlabs/puppet/ssl/certs/%s.pem", certname),
+		keyPath:                    fmt.Sprintf("%s/%s.pem", constant.PuppetPrivKeyPath, certname),
 	}
 }

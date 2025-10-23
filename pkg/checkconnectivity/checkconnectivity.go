@@ -29,7 +29,7 @@ var runPuppetMetric *prometheus.GaugeVec
 var registry *prometheus.Registry
 
 func getHostList() ([]string, error) {
-	customerID := helper.GetCustomerID()
+	customerID := helper.GetCustomerID(helper.GetCertname())
 	if len(customerID) == 0 {
 		return nil, errors.New("customerID not found")
 	}

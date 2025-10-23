@@ -17,7 +17,7 @@ import (
 )
 
 func obmondoInstallSetup() {
-	certname := config.GetCertName()
+	certname := helper.GetCertname()
 	puppetServer := config.GetPupeptServer()
 	obmondoAPI := api.NewObmondoClient(true)
 	webtee := webtee.NewWebtee(obmondoAPI)

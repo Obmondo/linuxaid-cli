@@ -12,10 +12,6 @@ import (
 	"github.com/bitfield/script"
 )
 
-const (
-	two = 2
-)
-
 func GetCommonNameFromCertFile(certPath string) string {
 	hostCert, err := os.ReadFile(certPath)
 	if err != nil {
@@ -41,7 +37,7 @@ func GetCommonNameFromCertFile(certPath string) string {
 func getCertnameFromPrivateKey() string {
 	items, err := os.ReadDir(constant.PuppetPrivKeyPath)
 	if err != nil {
-		slog.Error("failed to list directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
+		slog.Debug("failed to list directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
 		return ""
 	}
 
@@ -56,7 +52,7 @@ func getCertnameFromPrivateKey() string {
 		return certname
 	}
 
-	slog.Error("no file found in the directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
+	slog.Debug("no file found in the directory", slog.Any("error", err), slog.String("path", constant.PuppetPrivKeyPath))
 	return ""
 }
 
@@ -67,22 +63,17 @@ func GetCertname() string {
 	}
 
 	certname := getCertnameFromPrivateKey()
-	if len(certname) > 0 {
+	if certname != "" {
 		return certname
 	}
 
-	certname = config.GetCertName()
-	if len(certname) == 0 {
-		slog.Error("failed to find certname, exiting")
-	}
-
-	return certname
+	return config.GetCertname()
 }
 
-func GetCustomerID() string {
-	certName := GetCertname()
-	parts := strings.Split(certName, ".")
-	if len(parts) >= two {
+func GetCustomerID(certname string) string {
+	parts := strings.Split(certname, ".")
+	// nolint: mnd
+	if len(parts) >= 2 {
 		return parts[1]
 	}
 
