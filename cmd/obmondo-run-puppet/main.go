@@ -30,7 +30,12 @@ var rootCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		helper.RequirePuppetEnv()
+		// Get certname from viper (cert, flag, or env)
+		if helper.GetCertname() == "" {
+			slog.Error("failed to fetch the certname")
+			os.Exit(1)
+		}
+
 		return nil
 	},
 

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
@@ -28,7 +27,7 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *Provisione
 	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
-		certName:  config.GetCertName(),
+		certName:  helper.GetCertname(),
 	}
 }
 

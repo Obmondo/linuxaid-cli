@@ -35,7 +35,7 @@ const (
 
 	// Cobra Flags
 	CobraFlagDebug        = "debug"
-	CobraFlagCertName     = "certname"
+	CobraFlagCertname     = "certname"
 	CobraFlagPuppetServer = "puppet-server"
 	CobraFlagReboot       = "reboot"
 	CobraFlagVersion      = "version"

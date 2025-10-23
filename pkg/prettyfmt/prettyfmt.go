@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	IconGear     = "⚙️"
-	IconCheck    = "✔"
-	IconIceCream = "🎉"
+	IconGear      = "⚙️"
+	IconCheckFail = "❌"
+	IconCheckPass = "✔"
+	IconSuccess   = "🎉"
 )
 
 // nolint: revive

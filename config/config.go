@@ -9,7 +9,6 @@ var viperConfig *viper.Viper
 
 func Initialize() *viper.Viper {
 	viperConfig = viper.New()
-
 	return viperConfig
 }
 
@@ -19,9 +18,9 @@ func initIfNil() {
 	}
 }
 
-func GetCertName() string {
+func GetCertname() string {
 	initIfNil()
-	return viperConfig.GetString(constant.CobraFlagCertName)
+	return viperConfig.GetString(constant.CobraFlagCertname)
 }
 
 func GetPupeptServer() string {
