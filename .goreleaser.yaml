@@ -1,0 +1,44 @@
+version: 2
+
+builds:
+  - id: "obmondo-install-setup"
+    main: cmd/obmondo-install-setup
+    binary: obmondo-install-setup
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+
+  - id: "obmondo-run-puppet"
+    main: cmd/obmondo-run-puppet
+    binary: obmondo-run-puppet
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+
+  - id: "obmondo-system-update"
+    main: cmd/obmondo-system-update
+    binary: obmondo-system-update
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
