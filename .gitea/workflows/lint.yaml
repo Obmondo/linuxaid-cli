@@ -1,4 +1,4 @@
-name: 'Golang Lint'
+name: "Golang Lint"
 
 on:
   pull_request:
@@ -6,16 +6,14 @@ on:
       - main
 
 jobs:
-  golang-lint:
-    name: golang-lint
+  golangci-lint:
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
     steps:
       - name: Checkout code
-        uses: https://gitea.obmondo.com/Obmondo/checkout@v4.2.2
-        with:
-          fetch-depth: 2
+        uses: https://gitea.obmondo.com/Obmondo/checkout@v4.3.0
 
       - name: Setup Go
-        uses: https://gitea.obmondo.com/Obmondo/setup-go@v4
+        uses: https://gitea.obmondo.com/Obmondo/setup-go@v6.0.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -23,5 +21,5 @@ jobs:
       - name: Golang CI lint
         uses: https://gitea.obmondo.com/Obmondo/golangci-lint-action@v8.0.0
         with:
-          version: v2.1.0
+          version: v2.5.0
           args: --timeout=5m --config=.golangci.yml

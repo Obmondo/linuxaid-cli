@@ -1,9 +1,42 @@
 version: 2
 
+release:
+  footer: >-
+    ---
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+
+changelog:
+  use: github
+  format: "[{{ .Message }}](https://github.com/obmondo/linuxaid-cli/commit/{{ .Commit }})"
+  filters:
+    exclude:
+      - init
+  # Group commits messages by given regex and title.
+  groups:
+    - title: 💫 Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 🐛 Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 🥴 Others
+      order: 999
+
+archives:
+  - formats: [tar.gz]
+    # This name template makes the OS and Arch compatible with the results of uname.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
 builds:
-  - id: "obmondo-install-setup"
-    main: cmd/obmondo-install-setup
-    binary: obmondo-install-setup
+  - id: "linuxaid-install"
+    main: cmd/linuxaid-install
+    binary: linuxaid-install
     env:
       - CGO_ENABLED=0
     goos:
@@ -14,10 +47,15 @@ builds:
       - arm
     goarm:
       - "7"
+    flags:
+      - -v
+    ldflags:
+      - -X main.Version={{ .Version }}
+      - -s -w
 
-  - id: "obmondo-run-puppet"
-    main: cmd/obmondo-run-puppet
-    binary: obmondo-run-puppet
+  - id: "linuxaid-cli"
+    main: cmd/linuxaid-cli
+    binary: linuxaid-cli
     env:
       - CGO_ENABLED=0
     goos:
@@ -28,17 +66,8 @@ builds:
       - arm
     goarm:
       - "7"
-
-  - id: "obmondo-system-update"
-    main: cmd/obmondo-system-update
-    binary: obmondo-system-update
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-      - arm
-    goarm:
-      - "7"
+    flags:
+      - -v
+    ldflags:
+      - -X main.Version={{ .Version }}
+      - -s -w
