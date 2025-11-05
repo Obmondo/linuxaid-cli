@@ -2,8 +2,6 @@ package constant
 
 const (
 	// Obmondo API
-	ObmondoAPIURL = "https://api.obmondo.com/api"
-
 	// Puppet
 	SleepTime          = 5
 	PuppetPackageName  = "puppet-agent"
@@ -39,6 +37,8 @@ const (
 	CobraFlagPuppetServer = "puppet-server"
 	CobraFlagReboot       = "reboot"
 	CobraFlagVersion      = "version"
+
+	ObmondoEnv = "OBMONDO_ENV"
 )
 
 const (

@@ -15,21 +15,33 @@ import (
 
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	apiTimeOut = 15
+	obmondoProdAPIURL = "https://api.obmondo.com/api"
+	obmondoBetaAPIURL = "https://api-beta.obmondo.com/api"
+	apiTimeOut        = 15
 )
 
-type Client struct {
+type ObmondoClient interface {
+	FetchServiceWindowStatus() (*http.Response, error)
+	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
+	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
+	ServerPing() error
+	UpdatePuppetLastRunReport() error
+}
+
+type obmondoClient struct {
+	apiURL                     string
 	notifyInstallScriptFailure bool
 	certPath                   string
 	keyPath                    string
 }
 
-func (c *Client) UpdatePuppetLastRunReport() error {
-	url := fmt.Sprintf("%s/servers/puppet_last_run_report", constant.ObmondoAPIURL)
+func (c *obmondoClient) UpdatePuppetLastRunReport() error {
+	url := fmt.Sprintf("%s/servers/puppet_last_run_report", c.apiURL)
 	data, err := c.readPuppetLastRunReport()
 	if err != nil {
 		return err
@@ -68,7 +80,7 @@ func (c *Client) UpdatePuppetLastRunReport() error {
 	return nil
 }
 
-func (*Client) readPuppetLastRunReport() ([]byte, error) {
+func (*obmondoClient) readPuppetLastRunReport() ([]byte, error) {
 	const lastRunStatus = "/opt/puppetlabs/puppet/cache/state/last_run_report.yaml"
 
 	var puppetLastRunReport PuppetLastRunReport
@@ -99,9 +111,9 @@ func (*Client) readPuppetLastRunReport() ([]byte, error) {
 	return data, nil
 }
 
-func (c *Client) ServerPing() error {
+func (c *obmondoClient) ServerPing() error {
 
-	url := fmt.Sprintf("%s/servers/ping", constant.ObmondoAPIURL)
+	url := fmt.Sprintf("%s/servers/ping", c.apiURL)
 
 	resp, err := c.apiCallWithTransport(url, nil, http.MethodPut)
 	defer func() {
@@ -120,14 +132,21 @@ func (c *Client) ServerPing() error {
 	return nil
 }
 
-func (c *Client) NotifyInstallScriptFailure(input *InstallScriptFailureInput) error {
+func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptFailureInput) error {
 	if !c.notifyInstallScriptFailure {
 		return nil
 	}
-	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", constant.ObmondoAPIURL, input.Certname, url.QueryEscape(os.Getenv("INSTALL_TOKEN")))
+	baseURL := fmt.Sprintf("%s/servers/install-script-failure/certname/%s", c.apiURL, input.Certname)
+	method := http.MethodPut
+	if input.VerifyToken {
+		baseURL = fmt.Sprintf("%s/verify", baseURL)
+		method = http.MethodGet
+	}
+
+	url := fmt.Sprintf("%s?token=%s", baseURL, url.QueryEscape(os.Getenv("INSTALL_TOKEN")))
 	client := &http.Client{}
 
-	request, err := http.NewRequest(http.MethodPut, url, nil)
+	request, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		slog.Error("failed to create request for notifying script failure", slog.Any("error", err), slog.String("url", url))
 		return err
@@ -160,24 +179,25 @@ func (c *Client) NotifyInstallScriptFailure(input *InstallScriptFailureInput) er
 	case http.StatusNoContent:
 		fmt.Printf("\nInstallation setup failed, please contact ops@obmondo.com\nDon't worry, obmondo has the failed logs to analyze it.\n") //nolint:revive,forbidigo
 		return nil
-
+	case http.StatusOK:
+		return nil
+	case http.StatusBadRequest:
+		apiResponse := &ObmondoAPIResponse[string]{}
+		if err := json.NewDecoder(resp.Body).Decode(apiResponse); err != nil {
+			slog.Error("failed to decode api response", slog.Any("error", err))
+			return err
+		}
+		prettyfmt.PrettyFmt(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
+		return errors.New(apiResponse.ErrorText)
 	default:
 		err := errors.New(scriptFailureLogErrorMessage)
-		slog.Error(err.Error())
+		slog.Error(err.Error(), slog.Int("http_status", resp.StatusCode))
 		return err
 	}
 
 }
 
-type ObmondoClient interface {
-	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
-	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
-	ServerPing() error
-	UpdatePuppetLastRunReport() error
-}
-
-func (c *Client) getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
+func (c *obmondoClient) getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
 	cert, err := tls.LoadX509KeyPair(c.certPath, c.keyPath)
 	if err != nil {
 		slog.Error("failed to load certifcate", slog.Any("error", err), slog.String("cert", c.certPath), slog.String("cert", c.keyPath))
@@ -191,7 +211,7 @@ func (c *Client) getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error
 	return t, nil
 }
 
-func (c *Client) apiCallWithTransport(url string, data []byte, requestType string) (*http.Response, error) {
+func (c *obmondoClient) apiCallWithTransport(url string, data []byte, requestType string) (*http.Response, error) {
 	t, err := c.getCustomHTTPTransportWithPuppetCerts()
 	if err != nil {
 		slog.Error("failed to load host cert & key pair", slog.String("error", err.Error()))
@@ -220,12 +240,12 @@ func (c *Client) apiCallWithTransport(url string, data []byte, requestType strin
 	return response, nil
 }
 
-func (c *Client) FetchServiceWindowStatus() (*http.Response, error) {
-	serviceWindowURL := fmt.Sprintf("%s/window/now", constant.ObmondoAPIURL)
+func (c *obmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
+	serviceWindowURL := fmt.Sprintf("%s/window/now", c.apiURL)
 	return c.apiCallWithTransport(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (c *Client) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
+func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
 	certname := helper.GetCertname()
 	customerID := helper.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
@@ -234,18 +254,28 @@ func (c *Client) CloseServiceWindow(windowType string, timezone string) (*http.R
 		return nil, err
 	}
 	yearMonthDay := time.Now().In(location).Format("2006-01-02")
-	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", constant.ObmondoAPIURL, customerID, certname, yearMonthDay, windowType)
+	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)
 
 	return c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
 }
 
-func NewObmondoClient(notifyInstallScriptFailure bool) ObmondoClient {
+func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
 	certname := helper.GetCertname()
 
-	return &Client{
+	return &obmondoClient{
+		apiURL:                     obmondoAPIURL,
 		notifyInstallScriptFailure: notifyInstallScriptFailure,
 		certPath:                   fmt.Sprintf("/etc/puppetlabs/puppet/ssl/certs/%s.pem", certname),
 		keyPath:                    fmt.Sprintf("%s/%s.pem", constant.PuppetPrivKeyPath, certname),
 	}
+}
+
+func GetObmondoURL() string {
+	obmondoAPIURL := obmondoProdAPIURL
+	if os.Getenv(constant.ObmondoEnv) == "1" {
+		obmondoAPIURL = obmondoBetaAPIURL
+	}
+
+	return obmondoAPIURL
 }

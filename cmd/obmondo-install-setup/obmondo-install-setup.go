@@ -19,10 +19,18 @@ import (
 func obmondoInstallSetup() {
 	certname := helper.GetCertname()
 	puppetServer := config.GetPupeptServer()
-	obmondoAPI := api.NewObmondoClient(true)
-	webtee := webtee.NewWebtee(obmondoAPI)
+	obmondoAPIURL := api.GetObmondoURL()
+	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
+	webtee := webtee.NewWebtee(obmondoAPIURL, obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
 	provisioner := provisioner.NewService(obmondoAPI, puppetService)
+
+	if err := obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		Certname:    certname,
+		VerifyToken: true,
+	}); err != nil {
+		os.Exit(1)
+	}
 
 	// Sanity check
 	helper.LoadOSReleaseEnv()

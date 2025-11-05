@@ -23,10 +23,7 @@ import (
 )
 
 const (
-	obmondoAPIURL       = constant.ObmondoAPIURL
 	agentDisabledFile   = constant.AgentDisabledLockFile
-	path                = constant.PuppetPath
-	sleepTime           = 5
 	bootDirectory       = "/boot"
 	securityExporterURL = "http://127.254.254.254:63396"
 )
@@ -336,10 +333,10 @@ func obmondoSystemUpdate() {
 		slog.Warn("puppet has been disabled, exiting")
 		return
 	}
+	obmondoAPIURL := api.GetObmondoURL()
+	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, false)
 
-	obmondoAPI := api.NewObmondoClient(false)
-
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPIURL, obmondoAPI))
 
 	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPI)
 	if err != nil {

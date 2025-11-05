@@ -103,8 +103,7 @@ func obmondoRunPuppet() {
 		slog.Error("unable to connect to obmondo api, aborting", slog.String("error", "api not accessible"))
 		return
 	}
-
-	obmondoAPI := api.NewObmondoClient(false)
+	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
 
 	// nolint:errcheck
 	obmondoAPI.ServerPing()
