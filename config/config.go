@@ -28,12 +28,17 @@ func GetPupeptServer() string {
 	return viperConfig.GetString(constant.CobraFlagPuppetServer)
 }
 
-func GetDebug() bool {
+func IsDebug() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagDebug)
 }
 
-func DoReboot() bool {
+func ShouldReboot() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagReboot)
+}
+
+func ShouldSkipOpenvox() bool {
+	initIfNil()
+	return viperConfig.GetBool(constant.CobraFlagSkipOpenvox)
 }

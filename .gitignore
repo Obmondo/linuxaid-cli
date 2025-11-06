@@ -3,6 +3,8 @@
 rpmbuild
 /build/
 /vendor/
-cmd/obmondo-install-setup/obmondo-install-setup
-cmd/obmondo-system-update/obmondo-system-update
 /.idea
+
+# Ignore the linuxaid tool binaries
+/linuxaid-cli
+/linuxaid-install

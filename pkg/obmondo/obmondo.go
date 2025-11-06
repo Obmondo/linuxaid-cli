@@ -26,10 +26,22 @@ const (
 	installTokenEnv   = "INSTALL_TOKEN"
 )
 
+// 202 -> When a certname says it's done but the overall window is not auto-closed
+// 204 -> When a certname says it's done AND the overall window is auto-closed
+// 208 -> When any of the above requests happen again and again
+var closeWindowSuccessStatuses = map[int]struct{}{
+	http.StatusAccepted:        {},
+	http.StatusNoContent:       {},
+	http.StatusAlreadyReported: {},
+}
+
 type ObmondoClient interface {
+	GetServiceWindowStatus() (*ServiceWindow, error)
+	GetServiceWindowDetails([]byte) (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
 	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
 	VerifyInstallToken(input *InstallScriptFailureInput) error
+	CloseServiceWindowNow(windowType string, timezone string) (*http.Response, error)
 	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
 	ServerPing() error
 	UpdatePuppetLastRunReport() error
@@ -281,7 +293,79 @@ func (c *obmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return c.apiCallWithTransport(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
+// ------------------------------------------------
+// ------------------------------------------------
+
+func (c *obmondoClient) GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
+	type ServiceWindowResponse struct {
+		Data ServiceWindow `json:"data"`
+	}
+
+	var serviceWindowResponse ServiceWindowResponse
+
+	if err := json.Unmarshal(response, &serviceWindowResponse); err != nil {
+		slog.Error("failed to parse service window JSON", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return &serviceWindowResponse.Data, nil
+}
+
+func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
+	resp, err := c.FetchServiceWindowStatus()
+	if err != nil {
+		slog.Error("unexpected error fetching service window url", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	statusCode, responseBody, err := helper.ParseResponse(resp)
+	if err != nil {
+		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	if statusCode != http.StatusOK {
+		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
+		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
+	}
+
+	serviceWindow, err := c.GetServiceWindowDetails(responseBody)
+	if err != nil {
+		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return serviceWindow, nil
+}
+
+func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) error {
+	closeWindow, err := c.CloseServiceWindowNow(windowType, timezone)
+	if err != nil {
+		slog.Error("closing service window failed", slog.String("error", err.Error()))
+		return err
+	}
+	defer closeWindow.Body.Close()
+
+	if _, exists := closeWindowSuccessStatuses[closeWindow.StatusCode]; !exists {
+		bodyBytes, err := io.ReadAll(closeWindow.Body)
+		if err != nil {
+			slog.Error("failed to read response body", slog.String("error", err.Error()))
+			return err
+		}
+
+		// Log the response status code and body
+		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
+		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
+	}
+
+	return nil
+}
+
+// ------------------------------------------------
+// ------------------------------------------------
+
+func (c *obmondoClient) CloseServiceWindowNow(windowType string, timezone string) (*http.Response, error) {
 	certname := helper.GetCertname()
 	customerID := helper.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
@@ -289,7 +373,7 @@ func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) (
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
 		return nil, err
 	}
-	yearMonthDay := time.Now().In(location).Format("2006-01-02")
+	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)
 

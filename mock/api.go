@@ -54,7 +54,19 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return response, nil
 }
 
-func (*MockObmondoClient) CloseServiceWindow(_ string, _ string) (*http.Response, error) {
+func (*MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error) {
+	return nil, nil
+}
+
+func (*MockObmondoClient) GetServiceWindowDetails([]byte) (*api.ServiceWindow, error) {
+	return nil, nil
+}
+
+func (*MockObmondoClient) CloseServiceWindow(string, string) error {
+	return nil
+}
+
+func (*MockObmondoClient) CloseServiceWindowNow(string, string) (*http.Response, error) {
 	response := &http.Response{
 		StatusCode: http.StatusAccepted,
 		Body:       io.NopCloser(bytes.NewBufferString("")),

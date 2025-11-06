@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		logger.InitLogger(config.GetDebug())
+		logger.InitLogger(config.IsDebug())
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
@@ -78,7 +78,6 @@ func init() {
 }
 
 func main() {
-
 	if err := rootCmd.Execute(); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)

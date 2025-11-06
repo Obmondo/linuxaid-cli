@@ -21,7 +21,7 @@ func TestGetCustomerID(t *testing.T) {
 
 func TestGetServiceWindowStatus(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	serviceWindowNow, err := GetServiceWindowStatus(mockObmondoClient)
+	serviceWindowNow, err := mockObmondoClient.GetServiceWindowStatus()
 	if err != nil {
 		t.Errorf("o/p: %+v", err)
 	}
@@ -43,7 +43,7 @@ func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
 	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
 
-	op, err := closeWindow(mockObmondoClient, "automatic", time.UTC.String())
+	op, err := mockObmondoClient.CloseServiceWindowNow("automatic", time.UTC.String())
 	if err != nil {
 		t.Errorf("o/p: %+v", op)
 	}

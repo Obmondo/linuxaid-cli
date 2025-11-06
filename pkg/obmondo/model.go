@@ -24,3 +24,9 @@ type ObmondoAPIResponse[T any] struct {
 	Resolution string `json:"resolution"`
 	ErrorText  string `json:"error_text"`
 }
+
+type ServiceWindow struct {
+	IsWindowOpen bool   `json:"is_window_open"`
+	WindowType   string `json:"window_type"`
+	Timezone     string `json:"timezone"`
+}
