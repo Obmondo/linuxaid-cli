@@ -21,31 +21,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// var rootCmd = &cobra.Command{
-// 	Use:     "obmondo-system-update",
-// 	Example: `  # obmondo-system-update --certname web01.customerid`,
-// 	PreRunE: func(*cobra.Command, []string) error {
-// 		// Handle version flag first
-// 		if versionFlag {
-// 			slog.Info("obmondo-system-update", "version", Version)
-// 			os.Exit(0)
-// 		}
-
-// 		logger.InitLogger(config.IsDebug())
-
-// 		// Get certname from viper (cert, flag, or env)
-// 		if helper.GetCertname() == "" {
-// 			slog.Error("failed to fetch the certname")
-// 			os.Exit(1)
-// 		}
-// 		return nil
-// 	},
-
-// 	Run: func(*cobra.Command, []string) {
-// 		SystemUpdate()
-// 	},
-// }
-
 const (
 	agentDisabledFile   = constant.AgentDisabledLockFile
 	bootDirectory       = "/boot"
@@ -56,14 +31,13 @@ var systemUpdateCmd = &cobra.Command{
 	Use:   "system-update",
 	Short: "Execute system-update command",
 	PreRunE: func(*cobra.Command, []string) error {
+		logger.InitLogger(config.IsDebug())
+
 		// Handle version flag first
 		if versionFlag {
-			fmt.Println("is debug:", config.IsDebug())
 			slog.Info("system-update", "version", Version)
 			os.Exit(0)
 		}
-
-		logger.InitLogger(config.IsDebug())
 
 		// Get certname from viper (cert, flag, or env)
 		if helper.GetCertname() == "" {
@@ -363,11 +337,3 @@ func SystemUpdate() {
 func init() {
 	rootCmd.AddCommand(systemUpdateCmd)
 }
-
-// func main() {
-
-// 	if err := rootCmd.Execute(); err != nil {
-// 		slog.Error(err.Error())
-// 		os.Exit(1)
-// 	}
-// }

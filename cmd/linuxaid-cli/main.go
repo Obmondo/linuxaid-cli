@@ -8,6 +8,7 @@ import (
 
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/go-scripts/helper"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
 )
 
@@ -26,22 +27,23 @@ var rootCmd = &cobra.Command{
 	Short:   "A brief description of my-cli",
 	Long:    "A longer description of my-cli application",
 	Example: `  # linuxaid-cli --certname web01.customerid`,
-	// PreRunE: func(*cobra.Command, []string) error {
-	// 	// Handle version flag first
-	// 	if versionFlag {
-	// 		slog.Info("linuxaid-cli", "version", Version)
-	// 		os.Exit(0)
-	// 	}
+	PreRunE: func(*cobra.Command, []string) error {
+		logger.InitLogger(config.IsDebug())
 
-	// 	logger.InitLogger(config.IsDebug())
+		// Handle version flag first
+		if versionFlag {
+			slog.Info("system-update", "version", Version)
+			os.Exit(0)
+		}
 
-	// 	// Get certname from viper (cert, flag, or env)
-	// 	if helper.GetCertname() == "" {
-	// 		slog.Error("failed to fetch the certname")
-	// 		os.Exit(1)
-	// 	}
-	// 	return nil
-	// },
+		// Get certname from viper (cert, flag, or env)
+		if helper.GetCertname() == "" {
+			slog.Error("failed to fetch the certname")
+			os.Exit(1)
+		}
+
+		return nil
+	},
 
 	// Run: func(*cobra.Command, []string) {
 	// 	obmondoSystemUpdate()
@@ -56,7 +58,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&certnameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
 	rootCmd.PersistentFlags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
 	rootCmd.PersistentFlags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
-	logger.InitLogger(debugFlag)
 
 	// Bind flags to viper
 	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.PersistentFlags().Lookup(constant.CobraFlagDebug))

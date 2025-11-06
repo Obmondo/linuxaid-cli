@@ -1,63 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
-	"os"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"github.com/bitfield/script"
 	"github.com/spf13/cobra"
 )
 
-// var rootCmd = &cobra.Command{
-// 	Use: "obmondo-run-puppet",
-// 	PreRunE: func(*cobra.Command, []string) error {
-// 		// Handle version flag first
-// 		if versionFlag {
-// 			slog.Info("obmondo-run-puppet", "version", Version)
-// 			os.Exit(0)
-// 		}
-
-// 		// Get certname from viper (cert, flag, or env)
-// 		if helper.GetCertname() == "" {
-// 			slog.Error("failed to fetch the certname")
-// 			os.Exit(1)
-// 		}
-
-// 		return nil
-// 	},
-
-// 	Run: func(_ *cobra.Command, _ []string) {
-// 		obmondoRunPuppet()
-// 	},
-// }
-
 var runOpenvoxCmd = &cobra.Command{
 	Use:   "run-openvox",
 	Short: "Execute run-openvox command",
-	PreRunE: func(*cobra.Command, []string) error {
-		// Handle version flag first
-		if versionFlag {
-			fmt.Println("is debug:", config.IsDebug())
-			slog.Info("run-openvox", "version", Version)
-			os.Exit(0)
-		}
-
-		logger.InitLogger(config.IsDebug())
-
-		// Get certname from viper (cert, flag, or env)
-		if helper.GetCertname() == "" {
-			slog.Error("failed to fetch the certname")
-			os.Exit(1)
-		}
-
-		return nil
-	},
 	Run: func(*cobra.Command, []string) {
 		RunOpenvox()
 	},
@@ -128,11 +83,3 @@ func RunOpenvox() {
 func init() {
 	rootCmd.AddCommand(runOpenvoxCmd)
 }
-
-// func main() {
-
-// 	if err := rootCmd.Execute(); err != nil {
-// 		slog.Error(err.Error())
-// 		os.Exit(1)
-// 	}
-// }

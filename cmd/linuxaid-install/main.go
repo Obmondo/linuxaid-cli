@@ -23,16 +23,16 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "obmondo-install-setup",
-	Example: `  # obmondo-install-setup --certname web01.customerid`,
+	Use:     "linuxaid-install",
+	Example: `  # linuxaid-install --certname web01.customerid`,
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
+		logger.InitLogger(config.IsDebug())
+
 		// Handle version flag first
 		if versionFlag {
-			slog.Info("obmondo-install-setup", "version", Version)
+			slog.Info("linuxaid-install", "version", Version)
 			os.Exit(0)
 		}
-
-		logger.InitLogger(config.IsDebug())
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
