@@ -34,13 +34,13 @@ var rootCmd = &cobra.Command{
 		logger.InitLogger(config.IsDebug())
 
 		// Print version first
-		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
+		prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite(cmd.Root().Name()), "version", prettyfmt.FontYellow(cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
 		if certName == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
-			prettyfmt.PrettyFmt("\n  ", prettyfmt.IconCheckFail, " ", prettyfmt.FontWhite(errMsg))
+			prettyfmt.PrettyFmt("\n ", prettyfmt.IconCheckFail, " ", prettyfmt.FontWhite(errMsg))
 
 			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
 			cmd.Help()
