@@ -15,7 +15,6 @@ import (
 var Version string
 
 var (
-	versionFlag     bool
 	debugFlag       bool
 	rebootFlag      bool
 	certnameFlag    string
@@ -23,53 +22,53 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "linuxaid-cli",
-	Short:   "A brief description of my-cli",
-	Long:    "A longer description of my-cli application",
-	Example: `  # linuxaid-cli --certname web01.customerid`,
-	PreRunE: func(*cobra.Command, []string) error {
+	Use:   "linuxaid-cli",
+	Short: "A brief description of linuxaid-cli",
+	Long:  "A longer description of linuxaid-cli application",
+	Example: `
+	$ linuxaid-cli run-openvox --certname web01.customerid
+	$ linuxaid-cli system-update --certname web01.customerid --reboot
+	`,
+	Version: Version,
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		logger.InitLogger(config.IsDebug())
 
-		// Handle version flag first
-		if versionFlag {
-			slog.Info("system-update", "version", Version)
-			os.Exit(0)
-		}
+		// Print version first
+		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
 		if helper.GetCertname() == "" {
 			slog.Error("failed to fetch the certname")
+			cmd.Help()
 			os.Exit(1)
 		}
 
-		return nil
 	},
-
-	// Run: func(*cobra.Command, []string) {
-	// 	obmondoSystemUpdate()
-	// },
 }
 
 func init() {
-	viperConfig := config.Initialize()
+	v := config.GetViperInstance()
 
-	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.PersistentFlags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
 	rootCmd.PersistentFlags().StringVar(&certnameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
-	rootCmd.PersistentFlags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
-	rootCmd.PersistentFlags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
 
 	// Bind flags to viper
-	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.PersistentFlags().Lookup(constant.CobraFlagDebug))
-	viperConfig.BindPFlag(constant.CobraFlagReboot, rootCmd.PersistentFlags().Lookup(constant.CobraFlagReboot))
-	viperConfig.BindPFlag(constant.CobraFlagSkipOpenvox, rootCmd.PersistentFlags().Lookup(constant.CobraFlagSkipOpenvox))
+	v.BindPFlag(constant.CobraFlagDebug, rootCmd.PersistentFlags().Lookup(constant.CobraFlagDebug))
+	v.BindPFlag(constant.CobraFlagCertname, rootCmd.PersistentFlags().Lookup(constant.CobraFlagCertname))
 
 	// Bind environment variables
-	viperConfig.BindEnv(constant.CobraFlagCertname, "CERTNAME")
-	viperConfig.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
+	v.BindEnv(constant.CobraFlagDebug)
+	v.BindEnv(constant.CobraFlagCertname)
+
 }
 
 func main() {
+	//nolint:reassign
+	// By default, parent's PersistentPreRun gets overridden by a child's PersistentPreRun.
+	// We want to disable this overriding behaviour and chain all the PersistentPreRuns.
+	// REFERENCE : https://github.com/spf13/cobra/pull/2044.
+	cobra.EnableTraverseRunHooks = true
+
 	if err := rootCmd.Execute(); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)

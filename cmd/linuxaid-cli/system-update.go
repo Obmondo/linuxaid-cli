@@ -10,7 +10,6 @@ import (
 	"gitea.obmondo.com/EnableIT/go-scripts/config"
 	"gitea.obmondo.com/EnableIT/go-scripts/constant"
 	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
 	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
 	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
@@ -28,25 +27,10 @@ const (
 )
 
 var systemUpdateCmd = &cobra.Command{
-	Use:   "system-update",
-	Short: "Execute system-update command",
-	PreRunE: func(*cobra.Command, []string) error {
-		logger.InitLogger(config.IsDebug())
-
-		// Handle version flag first
-		if versionFlag {
-			slog.Info("system-update", "version", Version)
-			os.Exit(0)
-		}
-
-		// Get certname from viper (cert, flag, or env)
-		if helper.GetCertname() == "" {
-			slog.Error("failed to fetch the certname")
-			os.Exit(1)
-		}
-
-		return nil
-	},
+	Use:     "system-update",
+	Short:   "Execute system-update command",
+	Long:    "A longer description of system-update command",
+	Example: `$ linuxaid-cli system-update --certname web01.customerid --reboot`,
 	Run: func(*cobra.Command, []string) {
 		SystemUpdate()
 	},
@@ -181,7 +165,7 @@ func HandlePuppetRun(puppetService *puppet.Service) error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded() error {
+func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service) error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -211,6 +195,9 @@ func CheckKernelAndRebootIfNeeded() error {
 
 	// Reboot the node, if we have installed a new kernel
 	if installedKernel != runningKernel && config.ShouldReboot() {
+		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
+		// otherwise reboot won't be triggered
+		cleanup(puppetService)
 		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
 		script.Exec("reboot --force")
 	}
@@ -281,11 +268,9 @@ func SystemUpdate() {
 		os.Exit(1)
 	}
 
-	if config.ShouldSkipOpenvox() {
-		puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPIURL, obmondoAPI))
-		// Ensure the cleanup is done regardless of the outcome of the update script execution
-		defer cleanup(puppetService)
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPIURL, obmondoAPI))
 
+	if !config.ShouldSkipOpenvox() {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
@@ -300,6 +285,9 @@ func SystemUpdate() {
 			slog.Error("failed to disable agent", slog.Any("error", err))
 			return
 		}
+
+		// Ensure the cleanup is done regardless of the outcome of the update script execution
+		defer cleanup(puppetService)
 	}
 
 	distribution, distIDExists := os.LookupEnv("ID")
@@ -328,7 +316,7 @@ func SystemUpdate() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(); err != nil {
+	if err := CheckKernelAndRebootIfNeeded(puppetService); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}
@@ -336,4 +324,16 @@ func SystemUpdate() {
 
 func init() {
 	rootCmd.AddCommand(systemUpdateCmd)
+
+	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
+	systemUpdateCmd.Flags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
+
+	// Bind flags to viper
+	v := config.GetViperInstance()
+	v.BindPFlag(constant.CobraFlagReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagReboot))
+	v.BindPFlag(constant.CobraFlagSkipOpenvox, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSkipOpenvox))
+
+	// Bind environment variables
+	v.BindEnv(constant.CobraFlagReboot)
+	v.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
 }

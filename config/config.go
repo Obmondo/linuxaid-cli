@@ -7,14 +7,10 @@ import (
 
 var viperConfig *viper.Viper
 
-func Initialize() *viper.Viper {
-	viperConfig = viper.New()
-	return viperConfig
-}
-
 func initIfNil() {
 	if viperConfig == nil {
-		Initialize()
+		viperConfig = viper.New()
+		viperConfig.AutomaticEnv()
 	}
 }
 
@@ -41,4 +37,9 @@ func ShouldReboot() bool {
 func ShouldSkipOpenvox() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagSkipOpenvox)
+}
+
+func GetViperInstance() *viper.Viper {
+	initIfNil()
+	return viperConfig
 }

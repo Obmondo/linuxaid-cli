@@ -16,7 +16,6 @@ import (
 var Version string
 
 var (
-	versionFlag      bool
 	debugFlag        bool
 	certNameFlag     string
 	puppetServerFlag string
@@ -24,15 +23,15 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:     "linuxaid-install",
-	Example: `  # linuxaid-install --certname web01.customerid`,
+	Short:   "A brief description of linuxaid-cli",
+	Long:    "A longer description of linuxaid-cli application",
+	Example: `$ linuxaid-install --certname web01.customerid --puppet-server customerid.openvox.obmondo.com`,
+	Version: Version,
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
 		logger.InitLogger(config.IsDebug())
 
-		// Handle version flag first
-		if versionFlag {
-			slog.Info("linuxaid-install", "version", Version)
-			os.Exit(0)
-		}
+		// Print version first
+		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
@@ -47,34 +46,31 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-
 	Run: func(*cobra.Command, []string) {
 		obmondoInstallSetup()
 	},
 }
 
 func init() {
-
-	viperConfig := config.Initialize()
-
 	defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 
-	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
 	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
 	rootCmd.Flags().StringVar(&puppetServerFlag, constant.CobraFlagPuppetServer, defaultServer, "Puppet server hostname")
 
 	// Bind flags to viper
-	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
-	viperConfig.BindPFlag(constant.CobraFlagCertname, rootCmd.Flags().Lookup(constant.CobraFlagCertname))
-	viperConfig.BindPFlag(constant.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constant.CobraFlagPuppetServer))
+	v := config.GetViperInstance()
+	v.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
+	v.BindPFlag(constant.CobraFlagCertname, rootCmd.Flags().Lookup(constant.CobraFlagCertname))
+	v.BindPFlag(constant.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constant.CobraFlagPuppetServer))
 
 	// Bind environment variables
-	viperConfig.BindEnv(constant.CobraFlagCertname, "CERTNAME")
-	viperConfig.BindEnv(constant.CobraFlagPuppetServer, "PUPPET_SERVER")
+	v.BindEnv(constant.CobraFlagDebug)
+	v.BindEnv(constant.CobraFlagCertname)
+	v.BindEnv(constant.CobraFlagPuppetServer, "PUPPET_SERVER")
 
 	// Set default values
-	viperConfig.SetDefault(constant.CobraFlagPuppetServer, defaultServer)
+	v.SetDefault(constant.CobraFlagPuppetServer, defaultServer)
 }
 
 func main() {

@@ -11,8 +11,10 @@ import (
 )
 
 var runOpenvoxCmd = &cobra.Command{
-	Use:   "run-openvox",
-	Short: "Execute run-openvox command",
+	Use:     "run-openvox",
+	Short:   "Execute run-openvox command",
+	Long:    "A longer description of run-openvox command",
+	Example: `$ linuxaid-cli run-openvox --certname web01.customerid`,
 	Run: func(*cobra.Command, []string) {
 		RunOpenvox()
 	},
@@ -59,7 +61,6 @@ func runOpenvoxAgent() error {
 // Entry point
 func RunOpenvox() {
 	helper.LoadPuppetEnv()
-	slog.Info("run_puppet", "version", Version)
 
 	allAPIReachable := checkconnectivity.CheckTCPConnection()
 	if !allAPIReachable {
