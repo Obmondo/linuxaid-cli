@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
@@ -54,12 +55,19 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return response, nil
 }
 
-func (*MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error) {
-	return nil, nil
-}
+func (m *MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error) {
+	resp, err := m.FetchServiceWindowStatus()
+	if err != nil {
+		return nil, err
+	}
 
-func (*MockObmondoClient) GetServiceWindowDetails([]byte) (*api.ServiceWindow, error) {
-	return nil, nil
+	defer resp.Body.Close()
+	_, responseBody, err := helper.ParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return api.GetServiceWindowDetails(responseBody)
 }
 
 func (*MockObmondoClient) CloseServiceWindow(string, string) error {

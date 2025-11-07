@@ -37,7 +37,6 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 
 type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
-	GetServiceWindowDetails([]byte) (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
 	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
 	VerifyInstallToken(input *InstallScriptFailureInput) error
@@ -296,7 +295,7 @@ func (c *obmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-func (*obmondoClient) GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
+func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
 	type ServiceWindowResponse struct {
 		Data ServiceWindow `json:"data"`
 	}
@@ -330,7 +329,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
 	}
 
-	serviceWindow, err := c.GetServiceWindowDetails(responseBody)
+	serviceWindow, err := GetServiceWindowDetails(responseBody)
 	if err != nil {
 		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
 		return nil, err
