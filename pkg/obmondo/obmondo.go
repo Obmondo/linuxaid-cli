@@ -296,7 +296,7 @@ func (c *obmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-func (c *obmondoClient) GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
+func (*obmondoClient) GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
 	type ServiceWindowResponse struct {
 		Data ServiceWindow `json:"data"`
 	}
