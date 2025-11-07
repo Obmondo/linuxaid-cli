@@ -14,7 +14,7 @@ var runOpenvoxCmd = &cobra.Command{
 	Use:     "run-openvox",
 	Short:   "Execute run-openvox command",
 	Long:    "A longer description of run-openvox command",
-	Example: `$ linuxaid-cli run-openvox --certname web01.customerid`,
+	Example: `$ linuxaid-cli run-openvox --certname web01.example`,
 	Run: func(*cobra.Command, []string) {
 		RunOpenvox()
 	},

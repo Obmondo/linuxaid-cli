@@ -30,7 +30,7 @@ var systemUpdateCmd = &cobra.Command{
 	Use:     "system-update",
 	Short:   "Execute system-update command",
 	Long:    "A longer description of system-update command",
-	Example: `$ linuxaid-cli system-update --certname web01.customerid --reboot`,
+	Example: `$ linuxaid-cli system-update --certname web01.example --no-reboot`,
 	Run: func(*cobra.Command, []string) {
 		SystemUpdate()
 	},
@@ -194,7 +194,7 @@ func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service) error {
 	}
 
 	// Reboot the node, if we have installed a new kernel
-	if installedKernel != runningKernel && config.ShouldReboot() {
+	if installedKernel != runningKernel && !config.NoReboot() {
 		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
 		// otherwise reboot won't be triggered
 		cleanup(puppetService)
@@ -325,15 +325,15 @@ func SystemUpdate() {
 func init() {
 	rootCmd.AddCommand(systemUpdateCmd)
 
-	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagReboot, true, "Set this flag false to prevent reboot")
+	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagNoReboot, false, "Set this flag to prevent reboot (default will reboot)")
 	systemUpdateCmd.Flags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
-	v.BindPFlag(constant.CobraFlagReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagReboot))
+	v.BindPFlag(constant.CobraFlagNoReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagNoReboot))
 	v.BindPFlag(constant.CobraFlagSkipOpenvox, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSkipOpenvox))
 
 	// Bind environment variables
-	v.BindEnv(constant.CobraFlagReboot)
+	v.BindEnv(constant.CobraFlagNoReboot, "NO_REBOOT")
 	v.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
 }

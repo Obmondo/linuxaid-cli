@@ -26,10 +26,13 @@ var rootCmd = &cobra.Command{
 	Short: "A brief description of linuxaid-cli",
 	Long:  "A longer description of linuxaid-cli application",
 	Example: `
-	$ linuxaid-cli run-openvox --certname web01.customerid
-	$ linuxaid-cli system-update --certname web01.customerid --reboot
+	$ linuxaid-cli run-openvox --certname web01.example
+	$ linuxaid-cli system-update --certname web01.example --no-reboot
 	`,
 	Version: Version,
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
+	},
 	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		logger.InitLogger(config.IsDebug())
 

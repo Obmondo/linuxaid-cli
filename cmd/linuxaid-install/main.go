@@ -25,8 +25,11 @@ var rootCmd = &cobra.Command{
 	Use:     "linuxaid-install",
 	Short:   "A brief description of linuxaid-cli",
 	Long:    "A longer description of linuxaid-cli application",
-	Example: `$ linuxaid-install --certname web01.customerid --puppet-server customerid.openvox.obmondo.com`,
+	Example: `$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com`,
 	Version: Version,
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
+	},
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
 		logger.InitLogger(config.IsDebug())
 

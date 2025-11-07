@@ -29,9 +29,9 @@ func IsDebug() bool {
 	return viperConfig.GetBool(constant.CobraFlagDebug)
 }
 
-func ShouldReboot() bool {
+func NoReboot() bool {
 	initIfNil()
-	return viperConfig.GetBool(constant.CobraFlagReboot)
+	return viperConfig.GetBool(constant.CobraFlagNoReboot)
 }
 
 func ShouldSkipOpenvox() bool {

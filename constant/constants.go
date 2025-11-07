@@ -35,7 +35,7 @@ const (
 	CobraFlagDebug        = "debug"
 	CobraFlagCertname     = "certname"
 	CobraFlagPuppetServer = "puppet-server"
-	CobraFlagReboot       = "reboot"
+	CobraFlagNoReboot     = "no-reboot"
 	CobraFlagSkipOpenvox  = "skip-openvox"
 
 	ObmondoEnv = "OBMONDO_ENV"
