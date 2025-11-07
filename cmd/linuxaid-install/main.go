@@ -47,7 +47,7 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(*cobra.Command, []string) {
-		obmondoInstallSetup()
+		Install()
 	},
 }
 

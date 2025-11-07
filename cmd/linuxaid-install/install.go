@@ -16,7 +16,7 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 )
 
-func obmondoInstallSetup() {
+func Install() {
 	certname := helper.GetCertname()
 	puppetServer := config.GetPupeptServer()
 	obmondoAPIURL := api.GetObmondoURL()
