@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
 // nolint: revive

@@ -1,4 +1,4 @@
-module gitea.obmondo.com/EnableIT/go-scripts
+module gitea.obmondo.com/EnableIT/linuxaid-cli
 
 go 1.25.3
 
@@ -11,8 +11,6 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/tevino/tcp-shaker v0.0.0-20240103094755-1af45280385e
-	golang.org/x/crypto v0.41.0
-	golang.org/x/term v0.34.0
 	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.36.1
 	gopkg.in/yaml.v3 v3.0.1

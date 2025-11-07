@@ -4,16 +4,16 @@ import (
 	"log/slog"
 	"os"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/helper/provisioner"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/provisioner"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/disk"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/puppet"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 )
 
 func obmondoInstallSetup() {

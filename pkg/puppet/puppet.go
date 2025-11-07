@@ -11,11 +11,11 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
 
 	"github.com/bitfield/script"
 )

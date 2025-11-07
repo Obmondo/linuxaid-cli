@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
 // Pipenames

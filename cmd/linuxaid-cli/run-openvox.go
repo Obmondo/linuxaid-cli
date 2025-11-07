@@ -3,9 +3,9 @@ package main
 import (
 	"log/slog"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 	"github.com/bitfield/script"
 	"github.com/spf13/cobra"
 )

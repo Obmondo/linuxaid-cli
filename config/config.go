@@ -1,7 +1,7 @@
 package config
 
 import (
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"github.com/spf13/viper"
 )
 

@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tevino/tcp-shaker"
