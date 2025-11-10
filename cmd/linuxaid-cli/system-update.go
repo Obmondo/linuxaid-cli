@@ -76,21 +76,21 @@ func updateDebian() error {
 	pipe := script.Exec("apt-get --with-new-pkgs upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, apt update failed")
 		return fmt.Errorf(" apt-get update and upgrade failed: exit status %d", exitStatus)
 	}
 
-	if err := script.Exec("apt-get autoremove -y").Wait(); err != nil {
+	pipe = script.Exec("apt-get autoremove -y")
+	_, err = pipe.Stdout()
+	if err != nil {
 		slog.Error("failed to remove unused dependencies", slog.String("error", err.Error()))
+		return err
 	}
 
 	return nil
@@ -105,13 +105,10 @@ func updateSUSE() error {
 	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, suse update failed")
@@ -130,13 +127,10 @@ func updateRedHat() error {
 	pipe := script.Exec("yum update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to update all packages", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all packages", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, yum update failed")
@@ -165,7 +159,7 @@ func HandlePuppetRun(puppetService *puppet.Service) error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service) error {
+func CheckKernelAndRebootIfNeeded() error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -195,9 +189,6 @@ func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service) error {
 
 	// Reboot the node, if we have installed a new kernel
 	if installedKernel != runningKernel && !config.NoReboot() {
-		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
-		// otherwise reboot won't be triggered
-		cleanup(puppetService)
 		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
 		script.Exec("reboot --force")
 	}
@@ -315,7 +306,11 @@ func SystemUpdate() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(puppetService); err != nil {
+	// Enable the puppet agent, so puppet runs after reboot and don't exit the script
+	// otherwise reboot won't be triggered
+	cleanup(puppetService)
+
+	if err := CheckKernelAndRebootIfNeeded(); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}
