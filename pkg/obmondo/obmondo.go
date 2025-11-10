@@ -23,11 +23,13 @@ const (
 	obmondoProdAPIURL = "https://api.obmondo.com/api"
 	obmondoBetaAPIURL = "https://api-beta.obmondo.com/api"
 	apiTimeOut        = 15
+	installTokenEnv   = "INSTALL_TOKEN"
 )
 
 type ObmondoClient interface {
 	FetchServiceWindowStatus() (*http.Response, error)
 	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
+	VerifyInstallToken(input *InstallScriptFailureInput) error
 	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
 	ServerPing() error
 	UpdatePuppetLastRunReport() error
@@ -38,6 +40,55 @@ type obmondoClient struct {
 	notifyInstallScriptFailure bool
 	certPath                   string
 	keyPath                    string
+}
+
+func (c *obmondoClient) VerifyInstallToken(input *InstallScriptFailureInput) error {
+	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
+	client := &http.Client{}
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		slog.Error("failed to create request for validating install token", slog.Any("error", err), slog.String("url", url))
+		return err
+	}
+	resp, err := client.Do(request)
+	if err != nil {
+		slog.Error("error occurred while requesting client to validate install token", slog.Any("error", err), slog.String("url", url))
+		return err
+	}
+	defer func() {
+		if resp.Body != nil {
+			if err := resp.Body.Close(); err != nil {
+				slog.Error("failed to close body", slog.Any("error", err))
+			}
+		}
+	}()
+
+	const scriptFailureLogErrorMessage = "failed to validate install token"
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		err := errors.New("invalid token")
+		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
+		return err
+	case http.StatusNotAcceptable:
+		err := errors.New("invalid token or certname")
+		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
+		return err
+	case http.StatusOK:
+		return nil
+	case http.StatusBadRequest:
+		apiResponse := &ObmondoAPIResponse[string]{}
+		if err := json.NewDecoder(resp.Body).Decode(apiResponse); err != nil {
+			slog.Error("failed to decode api response", slog.Any("error", err))
+			return err
+		}
+		prettyfmt.PrettyFmt(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
+		return errors.New(apiResponse.ErrorText)
+	default:
+		err := errors.New(scriptFailureLogErrorMessage)
+		slog.Error(err.Error(), slog.Int("http_status", resp.StatusCode))
+		return err
+	}
 }
 
 func (c *obmondoClient) UpdatePuppetLastRunReport() error {
@@ -136,17 +187,10 @@ func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptFailureIn
 	if !c.notifyInstallScriptFailure {
 		return nil
 	}
-	baseURL := fmt.Sprintf("%s/servers/install-script-failure/certname/%s", c.apiURL, input.Certname)
-	method := http.MethodPut
-	if input.VerifyToken {
-		baseURL = fmt.Sprintf("%s/verify", baseURL)
-		method = http.MethodGet
-	}
-
-	url := fmt.Sprintf("%s?token=%s", baseURL, url.QueryEscape(os.Getenv("INSTALL_TOKEN")))
+	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
 	client := &http.Client{}
 
-	request, err := http.NewRequest(method, url, nil)
+	request, err := http.NewRequest(http.MethodPut, url, nil)
 	if err != nil {
 		slog.Error("failed to create request for notifying script failure", slog.Any("error", err), slog.String("url", url))
 		return err
@@ -181,14 +225,6 @@ func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptFailureIn
 		return nil
 	case http.StatusOK:
 		return nil
-	case http.StatusBadRequest:
-		apiResponse := &ObmondoAPIResponse[string]{}
-		if err := json.NewDecoder(resp.Body).Decode(apiResponse); err != nil {
-			slog.Error("failed to decode api response", slog.Any("error", err))
-			return err
-		}
-		prettyfmt.PrettyFmt(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
-		return errors.New(apiResponse.ErrorText)
 	default:
 		err := errors.New(scriptFailureLogErrorMessage)
 		slog.Error(err.Error(), slog.Int("http_status", resp.StatusCode))

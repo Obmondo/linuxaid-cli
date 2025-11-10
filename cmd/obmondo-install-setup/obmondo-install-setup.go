@@ -23,9 +23,9 @@ func obmondoInstallSetup() {
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPIURL, obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
-	provisioner := provisioner.NewService(obmondoAPI, puppetService)
+	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
-	if err := obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+	if err := obmondoAPI.VerifyInstallToken(&api.InstallScriptFailureInput{
 		Certname:    certname,
 		VerifyToken: true,
 	}); err != nil {
