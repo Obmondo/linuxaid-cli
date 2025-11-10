@@ -1,6 +1,6 @@
 PATH := ./bin:$(PATH)
 export NAME=linuxaid-cli
-export VERSION=1.5.0
+export VERSION=v1.5.0
 export DIST=./dist
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
 export PREFIX=/opt/obmondo/bin/

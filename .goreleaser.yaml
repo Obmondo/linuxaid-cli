@@ -33,6 +33,10 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
+before:
+  hooks:
+    - go mod tidy
+
 builds:
   - id: "linuxaid-install"
     main: cmd/linuxaid-install
@@ -50,7 +54,7 @@ builds:
     flags:
       - -v
     ldflags:
-      - -X main.Version={{ .Version }}
+      - -X main.Version={{ .Tag }}
       - -s -w
 
   - id: "linuxaid-cli"
@@ -69,5 +73,5 @@ builds:
     flags:
       - -v
     ldflags:
-      - -X main.Version={{ .Version }}
+      - -X main.Version={{ .Tag }}
       - -s -w
