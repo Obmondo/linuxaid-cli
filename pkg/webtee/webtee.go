@@ -2,8 +2,10 @@ package webtee
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/exec"
 	"slices"
@@ -131,9 +133,11 @@ func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.Wa
 	}
 }
 
-func NewWebtee(obmondoAPIURL string, obmondoAPI api.ObmondoClient) *Webtee {
+func NewWebtee(obmondoAPI api.ObmondoClient) *Webtee {
+	u, _ := url.Parse(api.GetObmondoURL())
+
 	return &Webtee{
-		obmondoAPIURL: obmondoAPIURL + ":443",
+		obmondoAPIURL: fmt.Sprintf("%s:443", u.Hostname()),
 		obmondoAPI:    obmondoAPI,
 	}
 }

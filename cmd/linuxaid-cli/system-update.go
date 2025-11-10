@@ -268,7 +268,7 @@ func SystemUpdate() {
 		os.Exit(1)
 	}
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPIURL, obmondoAPI))
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 
 	if !config.ShouldSkipOpenvox() {
 		// Check if any existing puppet agent is already running

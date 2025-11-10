@@ -34,7 +34,7 @@ var rootCmd = &cobra.Command{
 		HiddenDefaultCmd: true,
 	},
 	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-		logger.InitLogger(config.IsDebug())
+		logger.InitLogger(nil, config.IsDebug())
 
 		// Print version first
 		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))

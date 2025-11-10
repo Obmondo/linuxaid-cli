@@ -1,11 +1,12 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
 )
 
-func InitLogger(debug bool) {
+func InitLogger(writer io.Writer, debug bool) {
 	handlerOptions := &slog.HandlerOptions{
 		AddSource: debug,
 	}
@@ -14,13 +15,18 @@ func InitLogger(debug bool) {
 		handlerOptions.Level = slog.LevelDebug
 	}
 
-	logger := slog.New(customLogHandler(debug, handlerOptions))
+	logger := slog.New(customLogHandler(writer, debug, handlerOptions))
 	slog.SetDefault(logger)
 }
 
-func customLogHandler(debug bool, handlerOptions *slog.HandlerOptions) slog.Handler {
-	if debug {
-		return slog.NewJSONHandler(os.Stderr, handlerOptions)
+func customLogHandler(writer io.Writer, debug bool, handlerOptions *slog.HandlerOptions) slog.Handler {
+	if writer == nil {
+		writer = os.Stderr
 	}
-	return slog.NewTextHandler(os.Stderr, handlerOptions)
+
+	if debug {
+		return slog.NewJSONHandler(writer, handlerOptions)
+	}
+
+	return slog.NewTextHandler(writer, handlerOptions)
 }

@@ -31,16 +31,16 @@ var rootCmd = &cobra.Command{
 		HiddenDefaultCmd: true,
 	},
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		logger.InitLogger(config.IsDebug())
+		logger.InitLogger(nil, config.IsDebug())
 
 		// Print version first
-		prettyfmt.PrettyFmt("\n ", prettyfmt.IconGear, " ", prettyfmt.FontWhite(cmd.Root().Name()), "version", prettyfmt.FontYellow(cmd.Root().Version))
+		prettyfmt.PrettyPrintf("\n %s %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
 		if certName == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
-			prettyfmt.PrettyFmt("\n ", prettyfmt.IconCheckFail, " ", prettyfmt.FontWhite(errMsg))
+			prettyfmt.PrettyPrintf("\n %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg))
 
 			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
 			cmd.Help()

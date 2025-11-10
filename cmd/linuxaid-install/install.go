@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/progress"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/provisioner"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/disk"
@@ -31,7 +32,7 @@ func compatibilityCheck(puppetService *puppet.Service) error {
 	}
 
 	if err := disk.CheckDiskSize(); err != nil {
-		prettyfmt.PrettyFmt(prettyfmt.FontRed("check disk size failed: ", err.Error()))
+		prettyfmt.PrettyPrintln(prettyfmt.FontRed("check disk size failed: ", err.Error()))
 		return err
 	}
 
@@ -50,17 +51,22 @@ func compatibilityCheck(puppetService *puppet.Service) error {
 }
 
 func Install() {
+	// Re-initialise the logger with progressbar writer to not disturb the
+	// progressbar if we print any logs. Everything is handled by progressbar's
+	// Bprintf method under the hood.
+	pbWriter := progress.InitProgressBar()
+	logger.InitLogger(pbWriter, config.IsDebug())
+
 	certname := helper.GetCertname()
 	puppetServer := config.GetPupeptServer()
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
-	webtee := webtee.NewWebtee(obmondoAPIURL, obmondoAPI)
+	webtee := webtee.NewWebtee(obmondoAPI)
 	puppetService := puppet.NewService(obmondoAPI, webtee)
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
-	progress.InitProgressBar()
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
-	prettyfmt.PrettyFmt(" ", prettyfmt.IconGear, " ", prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer), "\n")
+	prettyfmt.PrettyPrintf(" %s %s %s %s %s\n\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
 
 	if err := progress.NonDeterministicFunc("Verifying Token", func() error {
 		input := &api.InstallScriptFailureInput{
@@ -81,8 +87,8 @@ func Install() {
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
-		prettyfmt.PrettyFmt(prettyfmt.FontRed("puppet has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent"), "\n")
-		webtee.RemoteLogObmondo([]string{"echo Exiting, puppet-agent is already installed and set to disabled"}, helper.GetCertname())
+		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
+		webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, helper.GetCertname())
 		os.Exit(0)
 	}
 
@@ -107,6 +113,6 @@ func Install() {
 	})
 
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
-	prettyfmt.PrettyFmt("\n ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
-	prettyfmt.PrettyFmt(prettyfmt.FontWhite("\n\tHead to "), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."), "\n")
+	prettyfmt.PrettyPrintln("\n ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
+	prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.FontWhite("Head to"), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."))
 }
