@@ -41,7 +41,7 @@ func cleanup(puppetService *puppet.Service) {
 		slog.Error("unable to remove agent disable file and enable puppet agent")
 	}
 
-	slog.Info("ending obmondo-system-update script")
+	slog.Info("ending system-update")
 }
 
 // UpdateSystem performs a system update based on the specified Linux distribution.
@@ -226,7 +226,6 @@ func SystemUpdate() {
 	}
 
 	helper.RequireRootUser()
-	helper.RequirePuppetEnv()
 	helper.RequireOSNameEnv()
 	cmds, err := helper.IsSupportedOS()
 	if err != nil {
@@ -234,7 +233,7 @@ func SystemUpdate() {
 		os.Exit(1)
 	}
 
-	slog.Info("starting obmondo-system-update script")
+	slog.Info("starting system-update")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
@@ -281,7 +280,7 @@ func SystemUpdate() {
 		}
 
 		// Disable puppet-agent, since we'll be running upgrade commands
-		if err := puppetService.DisableAgent("puppet has been disabled by the obmondo-system-update script."); err != nil {
+		if err := puppetService.DisableAgent("puppet has been disabled by the system-update"); err != nil {
 			slog.Error("failed to disable agent", slog.Any("error", err))
 			return
 		}
