@@ -92,11 +92,13 @@ func Install() {
 		os.Exit(0)
 	}
 
+	// nolint: errcheck
 	progress.NonDeterministicFunc("Installing Openvox", func() error {
 		provisioner.ProvisionPuppet()
 		return nil
 	})
 
+	// nolint: errcheck
 	progress.NonDeterministicFunc("Configuring Openvox", func() error {
 		puppetService.DisableAgentService()
 		puppetService.ConfigureAgent()
@@ -104,6 +106,7 @@ func Install() {
 		return nil
 	})
 
+	// nolint: errcheck
 	progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 		puppetService.RunAgent(true, "noop")
