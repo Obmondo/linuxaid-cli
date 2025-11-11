@@ -38,7 +38,7 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
+	CloseServiceWindow(windowType string, timezone string) error
 	VerifyInstallToken(input *InstallScriptFailureInput) error
 	CloseServiceWindowNow(windowType string, timezone string) (*http.Response, error)
 	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
@@ -93,7 +93,7 @@ func (c *obmondoClient) VerifyInstallToken(input *InstallScriptFailureInput) err
 			slog.Error("failed to decode api response", slog.Any("error", err))
 			return err
 		}
-		prettyfmt.PrettyFmt(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
+		prettyfmt.PrettyPrintln(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
 		return errors.New(apiResponse.ErrorText)
 	default:
 		err := errors.New(scriptFailureLogErrorMessage)
