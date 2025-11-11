@@ -46,7 +46,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		// nolint: errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 			Certname: certname,
 		})
 
@@ -56,7 +56,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		//nolint:errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 			Certname: certname,
 		})
 		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
@@ -67,7 +67,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 	err = cmd.Start()
 	if err != nil {
 		//nolint:errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 			Certname: certname,
 		})
 		slog.Error("failed to start command", slog.String("error", err.Error()))
@@ -92,7 +92,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 		if err != nil {
 			slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
 			//nolint:forbidigo, errcheck
-			w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptFailureInput{
+			w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 				Certname: certname,
 			})
 

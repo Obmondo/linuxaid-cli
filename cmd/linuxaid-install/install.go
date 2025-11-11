@@ -66,12 +66,12 @@ func Install() {
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
-	prettyfmt.PrettyPrintf(" %s %s %s %s %s\n\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
+	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
 
 	if err := progress.NonDeterministicFunc("Verifying Token", func() error {
-		input := &api.InstallScriptFailureInput{
-			Certname:    certname,
-			VerifyToken: true,
+		input := &api.InstallScriptInput{
+			Certname: certname,
+			Token:    os.Getenv(constant.InstallTokenEnv),
 		}
 
 		return obmondoAPI.VerifyInstallToken(input)

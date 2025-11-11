@@ -11,6 +11,7 @@ const (
 	PuppetMajorVersion = "openvox8"
 	PuppetCertEnv      = "PUPPETCERT"
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
+	InstallTokenEnv    = "TOKEN"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
 

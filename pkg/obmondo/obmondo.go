@@ -23,7 +23,6 @@ const (
 	obmondoProdAPIURL = "https://api.obmondo.com/api"
 	obmondoBetaAPIURL = "https://api-beta.obmondo.com/api"
 	apiTimeOut        = 15
-	installTokenEnv   = "INSTALL_TOKEN"
 )
 
 // 202 -> When a certname says it's done but the overall window is not auto-closed
@@ -38,10 +37,9 @@ var closeWindowSuccessStatuses = map[int]struct{}{
 type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType string, timezone string) error
-	VerifyInstallToken(input *InstallScriptFailureInput) error
-	CloseServiceWindowNow(windowType string, timezone string) (*http.Response, error)
-	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
+	CloseServiceWindow(windowType, certname string, timezone string) error
+	VerifyInstallToken(input *InstallScriptInput) error
+	NotifyInstallScriptFailure(input *InstallScriptInput) error
 	ServerPing() error
 	UpdatePuppetLastRunReport() error
 }
@@ -53,8 +51,8 @@ type obmondoClient struct {
 	keyPath                    string
 }
 
-func (c *obmondoClient) VerifyInstallToken(input *InstallScriptFailureInput) error {
-	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
+func (c *obmondoClient) VerifyInstallToken(input *InstallScriptInput) error {
+	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
 	client := &http.Client{}
 
 	request, err := http.NewRequest(http.MethodGet, url, nil)
@@ -194,11 +192,11 @@ func (c *obmondoClient) ServerPing() error {
 	return nil
 }
 
-func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptFailureInput) error {
+func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptInput) error {
 	if !c.notifyInstallScriptFailure {
 		return nil
 	}
-	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
+	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
 	client := &http.Client{}
 
 	request, err := http.NewRequest(http.MethodPut, url, nil)
@@ -338,15 +336,28 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 	return serviceWindow, nil
 }
 
-func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) error {
-	closeWindow, err := c.CloseServiceWindowNow(windowType, timezone)
+func (c *obmondoClient) CloseServiceWindow(windowType, certname string, timezone string) error {
+	customerID := helper.GetCustomerID(certname)
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
+		return err
+	}
+	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
+	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
+	data := []byte(`{"comments": "server has been updated"}`)
+
+	closeWindow, err := c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
 	if err != nil {
 		slog.Error("closing service window failed", slog.String("error", err.Error()))
 		return err
 	}
 	defer closeWindow.Body.Close()
 
-	if _, exists := closeWindowSuccessStatuses[closeWindow.StatusCode]; !exists {
+	switch closeWindow.StatusCode {
+	case http.StatusAccepted, http.StatusNoContent, http.StatusAlreadyReported:
+		return nil
+	default:
 		bodyBytes, err := io.ReadAll(closeWindow.Body)
 		if err != nil {
 			slog.Error("failed to read response body", slog.String("error", err.Error()))
@@ -357,27 +368,10 @@ func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) e
 		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
 		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
 	}
-
-	return nil
 }
 
 // ------------------------------------------------
 // ------------------------------------------------
-
-func (c *obmondoClient) CloseServiceWindowNow(windowType string, timezone string) (*http.Response, error) {
-	certname := helper.GetCertname()
-	customerID := helper.GetCustomerID(certname)
-	location, err := time.LoadLocation(timezone)
-	if err != nil {
-		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
-		return nil, err
-	}
-	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
-	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
-	data := []byte(`{"comments": "server has been updated"}`)
-
-	return c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
-}
 
 func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
 	certname := helper.GetCertname()

@@ -1,8 +1,8 @@
 package api
 
-type InstallScriptFailureInput struct {
-	Certname    string
-	VerifyToken bool
+type InstallScriptInput struct {
+	Certname string
+	Token    string
 }
 
 type UpdateScriptFailureInput struct {

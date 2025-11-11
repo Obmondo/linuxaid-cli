@@ -304,7 +304,7 @@ func SystemUpdate() {
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, serviceWindowNow.Timezone); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}

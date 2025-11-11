@@ -13,12 +13,12 @@ import (
 // nolint: revive
 type MockObmondoClient struct{}
 
-func (*MockObmondoClient) VerifyInstallToken(_ *api.InstallScriptFailureInput) error {
+func (*MockObmondoClient) VerifyInstallToken(_ *api.InstallScriptInput) error {
 	return nil
 }
 
 // NotifyInstallScriptFailure implements api.ObmondoClient.
-func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptFailureInput) error {
+func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptInput) error {
 	return nil
 }
 
@@ -70,7 +70,7 @@ func (m *MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error)
 	return api.GetServiceWindowDetails(responseBody)
 }
 
-func (*MockObmondoClient) CloseServiceWindow(string, string) error {
+func (*MockObmondoClient) CloseServiceWindow(string, string, string) error {
 	return nil
 }
 
