@@ -23,8 +23,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "linuxaid-cli",
-	Short: "A brief description of linuxaid-cli",
-	Long:  "A longer description of linuxaid-cli application",
+	Short: "Manage your server with linuxaid-cli",
 	Example: `
 	$ linuxaid-cli run-openvox --certname web01.example
 	$ linuxaid-cli system-update --certname web01.example --no-reboot
@@ -42,7 +41,6 @@ var rootCmd = &cobra.Command{
 		// Get certname from viper (cert, flag, or env)
 		if helper.GetCertname() == "" {
 			slog.Error("failed to fetch the certname")
-			cmd.Help()
 			os.Exit(1)
 		}
 

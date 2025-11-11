@@ -22,10 +22,12 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "linuxaid-install",
-	Short:   "A brief description of linuxaid-cli",
-	Long:    "A longer description of linuxaid-cli application",
-	Example: `$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com`,
+	Use:   "linuxaid-install",
+	Short: "Setup your server with linuxaid-install",
+	Example: `
+	$ TOKEN='your-token'
+	$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
+	`,
 	Version: Version,
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
@@ -34,16 +36,23 @@ var rootCmd = &cobra.Command{
 		logger.InitLogger(nil, config.IsDebug())
 
 		// Print version first
-		prettyfmt.PrettyPrintf("\n %s %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
+		prettyfmt.PrettyPrintf("\n %s  %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
 		certName := helper.GetCertname()
 		if certName == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
-			prettyfmt.PrettyPrintf("\n %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg))
+			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("CERTNAME"))
 
 			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
-			cmd.Help()
+			os.Exit(1)
+		}
+
+		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
+			errMsg := "Uh ho. I couldn't figure out the token, please provide one as an ENV"
+			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow(constant.InstallTokenEnv))
+
+			slog.Debug("install token is required. Provide via INSTALL_TOKEN environment variable")
 			os.Exit(1)
 		}
 
