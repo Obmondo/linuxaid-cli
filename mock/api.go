@@ -12,6 +12,10 @@ import (
 // nolint: revive
 type MockObmondoClient struct{}
 
+func (*MockObmondoClient) VerifyInstallToken(_ *api.InstallScriptFailureInput) error {
+	return nil
+}
+
 // NotifyInstallScriptFailure implements api.ObmondoClient.
 func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptFailureInput) error {
 	return nil

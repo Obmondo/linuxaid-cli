@@ -23,11 +23,12 @@ type Provisioner struct {
 }
 
 // NewService creates a new Puppet installer service.
-func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *Provisioner {
+func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *webtee.Webtee) *Provisioner {
 	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
 		certName:  helper.GetCertname(),
+		webtee:    webtee,
 	}
 }
 
