@@ -11,6 +11,7 @@ const (
 	IconCheckFail = "❌"
 	IconCheckPass = "✔"
 	IconSuccess   = "🎉"
+	IconQuestion  = "❔"
 )
 
 // nolint: revive
