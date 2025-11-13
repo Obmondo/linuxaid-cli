@@ -25,15 +25,6 @@ const (
 	apiTimeOut        = 15
 )
 
-// 202 -> When a certname says it's done but the overall window is not auto-closed
-// 204 -> When a certname says it's done AND the overall window is auto-closed
-// 208 -> When any of the above requests happen again and again
-var closeWindowSuccessStatuses = map[int]struct{}{
-	http.StatusAccepted:        {},
-	http.StatusNoContent:       {},
-	http.StatusAlreadyReported: {},
-}
-
 type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
@@ -355,6 +346,9 @@ func (c *obmondoClient) CloseServiceWindow(windowType, certname string, timezone
 	defer closeWindow.Body.Close()
 
 	switch closeWindow.StatusCode {
+	// 202 -> When a certname says it's done but the overall window is not auto-closed
+	// 204 -> When a certname says it's done AND the overall window is auto-closed
+	// 208 -> When any of the above requests happen again and again
 	case http.StatusAccepted, http.StatusNoContent, http.StatusAlreadyReported:
 		return nil
 	default:

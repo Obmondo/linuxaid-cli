@@ -57,7 +57,7 @@ func InitProgressBar() *progressBarWriter {
 func NonDeterministicFunc(description string, function func() error) error {
 	bar.Reset()
 	bar.Describe(description)
-	bar.RenderBlank()
+	bar.RenderBlank() // nolint: errcheck
 
 	err := function()
 	bar.RenderBlank() // nolint: errcheck
