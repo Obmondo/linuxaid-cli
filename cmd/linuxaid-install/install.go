@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"log/slog"
 	"os"
+	"strings"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/progress"
@@ -66,7 +68,20 @@ func Install() {
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
-	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
+	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
+	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n %s  Please confirm to continue (Yes/y): ", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"), prettyfmt.IconGear)
+
+	// Accept user input for confirmation
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+
+	if input != "y" && input != "yes" {
+		return
+	}
+
+	// Dummy new line for better clarity of things
+	prettyfmt.PrettyPrintln("")
 
 	if err := progress.NonDeterministicFunc("Verifying Token", func() error {
 		input := &api.InstallScriptInput{
