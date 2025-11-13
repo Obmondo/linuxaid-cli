@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -41,16 +40,9 @@ func TestGetServiceWindowStatus(t *testing.T) {
 
 func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
 
-	op, err := mockObmondoClient.CloseServiceWindowNow("automatic", time.UTC.String())
-	if err != nil {
-		t.Errorf("o/p: %+v", op)
-	}
-
-	defer op.Body.Close()
-	if !closeWindowSuccessStatuses[op.StatusCode] {
-		t.Errorf("o/p: %+v, err: %s", op, err.Error())
+	if err := mockObmondoClient.CloseServiceWindow("automatic", "hostname.example", time.UTC.String()); err != nil {
+		t.Errorf("o/p: %+v", err)
 	}
 }
 

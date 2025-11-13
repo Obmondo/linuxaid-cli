@@ -57,10 +57,11 @@ func InitProgressBar() *progressBarWriter {
 func NonDeterministicFunc(description string, function func() error) error {
 	bar.Reset()
 	bar.Describe(description)
-	bar.Add(1) // nolint: errcheck
+	bar.RenderBlank()
 
 	err := function()
-	bar.Finish() // nolint: errcheck
+	bar.RenderBlank() // nolint: errcheck
+	bar.Finish()      // nolint: errcheck
 
 	if err != nil {
 		prettyfmt.PrettyPrintf("%s %s\n", prettyfmt.FontRed(prettyfmt.IconCheckFail), prettyfmt.FontWhite(description))
