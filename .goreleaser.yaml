@@ -39,7 +39,7 @@ before:
 
 builds:
   - id: "linuxaid-install"
-    main: cmd/linuxaid-install
+    main: ./cmd/linuxaid-install
     binary: linuxaid-install
     env:
       - CGO_ENABLED=0
@@ -58,7 +58,7 @@ builds:
       - -s -w
 
   - id: "linuxaid-cli"
-    main: cmd/linuxaid-cli
+    main: ./cmd/linuxaid-cli
     binary: linuxaid-cli
     env:
       - CGO_ENABLED=0
