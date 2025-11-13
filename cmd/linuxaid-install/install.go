@@ -69,7 +69,7 @@ func Install() {
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
 	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
-	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n %s  Please confirm to continue (Yes/y): ", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"), prettyfmt.IconGear)
+	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n %s Please confirm to continue (Yes/No)? ", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"), prettyfmt.IconQuestion)
 
 	// Accept user input for confirmation
 	reader := bufio.NewReader(os.Stdin)
@@ -77,6 +77,7 @@ func Install() {
 	input = strings.TrimSpace(input)
 
 	if input != "y" && input != "yes" {
+		prettyfmt.PrettyPrintf("\n Exiting the setup...\n")
 		return
 	}
 
