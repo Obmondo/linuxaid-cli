@@ -14,7 +14,7 @@ const (
 )
 
 // nolint: revive
-var FontRed, FontGreen, FontBlue, FontWhite, FontYellow func(a ...interface{}) string
+var FontRed, FontGreen, FontBlue, FontWhite, FontYellow func(a ...any) string
 
 func init() {
 	FontGreen = color.New(color.FgGreen).SprintFunc()
@@ -24,7 +24,12 @@ func init() {
 	FontRed = color.New(color.FgRed).SprintFunc()
 }
 
-func PrettyFmt(a ...any) {
+func PrettyPrintf(format string, a ...any) {
+	//nolint:forbidigo
+	fmt.Printf(format, a...) //nolint:revive
+}
+
+func PrettyPrintln(a ...any) {
 	//nolint:forbidigo
 	fmt.Println(a...) //nolint:revive
 }

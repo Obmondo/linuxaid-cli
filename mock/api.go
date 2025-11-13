@@ -6,18 +6,19 @@ import (
 	"io"
 	"net/http"
 
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
 // nolint: revive
 type MockObmondoClient struct{}
 
-func (*MockObmondoClient) VerifyInstallToken(_ *api.InstallScriptFailureInput) error {
+func (*MockObmondoClient) VerifyInstallToken(_ *api.InstallScriptInput) error {
 	return nil
 }
 
 // NotifyInstallScriptFailure implements api.ObmondoClient.
-func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptFailureInput) error {
+func (*MockObmondoClient) NotifyInstallScriptFailure(_ *api.InstallScriptInput) error {
 	return nil
 }
 
@@ -54,7 +55,26 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return response, nil
 }
 
-func (*MockObmondoClient) CloseServiceWindow(_ string, _ string) (*http.Response, error) {
+func (m *MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error) {
+	resp, err := m.FetchServiceWindowStatus()
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	_, responseBody, err := helper.ParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return api.GetServiceWindowDetails(responseBody)
+}
+
+func (*MockObmondoClient) CloseServiceWindow(string, string, string) error {
+	return nil
+}
+
+func (*MockObmondoClient) CloseServiceWindowNow(string, string) (*http.Response, error) {
 	response := &http.Response{
 		StatusCode: http.StatusAccepted,
 		Body:       io.NopCloser(bytes.NewBufferString("")),

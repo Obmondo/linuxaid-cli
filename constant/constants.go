@@ -11,6 +11,7 @@ const (
 	PuppetMajorVersion = "openvox8"
 	PuppetCertEnv      = "PUPPETCERT"
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
+	InstallTokenEnv    = "TOKEN"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
 
@@ -35,8 +36,8 @@ const (
 	CobraFlagDebug        = "debug"
 	CobraFlagCertname     = "certname"
 	CobraFlagPuppetServer = "puppet-server"
-	CobraFlagReboot       = "reboot"
-	CobraFlagVersion      = "version"
+	CobraFlagNoReboot     = "no-reboot"
+	CobraFlagSkipOpenvox  = "skip-openvox"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )

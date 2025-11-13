@@ -1,8 +1,8 @@
 package api
 
-type InstallScriptFailureInput struct {
-	Certname    string
-	VerifyToken bool
+type InstallScriptInput struct {
+	Certname string
+	Token    string
 }
 
 type UpdateScriptFailureInput struct {
@@ -23,4 +23,10 @@ type ObmondoAPIResponse[T any] struct {
 	Message    string `json:"message"`
 	Resolution string `json:"resolution"`
 	ErrorText  string `json:"error_text"`
+}
+
+type ServiceWindow struct {
+	IsWindowOpen bool   `json:"is_window_open"`
+	WindowType   string `json:"window_type"`
+	Timezone     string `json:"timezone"`
 }

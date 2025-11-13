@@ -2,59 +2,26 @@ package main
 
 import (
 	"log/slog"
-	"os"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper/logger"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/checkconnectivity"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 	"github.com/bitfield/script"
 	"github.com/spf13/cobra"
 )
 
-var Version string
-
-var (
-	versionFlag bool
-	debugFlag   bool
-)
-
-var rootCmd = &cobra.Command{
-	Use: "obmondo-run-puppet",
-	PreRunE: func(*cobra.Command, []string) error {
-		// Handle version flag first
-		if versionFlag {
-			slog.Info("obmondo-run-puppet", "version", Version)
-			os.Exit(0)
-		}
-
-		// Get certname from viper (cert, flag, or env)
-		if helper.GetCertname() == "" {
-			slog.Error("failed to fetch the certname")
-			os.Exit(1)
-		}
-
-		return nil
+var runOpenvoxCmd = &cobra.Command{
+	Use:     "run-openvox",
+	Short:   "Execute run-openvox command",
+	Long:    "A longer description of run-openvox command",
+	Example: `$ linuxaid-cli run-openvox --certname web01.example`,
+	Run: func(*cobra.Command, []string) {
+		RunOpenvox()
 	},
-
-	Run: func(_ *cobra.Command, _ []string) {
-		obmondoRunPuppet()
-	},
-}
-
-func init() {
-	viperConfig := config.Initialize()
-	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print version and exit")
-	rootCmd.Flags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
-
-	viperConfig.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
-	logger.InitLogger(debugFlag)
 }
 
 // Run the puppet agent in noop mode for now
-func runPuppet() error {
+func runOpenvoxAgent() error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -92,11 +59,8 @@ func runPuppet() error {
 }
 
 // Entry point
-func obmondoRunPuppet() {
-
+func RunOpenvox() {
 	helper.LoadPuppetEnv()
-
-	slog.Info("run_puppet", "version", Version)
 
 	allAPIReachable := checkconnectivity.CheckTCPConnection()
 	if !allAPIReachable {
@@ -109,7 +73,7 @@ func obmondoRunPuppet() {
 	obmondoAPI.ServerPing()
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runPuppet(); err != nil {
+	if err := runOpenvoxAgent(); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
@@ -117,10 +81,6 @@ func obmondoRunPuppet() {
 	obmondoAPI.UpdatePuppetLastRunReport()
 }
 
-func main() {
-
-	if err := rootCmd.Execute(); err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
-	}
+func init() {
+	rootCmd.AddCommand(runOpenvoxCmd)
 }

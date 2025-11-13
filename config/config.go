@@ -1,20 +1,16 @@
 package config
 
 import (
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"github.com/spf13/viper"
 )
 
 var viperConfig *viper.Viper
 
-func Initialize() *viper.Viper {
-	viperConfig = viper.New()
-	return viperConfig
-}
-
 func initIfNil() {
 	if viperConfig == nil {
-		Initialize()
+		viperConfig = viper.New()
+		viperConfig.AutomaticEnv()
 	}
 }
 
@@ -28,12 +24,22 @@ func GetPupeptServer() string {
 	return viperConfig.GetString(constant.CobraFlagPuppetServer)
 }
 
-func GetDebug() bool {
+func IsDebug() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagDebug)
 }
 
-func DoReboot() bool {
+func NoReboot() bool {
 	initIfNil()
-	return viperConfig.GetBool(constant.CobraFlagReboot)
+	return viperConfig.GetBool(constant.CobraFlagNoReboot)
+}
+
+func ShouldSkipOpenvox() bool {
+	initIfNil()
+	return viperConfig.GetBool(constant.CobraFlagSkipOpenvox)
+}
+
+func GetViperInstance() *viper.Viper {
+	initIfNil()
+	return viperConfig
 }

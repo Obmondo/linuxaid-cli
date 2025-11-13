@@ -1,13 +1,12 @@
 package main
 
 import (
-	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/mock"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/mock"
 )
 
 func TestGetCustomerID(t *testing.T) {
@@ -21,7 +20,7 @@ func TestGetCustomerID(t *testing.T) {
 
 func TestGetServiceWindowStatus(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	serviceWindowNow, err := GetServiceWindowStatus(mockObmondoClient)
+	serviceWindowNow, err := mockObmondoClient.GetServiceWindowStatus()
 	if err != nil {
 		t.Errorf("o/p: %+v", err)
 	}
@@ -41,16 +40,9 @@ func TestGetServiceWindowStatus(t *testing.T) {
 
 func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
-	var closeWindowSuccessStatuses = map[int]bool{http.StatusAccepted: true, http.StatusNoContent: true, http.StatusAlreadyReported: true}
 
-	op, err := closeWindow(mockObmondoClient, "automatic", time.UTC.String())
-	if err != nil {
-		t.Errorf("o/p: %+v", op)
-	}
-
-	defer op.Body.Close()
-	if !closeWindowSuccessStatuses[op.StatusCode] {
-		t.Errorf("o/p: %+v, err: %s", op, err.Error())
+	if err := mockObmondoClient.CloseServiceWindow("automatic", "hostname.example", time.UTC.String()); err != nil {
+		t.Errorf("o/p: %+v", err)
 	}
 }
 

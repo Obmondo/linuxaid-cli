@@ -13,9 +13,9 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,14 +23,14 @@ const (
 	obmondoProdAPIURL = "https://api.obmondo.com/api"
 	obmondoBetaAPIURL = "https://api-beta.obmondo.com/api"
 	apiTimeOut        = 15
-	installTokenEnv   = "INSTALL_TOKEN"
 )
 
 type ObmondoClient interface {
+	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType string, timezone string) (*http.Response, error)
-	VerifyInstallToken(input *InstallScriptFailureInput) error
-	NotifyInstallScriptFailure(input *InstallScriptFailureInput) error
+	CloseServiceWindow(windowType, certname string, timezone string) error
+	VerifyInstallToken(input *InstallScriptInput) error
+	NotifyInstallScriptFailure(input *InstallScriptInput) error
 	ServerPing() error
 	UpdatePuppetLastRunReport() error
 }
@@ -42,8 +42,8 @@ type obmondoClient struct {
 	keyPath                    string
 }
 
-func (c *obmondoClient) VerifyInstallToken(input *InstallScriptFailureInput) error {
-	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
+func (c *obmondoClient) VerifyInstallToken(input *InstallScriptInput) error {
+	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
 	client := &http.Client{}
 
 	request, err := http.NewRequest(http.MethodGet, url, nil)
@@ -82,7 +82,7 @@ func (c *obmondoClient) VerifyInstallToken(input *InstallScriptFailureInput) err
 			slog.Error("failed to decode api response", slog.Any("error", err))
 			return err
 		}
-		prettyfmt.PrettyFmt(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
+		prettyfmt.PrettyPrintln(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
 		return errors.New(apiResponse.ErrorText)
 	default:
 		err := errors.New(scriptFailureLogErrorMessage)
@@ -183,11 +183,11 @@ func (c *obmondoClient) ServerPing() error {
 	return nil
 }
 
-func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptFailureInput) error {
+func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptInput) error {
 	if !c.notifyInstallScriptFailure {
 		return nil
 	}
-	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(os.Getenv(installTokenEnv)))
+	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
 	client := &http.Client{}
 
 	request, err := http.NewRequest(http.MethodPut, url, nil)
@@ -281,20 +281,91 @@ func (c *obmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	return c.apiCallWithTransport(serviceWindowURL, nil, http.MethodGet)
 }
 
-func (c *obmondoClient) CloseServiceWindow(windowType string, timezone string) (*http.Response, error) {
-	certname := helper.GetCertname()
+// ------------------------------------------------
+// ------------------------------------------------
+
+func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
+	type ServiceWindowResponse struct {
+		Data ServiceWindow `json:"data"`
+	}
+
+	var serviceWindowResponse ServiceWindowResponse
+
+	if err := json.Unmarshal(response, &serviceWindowResponse); err != nil {
+		slog.Error("failed to parse service window JSON", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return &serviceWindowResponse.Data, nil
+}
+
+func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
+	resp, err := c.FetchServiceWindowStatus()
+	if err != nil {
+		slog.Error("unexpected error fetching service window url", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	statusCode, responseBody, err := helper.ParseResponse(resp)
+	if err != nil {
+		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	if statusCode != http.StatusOK {
+		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
+		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
+	}
+
+	serviceWindow, err := GetServiceWindowDetails(responseBody)
+	if err != nil {
+		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return serviceWindow, nil
+}
+
+func (c *obmondoClient) CloseServiceWindow(windowType, certname string, timezone string) error {
 	customerID := helper.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
-		return nil, err
+		return err
 	}
-	yearMonthDay := time.Now().In(location).Format("2006-01-02")
+	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
 	data := []byte(`{"comments": "server has been updated"}`)
 
-	return c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
+	closeWindow, err := c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
+	if err != nil {
+		slog.Error("closing service window failed", slog.String("error", err.Error()))
+		return err
+	}
+	defer closeWindow.Body.Close()
+
+	switch closeWindow.StatusCode {
+	// 202 -> When a certname says it's done but the overall window is not auto-closed
+	// 204 -> When a certname says it's done AND the overall window is auto-closed
+	// 208 -> When any of the above requests happen again and again
+	case http.StatusAccepted, http.StatusNoContent, http.StatusAlreadyReported:
+		return nil
+	default:
+		bodyBytes, err := io.ReadAll(closeWindow.Body)
+		if err != nil {
+			slog.Error("failed to read response body", slog.String("error", err.Error()))
+			return err
+		}
+
+		// Log the response status code and body
+		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
+		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
+	}
 }
+
+// ------------------------------------------------
+// ------------------------------------------------
 
 func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
 	certname := helper.GetCertname()

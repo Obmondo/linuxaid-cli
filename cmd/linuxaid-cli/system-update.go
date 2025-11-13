@@ -1,25 +1,23 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"slices"
 	"strings"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/disk"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/puppet"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/security"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/disk"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/puppet"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/security"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
 
 	"github.com/bitfield/script"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -28,19 +26,19 @@ const (
 	securityExporterURL = "http://127.254.254.254:63396"
 )
 
-// 202 -> When a certname says it's done but the overall window is not auto-closed
-// 204 -> When a certname says it's done AND the overall window is auto-closed
-// 208 -> When any of the above requests happen again and again
-var closeWindowSuccessStatuses = map[int]struct{}{
-	http.StatusAccepted:        {},
-	http.StatusNoContent:       {},
-	http.StatusAlreadyReported: {},
-}
-
-type ServiceWindow struct {
-	IsWindowOpen bool   `json:"is_window_open"`
-	WindowType   string `json:"window_type"`
-	Timezone     string `json:"timezone"`
+var systemUpdateCmd = &cobra.Command{
+	Use:     "system-update",
+	Short:   "Execute system-update command",
+	Long:    "A longer description of system-update command",
+	Example: `$ linuxaid-cli system-update --certname web01.example --no-reboot`,
+	PreRun: func(*cobra.Command, []string) {
+		if config.ShouldSkipOpenvox() {
+			slog.Info("Openvox-agent run will be skipped")
+		}
+	},
+	Run: func(*cobra.Command, []string) {
+		SystemUpdate()
+	},
 }
 
 func cleanup(puppetService *puppet.Service) {
@@ -48,90 +46,8 @@ func cleanup(puppetService *puppet.Service) {
 		slog.Error("unable to remove agent disable file and enable puppet agent")
 	}
 
-	slog.Info("ending obmondo-system-update script")
+	slog.Info("ending system-update")
 }
-
-// ------------------------------------------------
-// ------------------------------------------------
-
-func GetServiceWindowDetails(response []byte) (*ServiceWindow, error) {
-	type ServiceWindowResponse struct {
-		Data ServiceWindow `json:"data"`
-	}
-
-	var serviceWindowResponse ServiceWindowResponse
-
-	if err := json.Unmarshal(response, &serviceWindowResponse); err != nil {
-		slog.Error("failed to parse service window JSON", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	return &serviceWindowResponse.Data, nil
-}
-
-func GetServiceWindowStatus(obmondoAPICient api.ObmondoClient) (*ServiceWindow, error) {
-	resp, err := obmondoAPICient.FetchServiceWindowStatus()
-	if err != nil {
-		slog.Error("unexpected error fetching service window url", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	statusCode, responseBody, err := helper.ParseResponse(resp)
-	if err != nil {
-		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if statusCode != http.StatusOK {
-		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
-		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
-	}
-
-	serviceWindow, err := GetServiceWindowDetails(responseBody)
-	if err != nil {
-		slog.Error("unable to determine the service window", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	return serviceWindow, nil
-}
-
-func CloseServiceWindow(obmondoAPICient api.ObmondoClient, windowType string, location string) error {
-	closeWindow, err := closeWindow(obmondoAPICient, windowType, location)
-	if err != nil {
-		slog.Error("closing service window failed", slog.String("error", err.Error()))
-		return err
-	}
-	defer closeWindow.Body.Close()
-
-	if _, exists := closeWindowSuccessStatuses[closeWindow.StatusCode]; !exists {
-		bodyBytes, err := io.ReadAll(closeWindow.Body)
-		if err != nil {
-			slog.Error("failed to read response body", slog.String("error", err.Error()))
-			return err
-		}
-
-		// Log the response status code and body
-		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
-		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
-	}
-
-	return nil
-}
-
-func closeWindow(obmondoAPICient api.ObmondoClient, windowType string, location string) (*http.Response, error) {
-	closeWindow, err := obmondoAPICient.CloseServiceWindow(windowType, location)
-	if err != nil {
-		slog.Error("failed to close service window", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	return closeWindow, err
-}
-
-// ------------------------------------------------
-// ------------------------------------------------
 
 // UpdateSystem performs a system update based on the specified Linux distribution.
 //
@@ -165,21 +81,21 @@ func updateDebian() error {
 	pipe := script.Exec("apt-get --with-new-pkgs upgrade -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, apt update failed")
 		return fmt.Errorf(" apt-get update and upgrade failed: exit status %d", exitStatus)
 	}
 
-	if err := script.Exec("apt-get autoremove -y").Wait(); err != nil {
+	pipe = script.Exec("apt-get autoremove -y")
+	_, err = pipe.Stdout()
+	if err != nil {
 		slog.Error("failed to remove unused dependencies", slog.String("error", err.Error()))
+		return err
 	}
 
 	return nil
@@ -194,13 +110,10 @@ func updateSUSE() error {
 	pipe := script.Exec("zypper update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, suse update failed")
@@ -219,13 +132,10 @@ func updateRedHat() error {
 	pipe := script.Exec("yum update -y")
 	_, err := pipe.Stdout()
 	if err != nil {
-		slog.Error("unable to write the output to Stdout", slog.String("error", err.Error()))
+		slog.Error("failed to update all packages", slog.String("error", err.Error()))
 		return err
 	}
 
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to update all packages", slog.String("error", err.Error()))
-	}
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, yum update failed")
@@ -254,7 +164,7 @@ func HandlePuppetRun(puppetService *puppet.Service) error {
 // ------------------------------------------------
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service, reboot bool) error {
+func CheckKernelAndRebootIfNeeded() error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
@@ -283,10 +193,7 @@ func CheckKernelAndRebootIfNeeded(puppetService *puppet.Service, reboot bool) er
 	}
 
 	// Reboot the node, if we have installed a new kernel
-	if installedKernel != runningKernel && reboot {
-		// Enable the puppet agent, so puppet runs after reboot and don't exit the script
-		// otherwise reboot won't be triggered
-		cleanup(puppetService)
+	if installedKernel != runningKernel && !config.NoReboot() {
 		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
 		script.Exec("reboot --force")
 	}
@@ -305,10 +212,7 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 // ------------------------------------------------
 // ------------------------------------------------
 
-func obmondoSystemUpdate() {
-
-	reboot := config.DoReboot()
-
+func SystemUpdate() {
 	helper.LoadOSReleaseEnv()
 
 	envErr := os.Setenv("PATH", constant.PuppetPath)
@@ -318,7 +222,6 @@ func obmondoSystemUpdate() {
 	}
 
 	helper.RequireRootUser()
-	helper.RequirePuppetEnv()
 	helper.RequireOSNameEnv()
 	cmds, err := helper.IsSupportedOS()
 	if err != nil {
@@ -326,7 +229,7 @@ func obmondoSystemUpdate() {
 		os.Exit(1)
 	}
 
-	slog.Info("starting obmondo-system-update script")
+	slog.Info("starting system-update")
 
 	// check if agent disable file exists
 	if _, err := os.Stat(agentDisabledFile); err == nil {
@@ -336,9 +239,7 @@ func obmondoSystemUpdate() {
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, false)
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPIURL, obmondoAPI))
-
-	serviceWindowNow, err := GetServiceWindowStatus(obmondoAPI)
+	serviceWindowNow, err := obmondoAPI.GetServiceWindowStatus()
 	if err != nil {
 		slog.Error("unable to get service window status", slog.String("error", err.Error()))
 		return
@@ -362,23 +263,27 @@ func obmondoSystemUpdate() {
 		os.Exit(1)
 	}
 
-	// Check if any existing puppet agent is already running
-	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 
-	// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-	if err := HandlePuppetRun(puppetService); err != nil {
-		slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
-		return
+	if !config.ShouldSkipOpenvox() {
+		// Check if any existing puppet agent is already running
+		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
+
+		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
+		if err := HandlePuppetRun(puppetService); err != nil {
+			slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
+			return
+		}
+
+		// Disable puppet-agent, since we'll be running upgrade commands
+		if err := puppetService.DisableAgent("puppet has been disabled by the system-update"); err != nil {
+			slog.Error("failed to disable agent", slog.Any("error", err))
+			return
+		}
+
+		// Ensure the cleanup is done regardless of the outcome of the update script execution
+		defer cleanup(puppetService)
 	}
-
-	// Disable puppet-agent, since we'll be running upgrade commands
-	if err := puppetService.DisableAgent("puppet has been disabled by the obmondo-system-update script."); err != nil {
-		slog.Error("failed to disable agent", slog.Any("error", err))
-		return
-	}
-
-	// Ensure the cleanup is done regardless of the outcome of the update script execution
-	defer cleanup(puppetService)
 
 	distribution, distIDExists := os.LookupEnv("ID")
 	if !distIDExists {
@@ -399,15 +304,35 @@ func obmondoSystemUpdate() {
 
 	// Close the service window
 	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := CloseServiceWindow(obmondoAPI, serviceWindowNow.WindowType, serviceWindowNow.Timezone); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}
 
 	slog.Info("service window is closed now for this respective node")
 
-	if err := CheckKernelAndRebootIfNeeded(puppetService, reboot); err != nil {
+	// Enable the puppet agent, so puppet runs after reboot and don't exit the script
+	// otherwise reboot won't be triggered
+	cleanup(puppetService)
+
+	if err := CheckKernelAndRebootIfNeeded(); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return
 	}
+}
+
+func init() {
+	rootCmd.AddCommand(systemUpdateCmd)
+
+	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagNoReboot, false, "Set this flag to prevent reboot (default will reboot)")
+	systemUpdateCmd.Flags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
+
+	// Bind flags to viper
+	v := config.GetViperInstance()
+	v.BindPFlag(constant.CobraFlagNoReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagNoReboot))
+	v.BindPFlag(constant.CobraFlagSkipOpenvox, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSkipOpenvox))
+
+	// Bind environment variables
+	v.BindEnv(constant.CobraFlagNoReboot, "NO_REBOOT")
+	v.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
 }

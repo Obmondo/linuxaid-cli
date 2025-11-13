@@ -9,13 +9,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/go-scripts/config"
-	"gitea.obmondo.com/EnableIT/go-scripts/constant"
-	"gitea.obmondo.com/EnableIT/go-scripts/helper"
-	api "gitea.obmondo.com/EnableIT/go-scripts/pkg/obmondo"
-	"gitea.obmondo.com/EnableIT/go-scripts/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
 
 	"github.com/bitfield/script"
 )
@@ -91,11 +92,11 @@ func (s *Service) RunAgent(remoteLog bool, noopMode string) int {
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
 	pipe := script.Exec(cmd)
 	if _, err := pipe.Stdout(); err != nil {
-		slog.Error("stdout error", slog.Any("error", err))
+		if !slices.Contains(constant.PuppetSuccessExitCodes, pipe.ExitStatus()) {
+			slog.Error("stdout error", slog.Any("error", err))
+		}
 	}
-	if err := pipe.Wait(); err != nil {
-		slog.Error("puppet run failed", slog.Any("error", err))
-	}
+
 	return pipe.ExitStatus()
 }
 
