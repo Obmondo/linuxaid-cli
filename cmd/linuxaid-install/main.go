@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 			errMsg := "Uh ho. I couldn't figure out the token, please provide one as an ENV"
 			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow(constant.InstallTokenEnv))
 
-			slog.Debug("install token is required. Provide via INSTALL_TOKEN environment variable")
+			slog.Debug("install token is required. Provide via TOKEN environment variable")
 			os.Exit(1)
 		}
 
