@@ -1,10 +1,12 @@
 package provisioner
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
@@ -13,7 +15,12 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
 )
 
-const tmpDir = "/tmp"
+const (
+	tmpDir = "/tmp"
+
+	archAmd64 = "amd64"
+	archArm64 = "arm64"
+)
 
 type Provisioner struct {
 	webtee    *webtee.Webtee
@@ -72,8 +79,14 @@ func (s *Provisioner) provisionForDebian() error {
 		ubuntuVersion = "ubuntu24.04"
 	}
 
+	switch runtime.GOARCH {
+	case archAmd64, archArm64:
+	default:
+		return errors.New("unsupported system architecture")
+	}
+
 	fullPuppetVersion := fmt.Sprintf("%s-1+%s", constant.PuppetVersion, ubuntuVersion)
-	packageName := fmt.Sprintf("openvox-agent_%s_amd64.deb", fullPuppetVersion)
+	packageName := fmt.Sprintf("openvox-agent_%s_%s.deb", fullPuppetVersion, runtime.GOARCH)
 	downloadPath := filepath.Join(tmpDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/openvox/apt/pool/%s/o/openvox-agent/%s",
 		constant.PuppetMajorVersion, packageName)
@@ -93,11 +106,21 @@ func (s *Provisioner) provisionForRedHat() error {
 
 	majRelease := helper.GetMajorRelease()
 
+	runtimeArch := runtime.GOARCH
+	switch runtimeArch {
+	case archAmd64:
+		runtimeArch = "x86_64"
+	case archArm64:
+		runtimeArch = "aarch64"
+	default:
+		return errors.New("unsupported system architecture")
+	}
+
 	fullPuppetVersion := fmt.Sprintf("%s-1.el%s", constant.PuppetVersion, majRelease)
-	packageName := fmt.Sprintf("openvox-agent-%s.x86_64", fullPuppetVersion)
+	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/openvox/yum/%s/el/%s/x86_64/%s.rpm",
-		constant.PuppetMajorVersion, majRelease, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/openvox/yum/%s/el/%s/%s/%s.rpm",
+		constant.PuppetMajorVersion, majRelease, runtimeArch, packageName)
 
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
 		return err
@@ -115,11 +138,21 @@ func (s *Provisioner) provisionForSuse() error {
 
 	majRelease := helper.GetMajorRelease()
 
+	runtimeArch := runtime.GOARCH
+	switch runtimeArch {
+	case archAmd64:
+		runtimeArch = "x86_64"
+	case archArm64:
+		runtimeArch = "aarch64"
+	default:
+		return errors.New("unsupported system architecture")
+	}
+
 	fullPuppetVersion := fmt.Sprintf("%s-1.sles%s", constant.PuppetVersion, majRelease)
-	packageName := fmt.Sprintf("openvox-agent-%s.x86_64", fullPuppetVersion)
+	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/openvox/sles/%s/%s/x86_64/%s.rpm",
-		constant.PuppetMajorVersion, majRelease, packageName)
+	url := fmt.Sprintf("https://repos.obmondo.com/openvox/sles/%s/%s/%s/%s.rpm",
+		constant.PuppetMajorVersion, majRelease, runtimeArch, packageName)
 
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
 		return err
