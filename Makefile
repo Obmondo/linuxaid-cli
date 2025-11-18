@@ -1,9 +1,7 @@
 PATH := ./bin:$(PATH)
 export NAME=linuxaid-cli
-export VERSION=v1.5.0
-export DIST=./dist
+export VERSION=$(shell ./scripts/latest-tag.sh)
 export MAINTAINER=Ashish Jaiswal <ashish@obmondo.com>
-export PREFIX=/opt/obmondo/bin/
 SOURCES := linuxaid
 
 .PHONY: all dep build clean test format vet lint
