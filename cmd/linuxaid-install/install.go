@@ -52,6 +52,40 @@ func compatibilityCheck(puppetService *puppet.Service) error {
 	return nil
 }
 
+// func shouldContinueAfterConfirmation determines if the installation process should continue after user confirmation.
+// If the user provides no input (white spaces, newline, tab, etc), the same confirmation question is asked again.
+//
+// Inputs for continuation:
+//   - y (case-insensitive)
+//   - yes (case-insensitive)
+//
+// Anything other than this is considered as "no", and the program will exit.
+func shouldContinueAfterConfirmation() bool {
+	// I'm really not a fan of infinite loops, but just for this time I'll pretend I didn't wrote this.
+	for {
+		prettyfmt.PrettyPrintf(" %s Please confirm to continue (Yes/No)? ", prettyfmt.IconQuestion)
+
+		// Accept user input for confirmation
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.ToLower(input)
+		input = strings.TrimSpace(input)
+
+		if input == "" {
+			continue
+		}
+
+		if input != "y" && input != "yes" {
+			prettyfmt.PrettyPrintf("\n Exiting the setup...\n")
+			return false
+		}
+
+		// Dummy new line for better clarity of things
+		prettyfmt.PrettyPrintln("")
+		return true
+	}
+}
+
 func Install() {
 	// Re-initialise the logger with progressbar writer to not disturb the
 	// progressbar if we print any logs. Everything is handled by progressbar's
@@ -69,20 +103,11 @@ func Install() {
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
 	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
-	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n %s Please confirm to continue (Yes/No)? ", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"), prettyfmt.IconQuestion)
+	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"))
 
-	// Accept user input for confirmation
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(input)
-
-	if input != "y" && input != "yes" {
-		prettyfmt.PrettyPrintf("\n Exiting the setup...\n")
+	if !shouldContinueAfterConfirmation() {
 		return
 	}
-
-	// Dummy new line for better clarity of things
-	prettyfmt.PrettyPrintln("")
 
 	if err := progress.NonDeterministicFunc("Verifying Token", func() error {
 		input := &api.InstallScriptInput{

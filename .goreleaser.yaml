@@ -2,7 +2,6 @@ version: 2
 
 release:
   footer: >-
-    ---
     Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
 
 changelog:
@@ -27,10 +26,9 @@ archives:
     # This name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
+      {{ .Tag }}_
+      {{- .Os }}_
+      {{- .Arch }}_
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 before:
