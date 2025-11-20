@@ -7,7 +7,7 @@ release:
 changelog:
   use: github
   sort: asc
-  format: "[{{ .SHA }}](https://github.com/obmondo/linuxaid-cli/commit/{{ .SHA }}) {{ .Message }}{{ with .AuthorUsername }} (@{{ . }})"
+  format: "[{{ .SHA }}](https://github.com/obmondo/linuxaid-cli/commit/{{ .SHA }}) {{ .Message }}{{ with .AuthorUsername }} (@{{ . }}){{ end }}"
   abbrev: 7
   filters:
     exclude:
