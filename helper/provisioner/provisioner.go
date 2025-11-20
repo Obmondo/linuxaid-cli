@@ -167,8 +167,8 @@ func (s *Provisioner) provisionForSuse() error {
 // provisionForTurris installs puppet via gem on TurrisOS
 func (s *Provisioner) provisionForTurris() {
 	s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName)
-	s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-full ruby-gems"}, s.certName)
+	s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-stdlib ruby-dev ruby-gems"}, s.certName)
 
-	installCmd := []string{fmt.Sprintf("gem install puppet -v %s --no-document", constant.PuppetVersion)}
+	installCmd := []string{fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxAgentVersionTurris)}
 	s.webtee.RemoteLogObmondo(installCmd, s.certName)
 }
