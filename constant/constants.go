@@ -15,6 +15,9 @@ const (
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
 
+	// Openvox
+	OpenvoxAgentVersionTurris = "7.37.2"
+
 	// Lock and Disabled
 	AgentDisabledLockFile           = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
 	AgentRunningLockFile            = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
