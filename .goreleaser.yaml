@@ -6,10 +6,15 @@ release:
 
 changelog:
   use: github
-  format: "[{{ .Message }}](https://github.com/obmondo/linuxaid-cli/commit/{{ .Commit }})"
+  sort: asc
+  format: "[{{ .SHA }}](https://github.com/obmondo/linuxaid-cli/commit/{{ .SHA }}) {{ .Message }}{{ with .AuthorUsername }} (@{{ . }})"
+  abbrev: 7
   filters:
     exclude:
       - init
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
   # Group commits messages by given regex and title.
   groups:
     - title: 💫 Features
@@ -25,11 +30,11 @@ archives:
   - formats: [tar.gz]
     # This name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
-      {{ .ProjectName }}_
-      {{ .Tag }}_
+      {{- .ProjectName }}_
+      {{- .Tag }}_
       {{- .Os }}_
-      {{- .Arch }}_
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
 
 before:
   hooks:
