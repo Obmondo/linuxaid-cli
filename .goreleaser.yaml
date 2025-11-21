@@ -35,6 +35,11 @@ archives:
       {{- .Os }}_
       {{- .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
+  - builds_info:
+      group: root
+      owner: root
+      mode: 0755
+      mtime: "{{ .CommitDate }}"
 
 before:
   hooks:
