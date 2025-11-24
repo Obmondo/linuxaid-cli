@@ -1,0 +1,92 @@
+version: 2
+
+release:
+  footer: >-
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+
+changelog:
+  use: gitea
+  sort: asc
+  format: "[{{ .SHA }}](https://gitea.obmondo.com/EnableIT/linuxaid-cli/commit/{{ .SHA }}) {{ .Message }}{{ with .AuthorUsername }} (@{{ . }}){{ end }}"
+  abbrev: 7
+  filters:
+    exclude:
+      - init
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+  # Group commits messages by given regex and title.
+  groups:
+    - title: 💫 Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 🐛 Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 🥴 Others
+      order: 999
+
+archives:
+  - formats: [tar.gz]
+    # This name template makes the OS and Arch compatible with the results of uname.
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- .Tag }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+    builds_info:
+      group: root
+      owner: root
+      mode: 0755
+      mtime: "{{ .CommitDate }}"
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: "linuxaid-install"
+    main: ./cmd/linuxaid-install
+    binary: linuxaid-install
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    flags:
+      - -v
+    ldflags:
+      - -X main.Version={{ .Tag }}
+      - -s -w
+
+  - id: "linuxaid-cli"
+    main: ./cmd/linuxaid-cli
+    binary: linuxaid-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    flags:
+      - -v
+    ldflags:
+      - -X main.Version={{ .Tag }}
+      - -s -w
+
+gitea_urls:
+  api: https://gitea.obmondo.com/api/v1
+  download: https://gitea.obmondo.com
+  skip_tls_verify: false
