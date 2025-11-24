@@ -86,6 +86,57 @@ builds:
       - -X main.Version={{ .Tag }}
       - -s -w
 
+nfpms:
+  - id: linuxaid-cli-package
+    package_name: linuxaid-cli
+    ids:
+      - linuxaid-cli
+    file_name_template: >-
+      {{- .PackageName }}_
+      {{- .Tag }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+      {{- .ConventionalExtension }}
+    vendor: Obmondo
+    homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
+    maintainer: Obmondo <ops@obmondo.com>
+    description: |-
+      LinuxAid CLI tool.  
+      Command-line interface for LinuxAid.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - ipk
+    bindir: /usr/bin
+    mtime: "{{ .CommitDate }}"
+
+  - id: linuxaid-install-package
+    package_name: linuxaid-install
+    ids:
+      - linuxaid-install
+    file_name_template: >-
+      {{- .PackageName }}_
+      {{- .Tag }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+      {{- .ConventionalExtension }}
+    vendor: Obmondo
+    homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
+    maintainer: Obmondo <ops@obmondo.com>
+    description: |-
+      LinuxAid installer tool.  
+      Installation utility for Openvox via LinuxAid.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - ipk
+    bindir: /usr/bin
+    mtime: "{{ .CommitDate }}"
+
 gitea_urls:
   api: https://gitea.obmondo.com/api/v1
   download: https://gitea.obmondo.com
