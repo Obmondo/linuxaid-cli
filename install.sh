@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PROJECT="linuxaid-cli"
+REPO="Obmondo/$PROJECT"
+API_URL="https://api.github.com/repos/$REPO/releases/latest"
+BIN_DIR="/usr/local/bin"
+BIN_NAME="linuxaid-install"
+
 function cleanup() {
     rm -rf "$TMP_DIR"
     exit 130
@@ -23,11 +29,6 @@ esac
 # -------------------------------------------------
 # 2. Find latest release tag on GitHub
 # -------------------------------------------------
-PROJECT=linuxaid-cli""
-REPO="Obmondo/$PROJECT"
-API_URL="https://api.github.com/repos/$REPO/releases/latest"
-
-# Grab the tag name (e.g., v1.2.3)
 TAG=$(curl -sSf "$API_URL" | jq -r '.tag_name')
 if [[ -z "$TAG" ]]; then
     echo "Failed to obtain latest release tag" >&2
@@ -37,7 +38,6 @@ fi
 # -------------------------------------------------
 # 3. Build download URL for the appropriate asset
 # -------------------------------------------------
-# Expected asset name pattern: $PROJECT_${TAG}_linux_${TARGET}.tar.gz
 ASSET="${PROJECT}_${TAG}_linux_${TARGET}.tar.gz"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET"
 SOURCE_CHECKSUM=$(curl -sSf "https://api.github.com/repos/$REPO/releases/latest" | jq -r --arg url "$DOWNLOAD_URL" '.assets[] | select(.browser_download_url == $url) | .digest | split(":")[1]')
@@ -45,9 +45,6 @@ SOURCE_CHECKSUM=$(curl -sSf "https://api.github.com/repos/$REPO/releases/latest"
 # -------------------------------------------------
 # 4. Download the package from Github
 # -------------------------------------------------
-BIN_DIR="/usr/local/bin"
-BIN_NAME="linuxaid-install"
-
 # Trap SIGTERM (15), SIGINT (2 - Ctrl+C), and SIGHUP (1)
 trap cleanup SIGTERM SIGINT SIGHUP EXIT
 
