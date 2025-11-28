@@ -51,7 +51,7 @@ func (s *Provisioner) ProvisionPuppet() {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "centos", "rhel":
+	case "centos", "rhel", "ol":
 		if err := s.provisionForRedHat(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
