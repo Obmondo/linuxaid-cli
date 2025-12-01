@@ -10,11 +10,12 @@ import (
 )
 
 const (
-	constDistributionNameUbuntu = "ubuntu"
-	constDistributionNameDebian = "debian"
-	constDistributionNameSLES   = "sles"
-	constDistributionNameCentOS = "centos"
-	constDistributionNameRHEL   = "rhel"
+	constDistributionNameUbuntu      = "ubuntu"
+	constDistributionNameDebian      = "debian"
+	constDistributionNameSLES        = "sles"
+	constDistributionNameCentOS      = "centos"
+	constDistributionNameRHEL        = "rhel"
+	constDistributionNameOracleLinux = "ol"
 
 	constDistributionDebianUpdateRepoListCmd = "apt update"
 	constDistributionSLESUpdateRepoListCmd   = "zypper refresh"
@@ -68,7 +69,7 @@ func getCommandsForInstallingCACertificates() (CertificateManagerCommands, error
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
 		}, nil
-	case constDistributionNameCentOS, constDistributionNameRHEL:
+	case constDistributionNameCentOS, constDistributionNameRHEL, constDistributionNameOracleLinux:
 		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
