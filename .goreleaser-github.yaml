@@ -1,9 +1,5 @@
 version: 2
 
-release:
-  footer: >-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
-
 changelog:
   use: github
   sort: asc
