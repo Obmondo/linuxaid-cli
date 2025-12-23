@@ -26,6 +26,21 @@ jobs:
         uses: https://gitea.obmondo.com/Obmondo/goreleaser-action@v6.4.0
         with:
           version: "v2.12.7"
-          args: release --clean -f .goreleaser-gitea.yaml
+          args: release --clean --skip=archive,publish -f .goreleaser-gitea.yaml
         env:
           GITEA_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+      - name: Upload to repo servers
+        env:
+          PUBLIC_PATH: /vol0/data/packagesign01_var/var/lib/packagesign/repos/incoming/public/
+          USERNAME: ${{ secrets.PACKAGESIGN_USER }}
+          SSH_KEY: ${{ secrets.PACKAGESIGN_SSH_KEY }}
+          HOST: ${{ secrets.PACKAGESIGN_HOST }}
+        run: |
+          apt update && apt install -y rsync openssh-client
+          echo "${SSH_KEY}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+          eval $(ssh-agent)
+          ssh-add /tmp/ssh_key
+          echo "Uploading artifacts in dist/"
+          ls -alh dist/
+          rsync -azv dist/*.deb dist/*.rpm -e "ssh -o StrictHostKeyChecking=no" ${USERNAME}@${HOST}:${PUBLIC_PATH}

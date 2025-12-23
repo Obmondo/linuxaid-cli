@@ -30,7 +30,6 @@ archives:
       {{- .Tag }}_
       {{- .Os }}_
       {{- .Arch }}
-      {{- if .Arm }}v{{ .Arm }}{{ end -}}
     builds_info:
       group: root
       owner: root
@@ -52,10 +51,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - arm
-    goarm:
-      - "6"
-      - "7"
     flags:
       - -v
     ldflags:
@@ -72,10 +67,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - arm
-    goarm:
-      - "6"
-      - "7"
     flags:
       - -v
     ldflags:
@@ -83,7 +74,8 @@ builds:
       - -s -w
 
 nfpms:
-  - id: linuxaid-cli-package
+  # Deb
+  - id: linuxaid-cli-package-deb
     package_name: linuxaid-cli
     ids:
       - linuxaid-cli
@@ -92,7 +84,6 @@ nfpms:
       {{- .Tag }}_
       {{- .Os }}_
       {{- .Arch }}
-      {{- if .Arm }}v{{ .Arm }}{{ end -}}
       {{- .ConventionalExtension }}
     vendor: Obmondo
     homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
@@ -103,12 +94,10 @@ nfpms:
     license: MIT
     formats:
       - deb
-      - rpm
-      - ipk
-    bindir: /usr/bin
+    bindir: /opt/obmondo/bin
     mtime: "{{ .CommitDate }}"
 
-  - id: linuxaid-install-package
+  - id: linuxaid-install-package-deb
     package_name: linuxaid-install
     ids:
       - linuxaid-install
@@ -117,7 +106,6 @@ nfpms:
       {{- .Tag }}_
       {{- .Os }}_
       {{- .Arch }}
-      {{- if .Arm }}v{{ .Arm }}{{ end -}}
       {{- .ConventionalExtension }}
     vendor: Obmondo
     homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
@@ -128,9 +116,56 @@ nfpms:
     license: MIT
     formats:
       - deb
+    bindir: /opt/obmondo/bin
+    mtime: "{{ .CommitDate }}"
+
+  # Rpm
+  - id: linuxaid-cli-package-rpm
+    package_name: linuxaid-cli
+    ids:
+      - linuxaid-cli
+    file_name_template: >-
+      {{- .PackageName }}-
+      {{- .Tag }}-
+      {{- .Release }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else }}{{ .Arch }}{{ end }}
+      {{- .ConventionalExtension }}
+    vendor: Obmondo
+    homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
+    maintainer: Obmondo <ops@obmondo.com>
+    description: |-
+      LinuxAid CLI tool.  
+      Command-line interface for LinuxAid.
+    license: MIT
+    release: "1"
+    formats:
       - rpm
-      - ipk
-    bindir: /usr/bin
+    bindir: /opt/obmondo/bin
+    mtime: "{{ .CommitDate }}"
+
+  - id: linuxaid-install-package-rpm
+    package_name: linuxaid-install
+    ids:
+      - linuxaid-install
+    file_name_template: >-
+      {{- .PackageName }}-
+      {{- .Tag }}-
+      {{- .Release }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else }}{{ .Arch }}{{ end }}
+      {{- .ConventionalExtension }}
+    vendor: Obmondo
+    homepage: https://gitea.obmondo.com/EnableIT/linuxaid-cli
+    maintainer: Obmondo <ops@obmondo.com>
+    description: |-
+      LinuxAid installer tool.  
+      Installation utility for Openvox via LinuxAid.
+    license: MIT
+    release: "1"
+    formats:
+      - rpm
+    bindir: /opt/obmondo/bin
     mtime: "{{ .CommitDate }}"
 
 gitea_urls:
