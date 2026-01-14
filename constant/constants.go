@@ -23,6 +23,7 @@ const (
 	AgentRunningLockFile            = "/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock"
 	DefaultPuppetServerCustomerID   = "enableit"
 	DefaultPuppetServerDomainSuffix = ".puppet.obmondo.com"
+	DefaultOpenvoxEnv               = "master"
 
 	// Progress Bar
 	BarProgressSize    = 100
@@ -36,11 +37,12 @@ const (
 	BarSizeHundred     = 100
 
 	// Cobra Flags
-	CobraFlagDebug        = "debug"
-	CobraFlagCertname     = "certname"
-	CobraFlagPuppetServer = "puppet-server"
-	CobraFlagNoReboot     = "no-reboot"
-	CobraFlagSkipOpenvox  = "skip-openvox"
+	CobraFlagDebug         = "debug"
+	CobraFlagCertname      = "certname"
+	CobraFlagOpenvoxServer = "puppet-server"
+	CobraFlagOpenvoxEnv    = "openvox-environment"
+	CobraFlagNoReboot      = "no-reboot"
+	CobraFlagSkipOpenvox   = "skip-openvox"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )

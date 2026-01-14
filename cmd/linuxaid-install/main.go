@@ -16,9 +16,10 @@ import (
 var Version string
 
 var (
-	debugFlag        bool
-	certNameFlag     string
-	puppetServerFlag string
+	debugFlag         bool
+	certNameFlag      string
+	openvoxServerFlag string
+	openvoxEnvFlag    string
 )
 
 var rootCmd = &cobra.Command{
@@ -68,21 +69,25 @@ func init() {
 
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
 	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
-	rootCmd.Flags().StringVar(&puppetServerFlag, constant.CobraFlagPuppetServer, defaultServer, "Puppet server hostname")
+	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
+	rootCmd.Flags().StringVar(&openvoxEnvFlag, constant.CobraFlagOpenvoxEnv, constant.DefaultOpenvoxEnv, "Openvox environment (Linuxaid release version)")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
 	v.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
 	v.BindPFlag(constant.CobraFlagCertname, rootCmd.Flags().Lookup(constant.CobraFlagCertname))
-	v.BindPFlag(constant.CobraFlagPuppetServer, rootCmd.Flags().Lookup(constant.CobraFlagPuppetServer))
+	v.BindPFlag(constant.CobraFlagOpenvoxServer, rootCmd.Flags().Lookup(constant.CobraFlagOpenvoxServer))
+	v.BindPFlag(constant.CobraFlagOpenvoxEnv, rootCmd.Flags().Lookup(constant.CobraFlagOpenvoxEnv))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagDebug)
 	v.BindEnv(constant.CobraFlagCertname)
-	v.BindEnv(constant.CobraFlagPuppetServer, "PUPPET_SERVER")
+	v.BindEnv(constant.CobraFlagOpenvoxServer, "PUPPET_SERVER")
+	v.BindEnv(constant.CobraFlagOpenvoxEnv, "OPENVOX_ENVIRONMENT")
 
 	// Set default values
-	v.SetDefault(constant.CobraFlagPuppetServer, defaultServer)
+	v.SetDefault(constant.CobraFlagOpenvoxServer, defaultServer)
+	v.SetDefault(constant.CobraFlagOpenvoxEnv, constant.DefaultOpenvoxEnv)
 }
 
 func main() {
