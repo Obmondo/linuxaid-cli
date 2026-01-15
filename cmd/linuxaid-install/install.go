@@ -94,7 +94,8 @@ func Install() {
 	logger.InitLogger(pbWriter, config.IsDebug())
 
 	certname := helper.GetCertname()
-	puppetServer := config.GetPupeptServer()
+	openvoxServer := config.GetOpenvoxServer()
+	openvoxEnv := config.GetOpenvoxEnv()
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPI)
@@ -102,7 +103,7 @@ func Install() {
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
 	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
-	prettyfmt.PrettyPrintf(" %s  %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with puppetserver"), prettyfmt.FontYellow(puppetServer))
+	prettyfmt.PrettyPrintf(" %s  %s %s %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with openvoxserver"), prettyfmt.FontYellow(openvoxServer), prettyfmt.FontWhite("and environment"), prettyfmt.FontYellow(openvoxEnv))
 	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"))
 
 	if !shouldContinueAfterConfirmation() {

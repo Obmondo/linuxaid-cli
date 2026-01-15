@@ -22,20 +22,22 @@ import (
 )
 
 type Service struct {
-	webtee       *webtee.Webtee
-	apiClient    api.ObmondoClient
-	certName     string
-	puppetServer string
+	webtee        *webtee.Webtee
+	apiClient     api.ObmondoClient
+	certName      string
+	openvoxServer string
+	openvoxEnv    string
 }
 
 // NewService initializes a new Puppet service instance
 func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 
 	return &Service{
-		apiClient:    apiClient,
-		certName:     helper.GetCertname(),
-		puppetServer: config.GetPupeptServer(),
-		webtee:       webtee,
+		apiClient:     apiClient,
+		certName:      helper.GetCertname(),
+		openvoxServer: config.GetOpenvoxServer(),
+		openvoxEnv:    config.GetOpenvoxEnv(),
+		webtee:        webtee,
 	}
 }
 
@@ -140,9 +142,9 @@ masterport = 443
 report = true
 pluginsync = true
 noop = true
-environment = master
+environment = %s
 `
-	content := fmt.Sprintf(cfg, s.puppetServer, s.certName)
+	content := fmt.Sprintf(cfg, s.openvoxServer, s.certName, s.openvoxEnv)
 	if _, err := script.Echo(content).WriteFile(constant.PuppetConfig); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		os.Exit(1)
@@ -151,7 +153,7 @@ environment = master
 
 // Check server status
 func (s *Service) CheckServerStatus() error {
-	url := fmt.Sprintf("https://%s/status/v1/services", s.puppetServer)
+	url := fmt.Sprintf("https://%s/status/v1/services", s.openvoxServer)
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

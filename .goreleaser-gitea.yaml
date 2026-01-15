@@ -168,6 +168,10 @@ nfpms:
     bindir: /opt/obmondo/bin
     mtime: "{{ .CommitDate }}"
 
+release:
+  ids:
+    - default
+
 gitea_urls:
   api: https://gitea.obmondo.com/api/v1
   download: https://gitea.obmondo.com

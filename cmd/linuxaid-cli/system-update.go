@@ -232,10 +232,12 @@ func SystemUpdate() {
 	slog.Info("starting system-update")
 
 	// check if agent disable file exists
+	openvoxInitiallyEnabled := true
 	if _, err := os.Stat(agentDisabledFile); err == nil {
-		slog.Warn("puppet has been disabled, exiting")
-		return
+		openvoxInitiallyEnabled = false
+		slog.Warn("openvox agent was disabled before system-update, will skip opnvox operations")
 	}
+
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, false)
 
@@ -265,7 +267,7 @@ func SystemUpdate() {
 
 	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 
-	if !config.ShouldSkipOpenvox() {
+	if openvoxInitiallyEnabled && !config.ShouldSkipOpenvox() {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
@@ -311,9 +313,11 @@ func SystemUpdate() {
 
 	slog.Info("service window is closed now for this respective node")
 
-	// Enable the puppet agent, so puppet runs after reboot and don't exit the script
+	// Enable the openvox agent, so openvox runs after reboot and don't exit the script
 	// otherwise reboot won't be triggered
-	cleanup(puppetService)
+	if openvoxInitiallyEnabled {
+		cleanup(puppetService)
+	}
 
 	if err := CheckKernelAndRebootIfNeeded(); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))

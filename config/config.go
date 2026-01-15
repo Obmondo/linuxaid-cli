@@ -19,9 +19,14 @@ func GetCertname() string {
 	return viperConfig.GetString(constant.CobraFlagCertname)
 }
 
-func GetPupeptServer() string {
+func GetOpenvoxServer() string {
 	initIfNil()
-	return viperConfig.GetString(constant.CobraFlagPuppetServer)
+	return viperConfig.GetString(constant.CobraFlagOpenvoxServer)
+}
+
+func GetOpenvoxEnv() string {
+	initIfNil()
+	return viperConfig.GetString(constant.CobraFlagOpenvoxEnv)
 }
 
 func IsDebug() bool {
