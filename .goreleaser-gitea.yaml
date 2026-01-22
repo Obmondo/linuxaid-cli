@@ -81,8 +81,7 @@ nfpms:
       - linuxaid-cli
     file_name_template: >-
       {{- .PackageName }}_
-      {{- .Tag }}_
-      {{- .Os }}_
+      {{- .Version }}_
       {{- .Arch }}
       {{- .ConventionalExtension }}
     vendor: Obmondo
@@ -103,8 +102,7 @@ nfpms:
       - linuxaid-install
     file_name_template: >-
       {{- .PackageName }}_
-      {{- .Tag }}_
-      {{- .Os }}_
+      {{- .Version }}_
       {{- .Arch }}
       {{- .ConventionalExtension }}
     vendor: Obmondo
@@ -126,9 +124,8 @@ nfpms:
       - linuxaid-cli
     file_name_template: >-
       {{- .PackageName }}-
-      {{- .Tag }}-
-      {{- .Release }}-
-      {{- .Os }}-
+      {{- .Version }}-
+      {{- .Release }}.
       {{- if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else }}{{ .Arch }}{{ end }}
       {{- .ConventionalExtension }}
     vendor: Obmondo
@@ -150,9 +147,8 @@ nfpms:
       - linuxaid-install
     file_name_template: >-
       {{- .PackageName }}-
-      {{- .Tag }}-
-      {{- .Release }}-
-      {{- .Os }}-
+      {{- .Version }}-
+      {{- .Release }}.
       {{- if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else }}{{ .Arch }}{{ end }}
       {{- .ConventionalExtension }}
     vendor: Obmondo
