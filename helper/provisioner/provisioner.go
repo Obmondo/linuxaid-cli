@@ -41,22 +41,22 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *web
 
 func (s *Provisioner) ProvisionPuppet() {
 	switch os.Getenv("ID") {
-	case "ubuntu", "debian":
+	case helper.ConstDistributionNameUbuntu, helper.ConstDistributionNameDebian:
 		if err := s.provisionForDebian(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "sles":
+	case helper.ConstDistributionNameSLES:
 		if err := s.provisionForSuse(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "centos", "rhel", "ol":
+	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameOracleLinux:
 		if err := s.provisionForRedHat(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "turrisos":
+	case helper.ConstDistributionNameTurrisOS:
 		s.provisionForTurris()
 	default:
 		slog.Error("unknown distribution, exiting")

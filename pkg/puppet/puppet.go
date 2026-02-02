@@ -56,17 +56,20 @@ func (*Service) EnableAgent() error {
 
 // Disable puppet-agent service (sanity-check)
 func (s *Service) DisableAgentService() {
-	// Disable unattended-upgrades so puppet-agent package does not update
-	s.webtee.RemoteLogObmondo([]string{
-		"puppet resource service unattended-upgrades ensure=stopped enable=false",
-	}, s.certName)
+	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
+	if os.Getenv("ID") != helper.ConstDistributionNameTurrisOS {
+		// Disable unattended-upgrades so puppet-agent package does not update
+		s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service unattended-upgrades ensure=stopped enable=false",
+		}, s.certName)
 
-	// Stop puppet agent service, since we manage it via run_puppet service
-	s.webtee.RemoteLogObmondo([]string{
-		"puppet resource service puppet ensure=stopped enable=false",
-	}, s.certName)
+		// Stop puppet agent service, since we manage it via run_puppet service
+		s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service puppet ensure=stopped enable=false",
+		}, s.certName)
 
-	slog.Debug("puppet agent service disabled")
+		slog.Debug("puppet agent service disabled")
+	}
 }
 
 // Disable agent with message
