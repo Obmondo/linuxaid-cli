@@ -10,24 +10,28 @@ import (
 )
 
 const (
-	constDistributionNameUbuntu      = "ubuntu"
-	constDistributionNameDebian      = "debian"
-	constDistributionNameSLES        = "sles"
-	constDistributionNameCentOS      = "centos"
-	constDistributionNameRHEL        = "rhel"
-	constDistributionNameOracleLinux = "ol"
+	ConstDistributionNameUbuntu      = "ubuntu"
+	ConstDistributionNameDebian      = "debian"
+	ConstDistributionNameSLES        = "sles"
+	ConstDistributionNameCentOS      = "centos"
+	ConstDistributionNameRHEL        = "rhel"
+	ConstDistributionNameOracleLinux = "ol"
+	ConstDistributionNameTurrisOS    = "turrisos"
 
-	constDistributionDebianUpdateRepoListCmd = "apt update"
-	constDistributionSLESUpdateRepoListCmd   = "zypper refresh"
-	constDistributionRHELUpdateRepoListCmd   = "yum repolist"
+	constDistributionDebianUpdateRepoListCmd  = "apt update"
+	constDistributionSLESUpdateRepoListCmd    = "zypper refresh"
+	constDistributionRHELUpdateRepoListCmd    = "yum repolist"
+	constDistributionOpenWRTUpdateRepoListCmd = "opkg update"
 
-	constDistributionDebianCheckCACertificatesCmd = "dpkg-query -W ca-certificates openssl"
-	constDistributionSLESCheckCACertificatesCmd   = "rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
-	constDistributionRHELCheckCACertificatesCmd   = "rpm -q ca-certificates openssl"
+	constDistributionDebianCheckCACertificatesCmd  = "dpkg-query -W ca-certificates openssl"
+	constDistributionSLESCheckCACertificatesCmd    = "rpm -q ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
+	constDistributionRHELCheckCACertificatesCmd    = "rpm -q ca-certificates openssl"
+	constDistributionOpenWRTCheckCACertificatesCmd = "opkg list-installed ca-certificates openssl"
 
-	constDistributionDebianInstallCACertificatesCmd = "apt install -y ca-certificates"
-	constDistributionSLESInstallCACertificatesCmd   = "zypper install -y ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
-	constDistributionRHELInstallCACertificatesCmd   = "yum install -y ca-certificates openssl"
+	constDistributionDebianInstallCACertificatesCmd  = "apt install -y ca-certificates"
+	constDistributionSLESInstallCACertificatesCmd    = "zypper install -y ca-certificates openssl ca-certificates-cacert ca-certificates-mozilla"
+	constDistributionRHELInstallCACertificatesCmd    = "yum install -y ca-certificates openssl"
+	constDistributionOpenWRTInstallCACertificatesCmd = "opkg install libopenssl openssl-util libopenssl-conf"
 )
 
 type CertificateManagerCommands struct {
@@ -57,23 +61,29 @@ func IsSupportedOS() (CertificateManagerCommands, error) {
 // 3. command to install CA certificates
 func getCommandsForInstallingCACertificates() (CertificateManagerCommands, error) {
 	switch os.Getenv("ID") {
-	case constDistributionNameUbuntu, constDistributionNameDebian:
+	case ConstDistributionNameUbuntu, ConstDistributionNameDebian:
 		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionDebianUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionDebianCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionDebianInstallCACertificatesCmd,
 		}, nil
-	case constDistributionNameSLES:
+	case ConstDistributionNameSLES:
 		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionSLESUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
 		}, nil
-	case constDistributionNameCentOS, constDistributionNameRHEL, constDistributionNameOracleLinux:
+	case ConstDistributionNameCentOS, ConstDistributionNameRHEL, ConstDistributionNameOracleLinux:
 		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionRHELInstallCACertificatesCmd,
+		}, nil
+	case ConstDistributionNameTurrisOS:
+		return CertificateManagerCommands{
+			updateRepoListCmd:        constDistributionOpenWRTUpdateRepoListCmd,
+			checkCACertificatesCmd:   constDistributionOpenWRTCheckCACertificatesCmd,
+			installCACertificatesCmd: constDistributionOpenWRTInstallCACertificatesCmd,
 		}, nil
 	}
 	return CertificateManagerCommands{}, errors.New("unknown distribution")

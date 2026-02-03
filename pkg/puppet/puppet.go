@@ -56,17 +56,20 @@ func (*Service) EnableAgent() error {
 
 // Disable puppet-agent service (sanity-check)
 func (s *Service) DisableAgentService() {
-	// Disable unattended-upgrades so puppet-agent package does not update
-	s.webtee.RemoteLogObmondo([]string{
-		"puppet resource service unattended-upgrades ensure=stopped enable=false",
-	}, s.certName)
+	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
+	if os.Getenv("ID") != helper.ConstDistributionNameTurrisOS {
+		// Disable unattended-upgrades so puppet-agent package does not update
+		s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service unattended-upgrades ensure=stopped enable=false",
+		}, s.certName)
 
-	// Stop puppet agent service, since we manage it via run_puppet service
-	s.webtee.RemoteLogObmondo([]string{
-		"puppet resource service puppet ensure=stopped enable=false",
-	}, s.certName)
+		// Stop puppet agent service, since we manage it via run_puppet service
+		s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service puppet ensure=stopped enable=false",
+		}, s.certName)
 
-	slog.Debug("puppet agent service disabled")
+		slog.Debug("puppet agent service disabled")
+	}
 }
 
 // Disable agent with message
@@ -94,7 +97,14 @@ func (s *Service) RunAgent(remoteLog bool, noopMode string) int {
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
 	pipe := script.Exec(cmd)
 	if _, err := pipe.Stdout(); err != nil {
-		if !slices.Contains(constant.PuppetSuccessExitCodes, pipe.ExitStatus()) {
+		// We're patching the error handling for turrisos for now, since we're still updating
+		// linuxaid support. Once done, we'll remove this special handling.
+		successStatusCodes := constant.PuppetSuccessExitCodes
+		if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
+			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
+		}
+
+		if !slices.Contains(successStatusCodes, pipe.ExitStatus()) {
 			slog.Error("stdout error", slog.Any("error", err))
 		}
 	}
@@ -145,7 +155,7 @@ noop = true
 environment = %s
 `
 	content := fmt.Sprintf(cfg, s.openvoxServer, s.certName, s.openvoxEnv)
-	if _, err := script.Echo(content).WriteFile(constant.PuppetConfig); err != nil {
+	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		os.Exit(1)
 	}

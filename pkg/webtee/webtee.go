@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
@@ -108,7 +109,14 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 }
 
 func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
-	return strings.Contains(strings.Join(command, " "), "puppet agent") && slices.Contains(constant.PuppetSuccessExitCodes, exitCode)
+	// We're patching the error handling for turrisos for now, since we're still updating
+	// linuxaid support. Once done, we'll remove this special handling.
+	successStatusCodes := constant.PuppetSuccessExitCodes
+	if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
+		successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
+	}
+
+	return strings.Contains(strings.Join(command, " "), "puppet agent") && slices.Contains(successStatusCodes, exitCode)
 }
 
 // readPipe reads a pipe, wraps every line in an "echo" command, prints it, and sends the line to

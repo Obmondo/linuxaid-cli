@@ -41,22 +41,22 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *web
 
 func (s *Provisioner) ProvisionPuppet() {
 	switch os.Getenv("ID") {
-	case "ubuntu", "debian":
+	case helper.ConstDistributionNameUbuntu, helper.ConstDistributionNameDebian:
 		if err := s.provisionForDebian(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "sles":
+	case helper.ConstDistributionNameSLES:
 		if err := s.provisionForSuse(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "centos", "rhel", "ol":
+	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameOracleLinux:
 		if err := s.provisionForRedHat(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case "turrisos":
+	case helper.ConstDistributionNameTurrisOS:
 		s.provisionForTurris()
 	default:
 		slog.Error("unknown distribution, exiting")
@@ -85,7 +85,7 @@ func (s *Provisioner) provisionForDebian() error {
 		return errors.New("unsupported system architecture")
 	}
 
-	fullPuppetVersion := fmt.Sprintf("%s-1+%s", constant.PuppetVersion, ubuntuVersion)
+	fullPuppetVersion := fmt.Sprintf("%s-1+%s", constant.OpenvoxVersion, ubuntuVersion)
 	packageName := fmt.Sprintf("openvox-agent_%s_%s.deb", fullPuppetVersion, runtime.GOARCH)
 	downloadPath := filepath.Join(tmpDir, packageName)
 	url := fmt.Sprintf("https://repos.obmondo.com/openvox/apt/pool/%s/o/openvox-agent/%s",
@@ -116,7 +116,7 @@ func (s *Provisioner) provisionForRedHat() error {
 		return errors.New("unsupported system architecture")
 	}
 
-	fullPuppetVersion := fmt.Sprintf("%s-1.el%s", constant.PuppetVersion, majRelease)
+	fullPuppetVersion := fmt.Sprintf("%s-1.el%s", constant.OpenvoxVersion, majRelease)
 	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
 	url := fmt.Sprintf("https://repos.obmondo.com/openvox/yum/%s/el/%s/%s/%s.rpm",
@@ -148,7 +148,7 @@ func (s *Provisioner) provisionForSuse() error {
 		return errors.New("unsupported system architecture")
 	}
 
-	fullPuppetVersion := fmt.Sprintf("%s-1.sles%s", constant.PuppetVersion, majRelease)
+	fullPuppetVersion := fmt.Sprintf("%s-1.sles%s", constant.OpenvoxVersion, majRelease)
 	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
 	url := fmt.Sprintf("https://repos.obmondo.com/openvox/sles/%s/%s/%s/%s.rpm",
@@ -169,6 +169,6 @@ func (s *Provisioner) provisionForTurris() {
 	s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName)
 	s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-stdlib ruby-dev ruby-gems"}, s.certName)
 
-	installCmd := []string{fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxAgentVersionTurris)}
+	installCmd := []string{fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxVersion)}
 	s.webtee.RemoteLogObmondo(installCmd, s.certName)
 }
