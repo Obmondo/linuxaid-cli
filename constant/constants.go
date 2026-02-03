@@ -7,16 +7,13 @@ const (
 	PuppetPackageName  = "puppet-agent"
 	PuppetPath         = "/sbin:/usr/sbin:/bin:/usr/bin:/opt/puppetlabs/puppet/bin"
 	PuppetConfig       = "/etc/puppetlabs/puppet/puppet.conf"
-	PuppetVersion      = "8.23.1"
+	OpenvoxVersion     = "8.24.2"
 	PuppetMajorVersion = "openvox8"
 	PuppetCertEnv      = "PUPPETCERT"
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
 	InstallTokenEnv    = "TOKEN"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
 	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
-
-	// Openvox
-	OpenvoxAgentVersionTurris = "7.37.2"
 
 	// Lock and Disabled
 	AgentDisabledLockFile           = "/opt/puppetlabs/puppet/cache/state/agent_disabled.lock"
