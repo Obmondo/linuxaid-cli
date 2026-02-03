@@ -155,7 +155,7 @@ noop = true
 environment = %s
 `
 	content := fmt.Sprintf(cfg, s.openvoxServer, s.certName, s.openvoxEnv)
-	if _, err := script.Echo(content).WriteFile(constant.PuppetConfig); err != nil {
+	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		os.Exit(1)
 	}
