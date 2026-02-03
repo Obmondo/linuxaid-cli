@@ -97,7 +97,14 @@ func (s *Service) RunAgent(remoteLog bool, noopMode string) int {
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
 	pipe := script.Exec(cmd)
 	if _, err := pipe.Stdout(); err != nil {
-		if !slices.Contains(constant.PuppetSuccessExitCodes, pipe.ExitStatus()) {
+		// We're patching the error handling for turrisos for now, since we're still updating
+		// linuxaid support. Once done, we'll remove this special handling.
+		successStatusCodes := constant.PuppetSuccessExitCodes
+		if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
+			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
+		}
+
+		if !slices.Contains(successStatusCodes, pipe.ExitStatus()) {
 			slog.Error("stdout error", slog.Any("error", err))
 		}
 	}
