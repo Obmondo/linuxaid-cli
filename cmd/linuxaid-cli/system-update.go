@@ -225,9 +225,13 @@ func buildPostUpdateComment(exporter security.SecurityExporter) string {
 		slog.Warn("post-update scan returned failure", slog.String("error", result.Error))
 		return fallback
 	default:
-		comment := fmt.Sprintf("server updated, %d CVEs fixed, %d remaining (%d critical, %d high, %d medium, %d low)",
-			result.CVEsFixed, result.TotalCVEs,
-			result.CriticalCVEs, result.HighCVEs, result.MediumCVEs, result.LowCVEs)
+		comment := fmt.Sprintf("server updated, %d/%d CVEs fixed (critical: %d/%d, high: %d/%d, medium: %d/%d, low: %d/%d), %d remaining",
+			result.CVEsFixed, result.PreviousTotalCVEs,
+			result.CriticalCVEsFixed, result.CriticalCVEsFixed+result.CriticalCVEs,
+			result.HighCVEsFixed, result.HighCVEsFixed+result.HighCVEs,
+			result.MediumCVEsFixed, result.MediumCVEsFixed+result.MediumCVEs,
+			result.LowCVEsFixed, result.LowCVEsFixed+result.LowCVEs,
+			result.TotalCVEs)
 		slog.Info("post-update scan completed", "comment", comment)
 		return comment
 	}
