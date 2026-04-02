@@ -96,6 +96,7 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 - `--no-reboot` / `NO_REBOOT` - Disable automatic reboot after updates
 - `--skip-openvox` / `SKIP_OPENVOX` - Skip Puppet agent run
+- `--security-exporter-url` / `SECURITY_EXPORTER_URL` - URL of the security exporter (default: `http://127.254.254.254:63396`)
 
 ### run-openvox
 
