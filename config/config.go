@@ -44,6 +44,11 @@ func ShouldSkipOpenvox() bool {
 	return viperConfig.GetBool(constant.CobraFlagSkipOpenvox)
 }
 
+func GetSecurityExporterURL() string {
+	initIfNil()
+	return viperConfig.GetString(constant.CobraFlagSecurityExporterURL)
+}
+
 func GetViperInstance() *viper.Viper {
 	initIfNil()
 	return viperConfig

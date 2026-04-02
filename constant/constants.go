@@ -34,12 +34,13 @@ const (
 	BarSizeHundred     = 100
 
 	// Cobra Flags
-	CobraFlagDebug         = "debug"
-	CobraFlagCertname      = "certname"
-	CobraFlagOpenvoxServer = "puppet-server"
-	CobraFlagOpenvoxEnv    = "openvox-environment"
-	CobraFlagNoReboot      = "no-reboot"
-	CobraFlagSkipOpenvox   = "skip-openvox"
+	CobraFlagDebug               = "debug"
+	CobraFlagCertname            = "certname"
+	CobraFlagOpenvoxServer       = "puppet-server"
+	CobraFlagOpenvoxEnv          = "openvox-environment"
+	CobraFlagNoReboot            = "no-reboot"
+	CobraFlagSkipOpenvox         = "skip-openvox"
+	CobraFlagSecurityExporterURL = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )
