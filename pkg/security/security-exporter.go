@@ -1,10 +1,12 @@
 package security
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type securityExporter struct {
@@ -14,6 +16,8 @@ type securityExporter struct {
 
 const (
 	totalNumberOfPackageUpdatesPath = "/total_number_of_packages_with_update"
+	scanPath                        = "/scan"
+	scanTimeout                     = 6 * time.Minute
 )
 
 func (s *securityExporter) GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWithUpdateResponse, error) {
@@ -53,6 +57,30 @@ func (s *securityExporter) GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWi
 // nolint: revive
 type SecurityExporter interface {
 	GetNumberOfPackageUpdates() (*TotalNumberOfPackagesWithUpdateResponse, error)
+	TriggerScan() (*ScanResponse, error)
+}
+
+func (s *securityExporter) TriggerScan() (*ScanResponse, error) {
+	client := &http.Client{Timeout: scanTimeout}
+
+	resp, err := client.Post(fmt.Sprintf("%s%s", s.hostURL, scanPath), "application/json", bytes.NewReader(nil))
+	if err != nil {
+		slog.Error("failed to trigger scan on security exporter", slog.Any("error", err))
+		return nil, err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("failed to close response body", slog.Any("error", err))
+		}
+	}()
+
+	scanResp := &ScanResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(scanResp); err != nil {
+		slog.Error("failed to decode scan response", slog.Any("error", err))
+		return nil, err
+	}
+
+	return scanResp, nil
 }
 
 func NewSecurityExporter(hostURL string) SecurityExporter {
