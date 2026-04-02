@@ -28,7 +28,7 @@ const (
 type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
-	CloseServiceWindow(windowType, certname string, timezone string) error
+	CloseServiceWindow(windowType, certname, timezone, comment string) error
 	VerifyInstallToken(input *InstallScriptInput) error
 	NotifyInstallScriptFailure(input *InstallScriptInput) error
 	ServerPing() error
@@ -327,7 +327,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 	return serviceWindow, nil
 }
 
-func (c *obmondoClient) CloseServiceWindow(windowType, certname string, timezone string) error {
+func (c *obmondoClient) CloseServiceWindow(windowType, certname, timezone, comment string) error {
 	customerID := helper.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
@@ -336,7 +336,7 @@ func (c *obmondoClient) CloseServiceWindow(windowType, certname string, timezone
 	}
 	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
-	data := []byte(`{"comments": "server has been updated"}`)
+	data := []byte(fmt.Sprintf(`{"comments": %q}`, comment))
 
 	closeWindow, err := c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
 	if err != nil {

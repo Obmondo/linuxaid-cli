@@ -70,7 +70,7 @@ func (m *MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error)
 	return api.GetServiceWindowDetails(responseBody)
 }
 
-func (*MockObmondoClient) CloseServiceWindow(string, string, string) error {
+func (*MockObmondoClient) CloseServiceWindow(string, string, string, string) error {
 	return nil
 }
 

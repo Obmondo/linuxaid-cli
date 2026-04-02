@@ -21,10 +21,12 @@ import (
 )
 
 const (
-	agentDisabledFile   = constant.AgentDisabledLockFile
-	bootDirectory       = "/boot"
-	securityExporterURL = "http://127.254.254.254:63396"
+	agentDisabledFile          = constant.AgentDisabledLockFile
+	bootDirectory              = "/boot"
+	defaultSecurityExporterURL = "http://127.254.254.254:63396"
 )
+
+var securityExporterURLFlag string
 
 var systemUpdateCmd = &cobra.Command{
 	Use:     "system-update",
@@ -209,6 +211,32 @@ func getInstalledKernel(bootDirectory string) (string, error) {
 	return installedKernel, err
 }
 
+func buildPostUpdateComment(exporter security.SecurityExporter) string {
+	const fallback = "server has been updated"
+
+	result, err := exporter.TriggerScan()
+	if err != nil {
+		slog.Error("failed to trigger post-update vulnerability scan", slog.Any("error", err))
+		return fallback
+	}
+
+	switch {
+	case !result.Success:
+		slog.Warn("post-update scan returned failure", slog.String("error", result.Error))
+		return fallback
+	default:
+		comment := fmt.Sprintf("server updated, %d/%d CVEs fixed (critical: %d/%d, high: %d/%d, medium: %d/%d, low: %d/%d), %d remaining",
+			result.CVEsFixed, result.PreviousTotalCVEs,
+			result.CriticalCVEsFixed, result.CriticalCVEsFixed+result.CriticalCVEs,
+			result.HighCVEsFixed, result.HighCVEsFixed+result.HighCVEs,
+			result.MediumCVEsFixed, result.MediumCVEsFixed+result.MediumCVEs,
+			result.LowCVEsFixed, result.LowCVEsFixed+result.LowCVEs,
+			result.TotalCVEs)
+		slog.Info("post-update scan completed", "comment", comment)
+		return comment
+	}
+}
+
 // ------------------------------------------------
 // ------------------------------------------------
 
@@ -299,14 +327,10 @@ func SystemUpdate() {
 		return
 	}
 
-	securityExporterService := security.NewSecurityExporter(securityExporterURL)
-	if _, err := securityExporterService.GetNumberOfPackageUpdates(); err != nil {
-		slog.Error("failed to get response from security exporter for number of package updates endpoint", slog.Any("error", err))
-	}
+	securityExporterURL := config.GetSecurityExporterURL()
+	closeComment := buildPostUpdateComment(security.NewSecurityExporter(securityExporterURL))
 
-	// Close the service window
-	// we need to close it with diff close msg, incase if there is a failure, but that's for later
-	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}
@@ -330,13 +354,16 @@ func init() {
 
 	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagNoReboot, false, "Set this flag to prevent reboot (default will reboot)")
 	systemUpdateCmd.Flags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
+	systemUpdateCmd.Flags().StringVar(&securityExporterURLFlag, constant.CobraFlagSecurityExporterURL, defaultSecurityExporterURL, "Security exporter URL")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
 	v.BindPFlag(constant.CobraFlagNoReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagNoReboot))
 	v.BindPFlag(constant.CobraFlagSkipOpenvox, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSkipOpenvox))
+	v.BindPFlag(constant.CobraFlagSecurityExporterURL, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSecurityExporterURL))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagNoReboot, "NO_REBOOT")
 	v.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
+	v.BindEnv(constant.CobraFlagSecurityExporterURL, "SECURITY_EXPORTER_URL")
 }
