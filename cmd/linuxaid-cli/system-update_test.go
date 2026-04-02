@@ -41,7 +41,7 @@ func TestGetServiceWindowStatus(t *testing.T) {
 func TestCloseWindow(t *testing.T) {
 	mockObmondoClient := mock.NewMockObmondoClient()
 
-	if err := mockObmondoClient.CloseServiceWindow("automatic", "hostname.example", time.UTC.String()); err != nil {
+	if err := mockObmondoClient.CloseServiceWindow("automatic", "hostname.example", time.UTC.String(), "server has been updated"); err != nil {
 		t.Errorf("o/p: %+v", err)
 	}
 }
