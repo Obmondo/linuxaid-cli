@@ -8,7 +8,7 @@ import (
 
 func InitLogger(writer io.Writer, debug bool) {
 	handlerOptions := &slog.HandlerOptions{
-		AddSource: debug,
+		AddSource: true,
 	}
 
 	if debug {

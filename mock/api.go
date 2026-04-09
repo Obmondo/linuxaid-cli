@@ -33,10 +33,10 @@ func (*MockObmondoClient) UpdatePuppetLastRunReport() error {
 }
 
 func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"status":  http.StatusOK,
 		"success": true,
-		"data": map[string]interface{}{
+		"data": map[string]any{
 			"is_window_open": true,
 			"window_type":    "automatic",
 			"timezone":       "UTC",
