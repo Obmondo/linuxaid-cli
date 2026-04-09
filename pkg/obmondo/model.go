@@ -30,3 +30,13 @@ type ServiceWindow struct {
 	WindowType   string `json:"window_type"`
 	Timezone     string `json:"timezone"`
 }
+
+type LinuxAidSettings struct {
+	PrometheusURL   string `json:"prometheus_url"`
+	PuppetserverURL string `json:"puppetserver_url"`
+}
+
+type CustomerSettings struct {
+	CustomerID string            `json:"customer_id"`
+	LinuxAid   *LinuxAidSettings `json:"linuxaid,omitempty"`
+}

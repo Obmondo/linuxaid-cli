@@ -8,3 +8,6 @@ rpmbuild
 # Ignore the linuxaid tool binaries
 /linuxaid-cli
 /linuxaid-install
+
+# Claude Code
+/.claude

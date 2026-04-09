@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -45,7 +46,7 @@ var systemUpdateCmd = &cobra.Command{
 
 func cleanup(puppetService *puppet.Service) {
 	if err := puppetService.EnableAgent(); err != nil {
-		slog.Error("unable to remove agent disable file and enable puppet agent")
+		slog.Error("unable to remove agent disable file and enable puppet agent", slog.Any("error", err))
 	}
 
 	slog.Info("ending system-update")
@@ -64,7 +65,7 @@ func UpdateSystem(distribution string) error {
 	case "centos", "rhel":
 		return updateRedHat()
 	default:
-		slog.Error("unknown distribution")
+		slog.Error("unknown distribution", slog.String("distribution", distribution))
 		return nil
 	}
 }
@@ -90,7 +91,7 @@ func updateDebian() error {
 	exitStatus := pipe.ExitStatus()
 	if exitStatus != 0 {
 		slog.Error("exiting, apt update failed")
-		return fmt.Errorf(" apt-get update and upgrade failed: exit status %d", exitStatus)
+		return fmt.Errorf("apt-get update and upgrade failed: exit status %d", exitStatus)
 	}
 
 	pipe = script.Exec("apt-get autoremove -y")
@@ -237,6 +238,70 @@ func buildPostUpdateComment(exporter security.SecurityExporter) string {
 	}
 }
 
+const defaultPrometheusHost = "prometheus.obmondo.com"
+
+// extractHostname parses a URL and returns just the hostname.
+// Returns empty string if parsing fails.
+func extractHostname(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err == nil && parsed.Hostname() != "" {
+		return parsed.Hostname()
+	}
+	return ""
+}
+
+// resolveCustomerURLs fetches customer settings and returns resolved prometheus
+// and puppet server hostnames. Falls back to defaults if customer has not
+// configured them or if the API call fails.
+func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometheusHost, puppetServerHost string) {
+	defaultPuppetServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
+	prometheusHost = defaultPrometheusHost
+	puppetServerHost = defaultPuppetServer
+
+	customerID := helper.GetCustomerID(certname)
+	if customerID == "" {
+		slog.Warn("could not determine customer ID from certname, using defaults",
+			slog.String("certname", certname))
+		return
+	}
+
+	settings, err := obmondoAPI.GetCustomerSettings(customerID)
+	if err != nil {
+		slog.Warn("failed to fetch customer settings, using defaults", slog.Any("error", err))
+		return
+	}
+
+	if settings.LinuxAid == nil {
+		slog.Info("no linuxaid settings configured for customer, using defaults",
+			slog.String("customer_id", customerID))
+		return
+	}
+
+	if settings.LinuxAid.PrometheusURL != "" {
+		h := extractHostname(settings.LinuxAid.PrometheusURL)
+		if h == "" {
+			slog.Warn("could not extract hostname from prometheus_url, using default",
+				slog.String("prometheus_url", settings.LinuxAid.PrometheusURL))
+		}
+		if h != "" {
+			prometheusHost = h
+		}
+	}
+
+	if settings.LinuxAid.PuppetserverURL != "" {
+		h := extractHostname(settings.LinuxAid.PuppetserverURL)
+		if h == "" {
+			slog.Warn("could not extract hostname from puppetserver_url, using default",
+				slog.String("puppetserver_url", settings.LinuxAid.PuppetserverURL))
+		}
+		if h != "" {
+			puppetServerHost = h
+		}
+	}
+
+	return
+}
+
 // ------------------------------------------------
 // ------------------------------------------------
 
@@ -245,7 +310,7 @@ func SystemUpdate() {
 
 	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
-		slog.Error("failed to set the PATH env, exiting")
+		slog.Error("failed to set the PATH env, exiting", slog.Any("error", envErr))
 		os.Exit(1)
 	}
 
@@ -263,7 +328,7 @@ func SystemUpdate() {
 	openvoxInitiallyEnabled := true
 	if _, err := os.Stat(agentDisabledFile); err == nil {
 		openvoxInitiallyEnabled = false
-		slog.Warn("openvox agent was disabled before system-update, will skip opnvox operations")
+		slog.Warn("openvox agent was disabled before system-update, will skip openvox operations")
 	}
 
 	obmondoAPIURL := api.GetObmondoURL()
@@ -292,6 +357,13 @@ func SystemUpdate() {
 		slog.Error("unable to check if ca certs are installed", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
+
+	certname := helper.GetCertname()
+	prometheusHost, puppetServer := resolveCustomerURLs(obmondoAPI, certname)
+	config.GetViperInstance().Set(constant.CobraFlagOpenvoxServer, puppetServer)
+	slog.Info("resolved customer URLs",
+		slog.String("prometheus", prometheusHost),
+		slog.String("puppet_server", puppetServer))
 
 	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 

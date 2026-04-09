@@ -2,13 +2,9 @@ package checkconnectivity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
-
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tevino/tcp-shaker"
@@ -18,24 +14,12 @@ const (
 	port        = "443"
 	timeout     = time.Second * 5
 	metricsFile = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
-)
 
-var enableitHosts = []string{
-	"api.obmondo.com",
-	"prometheus.obmondo.com",
-}
+	apiHost = "api.obmondo.com"
+)
 
 var runPuppetMetric *prometheus.GaugeVec
 var registry *prometheus.Registry
-
-func getHostList() ([]string, error) {
-	customerID := helper.GetCustomerID(helper.GetCertname())
-	if len(customerID) == 0 {
-		return nil, errors.New("customerID not found")
-	}
-
-	return append(enableitHosts, customerID+constant.DefaultPuppetServerDomainSuffix), nil
-}
 
 func init() {
 	registry = prometheus.NewRegistry()
@@ -51,7 +35,9 @@ func init() {
 	registry.MustRegister(runPuppetMetric)
 }
 
-func CheckTCPConnection() bool {
+func CheckTCPConnection(prometheusHost, puppetServerHost string) bool {
+	hosts := []string{apiHost, prometheusHost, puppetServerHost}
+
 	// Initializing the checker
 	// It is expected to be shared among goroutines, only one instance is necessary.
 	c := tcp.NewChecker()
@@ -65,13 +51,6 @@ func CheckTCPConnection() bool {
 	}()
 
 	<-c.WaitReady()
-
-	hosts, err := getHostList()
-
-	if err != nil {
-		slog.Info("Error resolving ip ", slog.String("error", err.Error()))
-		return false
-	}
 
 	allAPIReachable := true
 
