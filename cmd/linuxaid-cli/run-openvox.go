@@ -62,12 +62,21 @@ func runOpenvoxAgent() error {
 func RunOpenvox() {
 	helper.LoadPuppetEnv()
 
-	allAPIReachable := checkconnectivity.CheckTCPConnection()
+	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
+
+	certname := helper.GetCertname()
+	prometheusHost, puppetServerHost := resolveCustomerURLs(obmondoAPI, certname)
+	slog.Info("resolved customer URLs",
+		slog.String("prometheus", prometheusHost),
+		slog.String("puppet_server", puppetServerHost))
+
+	allAPIReachable := checkconnectivity.CheckTCPConnection(prometheusHost, puppetServerHost)
 	if !allAPIReachable {
-		slog.Error("unable to connect to obmondo api, aborting", slog.String("error", "api not accessible"))
+		slog.Error("unable to connect to required hosts, aborting",
+			slog.String("prometheus", prometheusHost),
+			slog.String("puppet_server", puppetServerHost))
 		return
 	}
-	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
 
 	// nolint:errcheck
 	obmondoAPI.ServerPing()

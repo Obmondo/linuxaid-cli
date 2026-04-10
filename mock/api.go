@@ -32,6 +32,10 @@ func (*MockObmondoClient) UpdatePuppetLastRunReport() error {
 	return nil
 }
 
+func (*MockObmondoClient) GetCustomerSettings(_ string) (*api.CustomerSettings, error) {
+	return &api.CustomerSettings{}, nil
+}
+
 func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 	data := map[string]interface{}{
 		"status":  http.StatusOK,

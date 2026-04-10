@@ -29,6 +29,7 @@ type ObmondoClient interface {
 	GetServiceWindowStatus() (*ServiceWindow, error)
 	FetchServiceWindowStatus() (*http.Response, error)
 	CloseServiceWindow(windowType, certname, timezone, comment string) error
+	GetCustomerSettings(customerID string) (*CustomerSettings, error)
 	VerifyInstallToken(input *InstallScriptInput) error
 	NotifyInstallScriptFailure(input *InstallScriptInput) error
 	ServerPing() error
@@ -366,6 +367,33 @@ func (c *obmondoClient) CloseServiceWindow(windowType, certname, timezone, comme
 
 // ------------------------------------------------
 // ------------------------------------------------
+
+func (c *obmondoClient) GetCustomerSettings(customerID string) (*CustomerSettings, error) {
+	settingsURL := fmt.Sprintf("%s/customer/settings/%s", c.apiURL, customerID)
+
+	resp, err := c.apiCallWithTransport(settingsURL, nil, http.MethodGet)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			if cerr := resp.Body.Close(); cerr != nil {
+				slog.Error("failed to close body", slog.Any("error", cerr))
+			}
+		}
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch customer settings: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code fetching customer settings: %d", resp.StatusCode)
+	}
+
+	var apiResp ObmondoAPIResponse[CustomerSettings]
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode customer settings: %w", err)
+	}
+
+	return &apiResp.Data, nil
+}
 
 func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
 	certname := helper.GetCertname()
