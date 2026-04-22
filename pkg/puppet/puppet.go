@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"time"
@@ -154,7 +155,11 @@ pluginsync = true
 noop = true
 environment = %s
 `
-	content := fmt.Sprintf(cfg, s.openvoxServer, s.certName, s.openvoxEnv)
+	server := s.openvoxServer
+	if parsed, err := url.Parse(server); err == nil && parsed.Hostname() != "" {
+		server = parsed.Hostname()
+	}
+	content := fmt.Sprintf(cfg, server, s.certName, s.openvoxEnv)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		os.Exit(1)
@@ -163,7 +168,7 @@ environment = %s
 
 // Check server status
 func (s *Service) CheckServerStatus() error {
-	url := fmt.Sprintf("https://%s/status/v1/services", s.openvoxServer)
+	url := fmt.Sprintf("%s/status/v1/services", s.openvoxServer)
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
