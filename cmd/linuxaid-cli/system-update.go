@@ -62,7 +62,7 @@ func UpdateSystem(distribution string) error {
 		return updateDebian()
 	case "sles":
 		return updateSUSE()
-	case "centos", "rhel":
+	case "centos", "rhel", "rocky":
 		return updateRedHat()
 	default:
 		slog.Error("unknown distribution", slog.String("distribution", distribution))

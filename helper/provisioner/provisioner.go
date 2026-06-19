@@ -51,7 +51,7 @@ func (s *Provisioner) ProvisionPuppet() {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameOracleLinux:
+	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameRocky, helper.ConstDistributionNameOracleLinux:
 		if err := s.provisionForRedHat(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
