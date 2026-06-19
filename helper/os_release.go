@@ -15,6 +15,7 @@ const (
 	ConstDistributionNameSLES        = "sles"
 	ConstDistributionNameCentOS      = "centos"
 	ConstDistributionNameRHEL        = "rhel"
+	ConstDistributionNameRocky       = "rocky"
 	ConstDistributionNameOracleLinux = "ol"
 	ConstDistributionNameTurrisOS    = "turrisos"
 
@@ -73,7 +74,7 @@ func getCommandsForInstallingCACertificates() (CertificateManagerCommands, error
 			checkCACertificatesCmd:   constDistributionSLESCheckCACertificatesCmd,
 			installCACertificatesCmd: constDistributionSLESInstallCACertificatesCmd,
 		}, nil
-	case ConstDistributionNameCentOS, ConstDistributionNameRHEL, ConstDistributionNameOracleLinux:
+	case ConstDistributionNameCentOS, ConstDistributionNameRHEL, ConstDistributionNameRocky, ConstDistributionNameOracleLinux:
 		return CertificateManagerCommands{
 			updateRepoListCmd:        constDistributionRHELUpdateRepoListCmd,
 			checkCACertificatesCmd:   constDistributionRHELCheckCACertificatesCmd,
