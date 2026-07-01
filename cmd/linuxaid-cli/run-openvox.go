@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
@@ -10,18 +11,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// runOpenvoxEnforce applies changes (puppet --no-noop) instead of the default report-only (--noop).
+var runOpenvoxEnforce bool
+
 var runOpenvoxCmd = &cobra.Command{
 	Use:     "run-openvox",
 	Short:   "Execute run-openvox command",
 	Long:    "A longer description of run-openvox command",
 	Example: `$ linuxaid-cli run-openvox --certname web01.example`,
 	Run: func(*cobra.Command, []string) {
-		RunOpenvox()
+		RunOpenvox(runOpenvoxEnforce)
 	},
 }
 
-// Run the puppet agent in noop mode for now
-func runOpenvoxAgent() error {
+// runOpenvoxAgent runs the puppet agent: report-only (--noop) by default, or applying changes
+// (--no-noop --detailed-exitcodes) when enforce is set.
+func runOpenvoxAgent(enforce bool) error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -38,8 +43,13 @@ func runOpenvoxAgent() error {
 	statusCodeFailed := 1
 	statusCodeSucceededWithChanges := 2
 
-	slog.Info("executing the puppet agent command")
-	cmdPipe := script.Exec("/opt/puppetlabs/bin/puppet agent -t --noop")
+	puppetCmd := "/opt/puppetlabs/bin/puppet agent -t --noop"
+	if enforce {
+		puppetCmd = "/opt/puppetlabs/bin/puppet agent -t --no-noop --detailed-exitcodes"
+	}
+
+	slog.Info("executing the puppet agent command", slog.Bool("enforce", enforce))
+	cmdPipe := script.Exec(puppetCmd)
 	_, err := cmdPipe.Stdout()
 	if err != nil {
 		// When encountering status code 1, consider it as an error, and return.
@@ -59,7 +69,7 @@ func runOpenvoxAgent() error {
 }
 
 // Entry point
-func RunOpenvox() {
+func RunOpenvox(enforce bool) {
 	helper.LoadPuppetEnv()
 
 	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
@@ -82,7 +92,7 @@ func RunOpenvox() {
 	obmondoAPI.ServerPing()
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runOpenvoxAgent(); err != nil {
+	if err := runOpenvoxAgent(enforce); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
@@ -91,5 +101,7 @@ func RunOpenvox() {
 }
 
 func init() {
+	runOpenvoxCmd.Flags().BoolVar(&runOpenvoxEnforce, constant.CobraFlagEnforce, false,
+		"Apply changes by running puppet with --no-noop (default is report-only --noop)")
 	rootCmd.AddCommand(runOpenvoxCmd)
 }
