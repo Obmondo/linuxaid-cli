@@ -56,6 +56,7 @@ const (
 	EnvVarOpenvoxEnvironment     = "OPENVOX_ENVIRONMENT"
 	CobraFlagNoReboot            = "no-reboot"
 	CobraFlagSkipOpenvox         = "skip-openvox"
+	CobraFlagEnforce             = "enforce"
 	CobraFlagSecurityExporterURL = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"

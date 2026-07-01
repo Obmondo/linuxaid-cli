@@ -301,6 +301,7 @@ func TestRunOpenvoxAgentBuildsCommand(t *testing.T) {
 		cfg         config.Config
 		environment string
 		tags        string
+		enforce     bool
 		wantContain []string
 		wantAbsent  string
 	}{
@@ -322,6 +323,13 @@ func TestRunOpenvoxAgentBuildsCommand(t *testing.T) {
 			wantContain: []string{"--tags nginx,postfix"},
 		},
 		{
+			name:        "enforce applies changes with detailed exit codes",
+			environment: "testing",
+			enforce:     true,
+			wantContain: []string{"puppet agent -t --no-noop --detailed-exitcodes", "--environment testing"},
+			wantAbsent:  "--noop",
+		},
+		{
 			name:        "the puppet server override reaches the agent alongside the tag",
 			cfg:         config.Config{OpenvoxServer: "https://puppet.example.com"},
 			tags:        "nginx",
@@ -333,7 +341,7 @@ func TestRunOpenvoxAgentBuildsCommand(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			runner := &shelltest.Recorder{}
 
-			if err := runOpenvoxAgent(runner, test.cfg, test.environment, test.tags); err != nil {
+			if err := runOpenvoxAgent(runner, test.cfg, test.environment, test.tags, test.enforce); err != nil {
 				t.Fatalf("runOpenvoxAgent returned %v", err)
 			}
 

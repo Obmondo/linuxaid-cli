@@ -10,6 +10,8 @@ import (
 var (
 	openvoxEnvFlag string
 	openvoxTagFlag string
+	// runOpenvoxEnforce applies changes (puppet --no-noop) instead of the default report-only (--noop).
+	runOpenvoxEnforce bool
 )
 
 var runOpenvoxCmd = &cobra.Command{
@@ -20,11 +22,13 @@ var runOpenvoxCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(*cobra.Command, []string) error {
-		return app.RunOpenvox(cfg, openvoxEnvFlag, openvoxTagFlag)
+		return app.RunOpenvox(cfg, openvoxEnvFlag, openvoxTagFlag, runOpenvoxEnforce)
 	},
 }
 
 func init() {
+	runOpenvoxCmd.Flags().BoolVar(&runOpenvoxEnforce, constant.CobraFlagEnforce, false,
+		"Apply changes by running puppet with --no-noop (default is report-only --noop)")
 	rootCmd.AddCommand(runOpenvoxCmd)
 
 	// no default here: an unset flag means "ask the API", which is what a normal run does

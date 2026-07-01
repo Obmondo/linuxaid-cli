@@ -12,8 +12,8 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 )
 
-// Run the puppet agent in noop mode for now
-func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment, tags string) error {
+// runOpenvoxAgent runs the puppet agent: report-only (--noop), or applying changes when enforce is set.
+func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment, tags string, enforce bool) error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -30,7 +30,11 @@ func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment, tags s
 	statusCodeFailed := 1
 	statusCodeSucceededWithChanges := 2
 
+	// Report-only by default; enforce applies changes and asks for detailed exit codes.
 	agentCmd := "/opt/puppetlabs/bin/puppet agent -t --noop"
+	if enforce {
+		agentCmd = "/opt/puppetlabs/bin/puppet agent -t --no-noop --detailed-exitcodes"
+	}
 	// The agent decides the environment: the ENC no longer sends one, and puppet.conf no longer
 	// pins one, so an environment missing here would leave the run on puppet's own default.
 	if environment != "" {
@@ -71,7 +75,7 @@ func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment, tags s
 // Entry point
 // RunOpenvox performs one puppet agent run. As with SystemUpdate, nil means "nothing more to do"
 // rather than "everything succeeded": the paths that give up quietly keep their exit 0.
-func RunOpenvox(cfg config.Config, environmentFlag, tagFlag string) error {
+func RunOpenvox(cfg config.Config, environmentFlag, tagFlag string, enforce bool) error {
 	if err := puppet.LoadPuppetEnv(); err != nil {
 		return err
 	}
@@ -110,7 +114,7 @@ func RunOpenvox(cfg config.Config, environmentFlag, tagFlag string) error {
 	slog.Info("resolved puppet environment", slog.String("environment", environment))
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runOpenvoxAgent(shell.New(), cfg, environment, tagFlag); err != nil {
+	if err := runOpenvoxAgent(shell.New(), cfg, environment, tagFlag, enforce); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
