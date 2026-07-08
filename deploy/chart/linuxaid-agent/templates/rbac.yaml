@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linuxaid-agent
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+---
+# Nodes are cluster-scoped: list drives the fan-out, get backs --node runs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: linuxaid-agent-nodes
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: linuxaid-agent-nodes
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: linuxaid-agent-nodes
+subjects:
+  - kind: ServiceAccount
+    name: linuxaid-agent
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: linuxaid-agent-jobs
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: linuxaid-agent-jobs
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: linuxaid-agent-jobs
+subjects:
+  - kind: ServiceAccount
+    name: linuxaid-agent
+    namespace: {{ .Release.Namespace }}

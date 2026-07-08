@@ -1,0 +1,14 @@
+# The rendered Helm values ARE the node's hiera data: the operator mounts this
+# ConfigMap into every per-node Job at /hiera-data, the Job stages it onto the
+# host, and puppet apply reads it as the (highest-precedence) global hiera layer.
+# linuxaid.tag is injected as common::system::openvox::environment so the puppet
+# code knows which control-repo tag it was applied from.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linuxaid-agent-hiera
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+data:
+  values.yaml: |
+    {{- toYaml (merge (dict "common::system::openvox::environment" (required "linuxaid.tag is required" .Values.linuxaid.tag)) .Values.hiera) | nindent 4 }}
