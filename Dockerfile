@@ -16,7 +16,9 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     CGO_ENABLED=0 go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-cli ./cmd/linuxaid-cli
 
 FROM alpine:3.20
-RUN apk add --no-cache bash util-linux ca-certificates
+# git + openssh-client: apply mode clones the puppet code in-container into the
+# /opt/obmondo hostPath (the host itself is not required to have git).
+RUN apk add --no-cache bash util-linux ca-certificates git openssh-client
 COPY --from=build /out/linuxaid-cli /usr/local/bin/linuxaid-cli
 COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
