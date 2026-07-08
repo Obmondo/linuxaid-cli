@@ -21,6 +21,13 @@ const (
 	DefaultPuppetServerCustomerID   = "enableit"
 	DefaultPuppetServerDomainSuffix = ".puppet.obmondo.com"
 	DefaultOpenvoxEnv               = "master"
+	// DefaultEnvironmentPath is where the per-node Job clones the puppet code for
+	// masterless apply; it must live under the /opt/obmondo hostPath mount so the
+	// host-side puppet sees it at the same absolute path.
+	DefaultEnvironmentPath = "/opt/obmondo/openvox/code/environments"
+	// DefaultHieraConfig is the global-layer hiera.yaml the Job generates; its
+	// hierarchy points at the Helm-values data staged under /opt/obmondo.
+	DefaultHieraConfig = "/opt/obmondo/openvox/hiera.yaml"
 
 	// Progress Bar
 	BarProgressSize    = 100
@@ -40,6 +47,10 @@ const (
 	CobraFlagOpenvoxEnv          = "openvox-environment"
 	CobraFlagNoReboot            = "no-reboot"
 	CobraFlagSkipOpenvox         = "skip-openvox"
+	CobraFlagEnforce             = "enforce"
+	CobraFlagApply               = "apply"
+	CobraFlagEnvironmentPath     = "environmentpath"
+	CobraFlagHieraConfig         = "hiera-config"
 	CobraFlagSecurityExporterURL = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"

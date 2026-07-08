@@ -1,0 +1,27 @@
+linuxaid:
+  # Control-repo tag to apply on every node. Pins the git checkout AND is
+  # injected into the hiera data as common::system::openvox::environment.
+  tag: ""
+  controlRepoURL: https://github.com/Obmondo/linuxaid.git
+  # obmondo-clientcert CN, <cluster>.<customerID>
+  certname: ""
+  # false = report-only (puppet --noop); true = apply changes
+  enforce: false
+  # reconcile interval of the operator (one Job per node per cycle)
+  interval: 4h
+  openvoxEnvironment: master
+  images:
+    operator: gitea.obmondo.com/enableit/linuxaid-agent:latest
+    agent: gitea.obmondo.com/enableit/linuxaid-cli:latest
+  # secret with the pre-signed puppet client cert (tls.crt / tls.key / ca.crt)
+  certSecret: obmondo-clientcert
+  # secret with git credentials for the control-repo: key `ssh-privatekey`
+  # (SSH remotes) or `token` (https remotes). Empty = public repo, no credentials.
+  gitSecret: ""
+
+# Free-form hiera data for every node in the cluster, rendered verbatim into
+# the ConfigMap the Jobs mount — anything hiera-legal works, e.g.:
+#   classes:
+#     - role::kubeaid
+#   common::monitor::prometheus::server: prometheus.demo.example.com
+hiera: {}

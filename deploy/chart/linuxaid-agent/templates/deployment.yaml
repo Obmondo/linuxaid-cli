@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: linuxaid-agent
+  labels:
+    app.kubernetes.io/name: linuxaid-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: linuxaid-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: linuxaid-agent
+    spec:
+      serviceAccountName: linuxaid-agent
+      containers:
+        - name: operator
+          image: {{ .Values.linuxaid.images.operator }}
+          args:
+            - operator
+            - --image={{ .Values.linuxaid.images.agent }}
+            - --certname={{ required "linuxaid.certname is required" .Values.linuxaid.certname }}
+            - --control-repo-url={{ .Values.linuxaid.controlRepoURL }}
+            - --control-repo-ref={{ required "linuxaid.tag is required" .Values.linuxaid.tag }}
+            - --hiera-configmap=linuxaid-agent-hiera
+            - --cert-secret={{ .Values.linuxaid.certSecret }}
+            {{- if .Values.linuxaid.gitSecret }}
+            - --git-secret={{ .Values.linuxaid.gitSecret }}
+            {{- end }}
+            - --openvox-environment={{ .Values.linuxaid.openvoxEnvironment }}
+            - --interval={{ .Values.linuxaid.interval }}
+            {{- if .Values.linuxaid.enforce }}
+            - --enforce
+            {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

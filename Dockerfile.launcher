@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+#
+# Fan-out launcher image: the in-cluster controller (linuxaid-agent) that lists
+# nodes and creates one per-node agent Job each run. It is only a Kubernetes API
+# client — no host access — so it runs non-root with no extra tooling.
+
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+RUN apk add --no-cache git
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+ARG VERSION=spike
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-agent ./cmd/linuxaid-agent
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+COPY --from=build /out/linuxaid-agent /usr/local/bin/linuxaid-agent
+USER 65534:65534
+ENTRYPOINT ["/usr/local/bin/linuxaid-agent"]
