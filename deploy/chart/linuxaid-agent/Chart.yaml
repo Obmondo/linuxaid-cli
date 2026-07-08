@@ -1,0 +1,10 @@
+apiVersion: v2
+name: linuxaid-agent
+description: >-
+  LinuxAid OpenVox agent for Kubernetes nodes: an operator Deployment that
+  reconciles one per-node Job every interval; each Job clones the puppet
+  control-repo at the pinned tag and runs masterless puppet apply on its node,
+  with the chart values as the global hiera layer.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
