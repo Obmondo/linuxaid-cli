@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +17,10 @@ const (
 	metricsFile = "/var/lib/node_exporter/obmondo_domains_reachable.prom"
 
 	apiHost = "api.obmondo.com"
+
+	// skipMetricsEnv, when set, skips writing the node_exporter textfile metric
+	// (used to disable it in environments like Kubernetes that lack it).
+	skipMetricsEnv = "OBMONDO_SKIP_CONNECTIVITY_METRICS"
 )
 
 var runPuppetMetric *prometheus.GaugeVec
@@ -64,10 +69,13 @@ func CheckTCPConnection(prometheusHost, puppetServerHost string) bool {
 		runPuppetMetric.WithLabelValues(host, port).Set(0)
 	}
 
-	// Metrics are best-effort: the node_exporter textfile directory may not
-	// exist on this system, and that must not fail the connectivity check.
-	if err := prometheus.WriteToTextfile(metricsFile, registry); err != nil {
-		slog.Warn("failed to write connectivity metrics", slog.String("error", err.Error()))
+	// The .prom metric feeds the node_exporter textfile collector; skip it where that
+	// isn't present (e.g. Kubernetes). The write is best-effort either way: a failure
+	// must not fail the connectivity check.
+	if os.Getenv(skipMetricsEnv) == "" {
+		if err := prometheus.WriteToTextfile(metricsFile, registry); err != nil {
+			slog.Warn("failed to write connectivity metrics", slog.String("error", err.Error()))
+		}
 	}
 
 	return allAPIReachable
