@@ -38,12 +38,15 @@ This produces two binaries: `linuxaid-install` and `linuxaid-cli`.
 
 ### linuxaid-install
 
-Initial system provisioning tool that installs and configures the Puppet agent (openvox-agent). Requires an `TOKEN` environment variable for authentication.
+Initial system provisioning tool that installs and configures the Puppet agent (openvox-agent). Obmondo customers authenticate with the `TOKEN` environment variable; opensource users can run it without a token.
 
 **Usage:**
 
 ```bash
-TOKEN='your-token'
+# Obmondo customers
+TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
+
+# Opensource users (no token required)
 linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
 ```
 

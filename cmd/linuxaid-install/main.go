@@ -26,7 +26,10 @@ var rootCmd = &cobra.Command{
 	Use:   "linuxaid-install",
 	Short: "Setup your server with linuxaid-install",
 	Example: `
-	$ TOKEN='your-token'
+	# Obmondo customers (token verified against Obmondo)
+	$ TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
+
+	# Opensource users (no token required)
 	$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
 	`,
 	Version: Version,
@@ -46,14 +49,6 @@ var rootCmd = &cobra.Command{
 			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("CERTNAME"))
 
 			slog.Debug("certname is required. Provide via --certname flag or CERTNAME environment variable")
-			os.Exit(1)
-		}
-
-		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
-			errMsg := "Uh ho. I couldn't figure out the token, please provide one as an ENV"
-			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow(constant.InstallTokenEnv))
-
-			slog.Debug("install token is required. Provide via TOKEN environment variable")
 			os.Exit(1)
 		}
 

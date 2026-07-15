@@ -5,11 +5,10 @@ PROJECT="linuxaid-cli"
 REPO="Obmondo/$PROJECT"
 API_URL="https://api.github.com/repos/$REPO/releases/latest"
 BIN_DIR="/usr/local/bin"
-BIN_NAME="linuxaid-install"
+BIN_NAMES=("linuxaid-install" "linuxaid-cli")
 
 function cleanup() {
-    rm -rf "$TMP_DIR"
-    exit 130
+    rm -rf "${TMP_DIR:-}"
 }
 
 # -------------------------------------------------
@@ -45,8 +44,9 @@ SOURCE_CHECKSUM=$(curl -sSf "https://api.github.com/repos/$REPO/releases/latest"
 # -------------------------------------------------
 # 4. Download the package from Github
 # -------------------------------------------------
-# Trap SIGTERM (15), SIGINT (2 - Ctrl+C), and SIGHUP (1)
-trap cleanup SIGTERM SIGINT SIGHUP EXIT
+# Clean up the temp dir on exit; signals (SIGTERM/SIGINT/SIGHUP) still
+# terminate the script with the conventional 128+N exit status.
+trap cleanup EXIT
 
 TMP_DIR=$(mktemp -d /tmp/${PROJECT}-XXX)
 curl -sL -o "$TMP_DIR/$ASSET" "$DOWNLOAD_URL"
@@ -61,9 +61,10 @@ if [[ "$SOURCE_CHECKSUM" != "$ACTUAL_CHECKSUM" ]]; then
 fi
 
 # -------------------------------------------------
-# 6. Extract and execute the linuxaid-install binary
+# 6. Extract and install the binaries
 # -------------------------------------------------
 tar -xzf "$TMP_DIR/$ASSET" -C "$TMP_DIR"
-mv "$TMP_DIR/$BIN_NAME" "$BIN_DIR"
-
-"$BIN_DIR/$BIN_NAME"
+for bin in "${BIN_NAMES[@]}"; do
+    mv "$TMP_DIR/$bin" "$BIN_DIR"
+    echo "✔ $bin $TAG installed to $BIN_DIR"
+done

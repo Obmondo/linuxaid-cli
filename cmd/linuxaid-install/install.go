@@ -110,15 +110,19 @@ func Install() {
 		return
 	}
 
-	if err := progress.NonDeterministicFunc("Verifying Token", func() error {
-		input := &api.InstallScriptInput{
-			Certname: certname,
-			Token:    os.Getenv(constant.InstallTokenEnv),
-		}
+	// Token is only required for Obmondo customers; opensource users can run
+	// the setup without one.
+	if token, isSet := os.LookupEnv(constant.InstallTokenEnv); isSet {
+		if err := progress.NonDeterministicFunc("Verifying Token", func() error {
+			input := &api.InstallScriptInput{
+				Certname: certname,
+				Token:    token,
+			}
 
-		return obmondoAPI.VerifyInstallToken(input)
-	}); err != nil {
-		os.Exit(1)
+			return obmondoAPI.VerifyInstallToken(input)
+		}); err != nil {
+			os.Exit(1)
+		}
 	}
 
 	if err := progress.NonDeterministicFunc("Checking Compatibility", func() error {
