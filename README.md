@@ -85,7 +85,7 @@ Configuration uses a three-tier precedence system via Viper:
 
 These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
-- `--certname` / `CERTNAME` - Certificate name (required)
+- `--certname` / `CERTNAME` - Certificate name (defaults to the machine's FQDN)
 - `--debug` / `DEBUG` - Enable debug logging
 
 ## `linuxaid-install` Specific Flags

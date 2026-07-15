@@ -63,7 +63,7 @@ func init() {
 	defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (defaults to the machine's FQDN)")
 	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
 	rootCmd.Flags().StringVar(&openvoxEnvFlag, constant.CobraFlagOpenvoxEnv, constant.DefaultOpenvoxEnv, "Openvox environment (Linuxaid release version)")
 

@@ -67,7 +67,30 @@ func GetCertname() string {
 		return certname
 	}
 
-	return config.GetCertname()
+	if certname := config.GetCertname(); certname != "" {
+		return certname
+	}
+
+	return getHostnameFQDN()
+}
+
+// getHostnameFQDN returns the machine's fully qualified hostname, falling back
+// to the short hostname when the FQDN cannot be resolved. Certnames are always
+// lowercase.
+func getHostnameFQDN() string {
+	if fqdn, err := script.Exec("hostname -f").String(); err == nil {
+		if fqdn = strings.TrimSpace(fqdn); fqdn != "" {
+			return strings.ToLower(fqdn)
+		}
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		slog.Debug("failed to get hostname", slog.Any("error", err))
+		return ""
+	}
+
+	return strings.ToLower(hostname)
 }
 
 func GetCustomerID(certname string) string {
