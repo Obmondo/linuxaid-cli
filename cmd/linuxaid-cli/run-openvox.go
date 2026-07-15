@@ -88,15 +88,17 @@ func RunOpenvox() {
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServerHost))
 
-	allAPIReachable := checkconnectivity.CheckTCPConnection(prometheusHost, puppetServerHost)
-	if !allAPIReachable {
-		slog.Error("unable to connect to required hosts, aborting",
-			slog.String("prometheus", prometheusHost),
-			slog.String("puppet_server", puppetServerHost))
-		return
-	}
-
+	// The connectivity check targets Obmondo hosts (api, prometheus), which
+	// are only relevant for nodes registered with a token.
 	if !opensource {
+		allAPIReachable := checkconnectivity.CheckTCPConnection(prometheusHost, puppetServerHost)
+		if !allAPIReachable {
+			slog.Error("unable to connect to required hosts, aborting",
+				slog.String("prometheus", prometheusHost),
+				slog.String("puppet_server", puppetServerHost))
+			return
+		}
+
 		// nolint:errcheck
 		obmondoAPI.ServerPing()
 	}
