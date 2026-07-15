@@ -112,7 +112,8 @@ func Install() {
 
 	// Token is only required for Obmondo customers; opensource users can run
 	// the setup without one.
-	if token, isSet := os.LookupEnv(constant.InstallTokenEnv); isSet {
+	token, hasToken := os.LookupEnv(constant.InstallTokenEnv)
+	if hasToken {
 		if err := progress.NonDeterministicFunc("Verifying Token", func() error {
 			input := &api.InstallScriptInput{
 				Certname: certname,
@@ -123,6 +124,12 @@ func Install() {
 		}); err != nil {
 			os.Exit(1)
 		}
+	}
+
+	// Remember the mode so linuxaid-cli knows to skip Obmondo API calls on
+	// opensource nodes.
+	if err := helper.SetOpensourceMode(!hasToken); err != nil {
+		slog.Warn("failed to record opensource mode", slog.Any("error", err))
 	}
 
 	if err := progress.NonDeterministicFunc("Checking Compatibility", func() error {
@@ -156,8 +163,10 @@ func Install() {
 	progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 		puppetService.RunAgent(true, "noop")
-		// nolint:errcheck
-		obmondoAPI.UpdatePuppetLastRunReport()
+		if hasToken {
+			// nolint:errcheck
+			obmondoAPI.UpdatePuppetLastRunReport()
+		}
 		return nil
 	})
 

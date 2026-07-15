@@ -269,6 +269,12 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 		}
 	}()
 
+	// Opensource nodes are not registered with Obmondo, so there are no
+	// customer settings to look up.
+	if helper.IsOpensourceMode() {
+		return
+	}
+
 	customerID := helper.GetCustomerID(certname)
 	if customerID == "" {
 		slog.Warn("could not determine customer ID from certname, using defaults",

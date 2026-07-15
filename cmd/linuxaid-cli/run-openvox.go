@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
@@ -38,8 +39,18 @@ func runOpenvoxAgent() error {
 	statusCodeFailed := 1
 	statusCodeSucceededWithChanges := 2
 
+	agentCmd := "/opt/puppetlabs/bin/puppet agent -t --noop"
+	// An explicit --puppet-server/PUPPET_SERVER override must reach the agent
+	// too, otherwise it keeps using the server from puppet.conf.
+	if server := config.GetOpenvoxServer(); server != "" {
+		if h := extractHostname(server); h != "" {
+			server = h
+		}
+		agentCmd += " --server " + server
+	}
+
 	slog.Info("executing the puppet agent command")
-	cmdPipe := script.Exec("/opt/puppetlabs/bin/puppet agent -t --noop")
+	cmdPipe := script.Exec(agentCmd)
 	_, err := cmdPipe.Stdout()
 	if err != nil {
 		// When encountering status code 1, consider it as an error, and return.
@@ -64,6 +75,13 @@ func RunOpenvox() {
 
 	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
 
+	// Opensource nodes are not registered with Obmondo, so the API would
+	// reject every call; skip them instead of logging errors on each run.
+	opensource := helper.IsOpensourceMode()
+	if opensource {
+		slog.Info("opensource mode, skipping Obmondo API calls")
+	}
+
 	certname := helper.GetCertname()
 	prometheusHost, puppetServerHost := resolveCustomerURLs(obmondoAPI, certname)
 	slog.Info("resolved customer URLs",
@@ -78,16 +96,20 @@ func RunOpenvox() {
 		return
 	}
 
-	// nolint:errcheck
-	obmondoAPI.ServerPing()
+	if !opensource {
+		// nolint:errcheck
+		obmondoAPI.ServerPing()
+	}
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
 	if err := runOpenvoxAgent(); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
-	// nolint:errcheck
-	obmondoAPI.UpdatePuppetLastRunReport()
+	if !opensource {
+		// nolint:errcheck
+		obmondoAPI.UpdatePuppetLastRunReport()
+	}
 }
 
 func init() {
