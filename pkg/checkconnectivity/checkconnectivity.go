@@ -64,9 +64,10 @@ func CheckTCPConnection(prometheusHost, puppetServerHost string) bool {
 		runPuppetMetric.WithLabelValues(host, port).Set(0)
 	}
 
+	// Metrics are best-effort: the node_exporter textfile directory may not
+	// exist on this system, and that must not fail the connectivity check.
 	if err := prometheus.WriteToTextfile(metricsFile, registry); err != nil {
-		slog.Info("Error writing metrics to file:", slog.String("error", err.Error()))
-		return false
+		slog.Warn("failed to write connectivity metrics", slog.String("error", err.Error()))
 	}
 
 	return allAPIReachable
