@@ -87,10 +87,10 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 - `--certname` / `CERTNAME` - Certificate name (defaults to the machine's FQDN)
 - `--debug` / `DEBUG` - Enable debug logging
+- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname (for `linuxaid-install`, required when no `TOKEN` is set; for `linuxaid-cli`, overrides the customer settings)
 
 ## `linuxaid-install` Specific Flags
 
-- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname
 - `--openvox-environment` / `OPENVOX_ENVIRONMENT` - Openvox environment (Linuxaid release version)
 
 ## `linuxaid-cli` Command-Specific Flags

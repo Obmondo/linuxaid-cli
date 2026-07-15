@@ -52,6 +52,20 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Without a token, the default Obmondo shared server will never sign
+		// the agent's certificate, so opensource users must point at a puppet
+		// server they control.
+		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
+			defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
+			if config.GetOpenvoxServer() == defaultServer {
+				errMsg := "Uh ho. Without a TOKEN, the Obmondo server can't sign your certificate. Set the TOKEN env, or pass your own server via"
+				prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("--puppet-server"))
+
+				slog.Debug("no token set and puppet server is the Obmondo default. Provide TOKEN or --puppet-server")
+				os.Exit(1)
+			}
+		}
+
 		return nil
 	},
 	Run: func(*cobra.Command, []string) {
