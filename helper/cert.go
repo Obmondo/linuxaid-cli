@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
 
@@ -67,7 +68,32 @@ func GetCertname() string {
 		return certname
 	}
 
-	return config.GetCertname()
+	if certname := config.GetCertname(); certname != "" {
+		return certname
+	}
+
+	return getHostnameFQDN()
+}
+
+// getHostnameFQDN returns the machine's fully qualified hostname, falling back
+// to the short hostname when the FQDN cannot be resolved. Certnames are always
+// lowercase.
+func getHostnameFQDN() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		slog.Debug("failed to get hostname", slog.Any("error", err))
+		return ""
+	}
+	hostname = strings.ToLower(hostname)
+
+	// Resolve the canonical name, like `hostname -f` does via getaddrinfo.
+	if cname, err := net.LookupCNAME(hostname); err == nil {
+		if fqdn := strings.ToLower(strings.TrimSuffix(cname, ".")); fqdn != "" {
+			return fqdn
+		}
+	}
+
+	return hostname
 }
 
 func GetCustomerID(certname string) string {

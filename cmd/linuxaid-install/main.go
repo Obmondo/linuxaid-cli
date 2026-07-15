@@ -26,7 +26,10 @@ var rootCmd = &cobra.Command{
 	Use:   "linuxaid-install",
 	Short: "Setup your server with linuxaid-install",
 	Example: `
-	$ TOKEN='your-token'
+	# Obmondo customers (token verified against Obmondo)
+	$ TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
+
+	# Opensource users (no token required)
 	$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
 	`,
 	Version: Version,
@@ -49,12 +52,18 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Without a token, the default Obmondo shared server will never sign
+		// the agent's certificate, so opensource users must point at a puppet
+		// server they control.
 		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
-			errMsg := "Uh ho. I couldn't figure out the token, please provide one as an ENV"
-			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow(constant.InstallTokenEnv))
+			defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
+			if config.GetOpenvoxServer() == defaultServer {
+				errMsg := "Uh ho. Without a TOKEN, the Obmondo server can't sign your certificate. Set the TOKEN env, or pass your own server via"
+				prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("--puppet-server"))
 
-			slog.Debug("install token is required. Provide via TOKEN environment variable")
-			os.Exit(1)
+				slog.Debug("no token set and puppet server is the Obmondo default. Provide TOKEN or --puppet-server")
+				os.Exit(1)
+			}
 		}
 
 		return nil
@@ -68,7 +77,7 @@ func init() {
 	defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
-	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
+	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (defaults to the machine's FQDN)")
 	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
 	rootCmd.Flags().StringVar(&openvoxEnvFlag, constant.CobraFlagOpenvoxEnv, constant.DefaultOpenvoxEnv, "Openvox environment (Linuxaid release version)")
 

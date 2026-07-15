@@ -258,6 +258,23 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 	prometheusHost = defaultPrometheusHost
 	puppetServerHost = defaultPuppetServer
 
+	// An explicitly provided puppet server (--puppet-server flag or
+	// PUPPET_SERVER env) always wins over customer settings.
+	defer func() {
+		if server := config.GetOpenvoxServer(); server != "" {
+			if h := extractHostname(server); h != "" {
+				server = h
+			}
+			puppetServerHost = server
+		}
+	}()
+
+	// Opensource nodes are not registered with Obmondo, so there are no
+	// customer settings to look up.
+	if helper.IsOpensourceMode() {
+		return
+	}
+
 	customerID := helper.GetCustomerID(certname)
 	if customerID == "" {
 		slog.Warn("could not determine customer ID from certname, using defaults",

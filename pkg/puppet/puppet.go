@@ -168,7 +168,14 @@ environment = %s
 
 // Check server status
 func (s *Service) CheckServerStatus() error {
-	url := fmt.Sprintf("%s/status/v1/services", s.openvoxServer)
+	// The openvox server value is a bare hostname; default to https when no
+	// scheme is present.
+	server := s.openvoxServer
+	if parsed, err := url.Parse(server); err != nil || parsed.Scheme == "" {
+		server = "https://" + server
+	}
+
+	statusURL := fmt.Sprintf("%s/status/v1/services", server)
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -177,9 +184,9 @@ func (s *Service) CheckServerStatus() error {
 		Timeout: 5 * time.Second,
 	}
 
-	resp, err := client.Get(url)
+	resp, err := client.Get(statusURL)
 	if err != nil {
-		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to reach Puppet server: %s", err)}, s.certName)
+		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo Unable to reach Puppetserver: %s", err)}, s.certName)
 		return err
 	}
 	defer resp.Body.Close()
