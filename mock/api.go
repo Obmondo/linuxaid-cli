@@ -41,9 +41,14 @@ func (*MockObmondoClient) FetchServiceWindowStatus() (*http.Response, error) {
 		"status":  http.StatusOK,
 		"success": true,
 		"data": map[string]any{
-			"is_window_open": true,
-			"window_type":    "automatic",
-			"timezone":       "UTC",
+			"is_window_open":    true,
+			"does_window_exist": true,
+			"window_type":       "automatic",
+			"timezone":          "UTC",
+			"linux": map[string]any{
+				"linuxaid_tag": "11.0.0",
+				"needs_reboot": true,
+			},
 		},
 		"message":    "successfully got current service window status",
 		"resolution": "",
