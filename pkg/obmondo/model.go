@@ -25,10 +25,18 @@ type ObmondoAPIResponse[T any] struct {
 	ErrorText  string `json:"error_text"`
 }
 
+type LinuxWindowDetails struct {
+	LinuxAidTag string `json:"linuxaid_tag,omitempty"`
+	NeedsReboot bool   `json:"needs_reboot"`
+}
+
 type ServiceWindow struct {
-	IsWindowOpen bool   `json:"is_window_open"`
-	WindowType   string `json:"window_type"`
-	Timezone     string `json:"timezone"`
+	IsWindowOpen             bool                `json:"is_window_open"`
+	DoesWindowExist          bool                `json:"does_window_exist"`
+	WindowType               string              `json:"window_type"`
+	Timezone                 string              `json:"timezone"`
+	NextWindowLocalStartTime string              `json:"next_window_local_start_time,omitempty"`
+	Linux                    *LinuxWindowDetails `json:"linux,omitempty"`
 }
 
 type LinuxAidSettings struct {

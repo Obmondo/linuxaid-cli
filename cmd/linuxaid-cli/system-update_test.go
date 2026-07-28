@@ -39,6 +39,19 @@ func TestGetServiceWindowStatus(t *testing.T) {
 		t.Errorf("Expected window timezone to be 'UTC', but got: %s", serviceWindowNow.Timezone)
 	}
 
+	if !serviceWindowNow.DoesWindowExist {
+		t.Errorf("Expected service window to exist, but got: %t", serviceWindowNow.DoesWindowExist)
+	}
+	if serviceWindowNow.Linux == nil {
+		t.Fatal("Expected linux window details to be present, but got nil")
+	}
+	if !serviceWindowNow.Linux.NeedsReboot {
+		t.Errorf("Expected needs reboot to be true, but got: %t", serviceWindowNow.Linux.NeedsReboot)
+	}
+	if serviceWindowNow.Linux.LinuxAidTag != "11.0.0" {
+		t.Errorf("Expected linuxaid tag to be '11.0.0', but got: %s", serviceWindowNow.Linux.LinuxAidTag)
+	}
+
 }
 
 func TestCloseWindow(t *testing.T) {
