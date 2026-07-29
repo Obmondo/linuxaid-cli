@@ -15,10 +15,11 @@ import (
 var Version string
 
 var (
-	debugFlag       bool
-	rebootFlag      bool
-	certnameFlag    string
-	skipOpenvoxFlag bool
+	debugFlag         bool
+	rebootFlag        bool
+	certnameFlag      string
+	openvoxServerFlag string
+	skipOpenvoxFlag   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -52,14 +53,17 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVar(&debugFlag, constant.CobraFlagDebug, false, "Enable debug logs")
 	rootCmd.PersistentFlags().StringVar(&certnameFlag, constant.CobraFlagCertname, "", "Certificate name (required)")
+	rootCmd.PersistentFlags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, "", "Puppet server hostname (overrides customer settings)")
 
 	// Bind flags to viper
 	v.BindPFlag(constant.CobraFlagDebug, rootCmd.PersistentFlags().Lookup(constant.CobraFlagDebug))
 	v.BindPFlag(constant.CobraFlagCertname, rootCmd.PersistentFlags().Lookup(constant.CobraFlagCertname))
+	v.BindPFlag(constant.CobraFlagOpenvoxServer, rootCmd.PersistentFlags().Lookup(constant.CobraFlagOpenvoxServer))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagDebug)
 	v.BindEnv(constant.CobraFlagCertname)
+	v.BindEnv(constant.CobraFlagOpenvoxServer, "PUPPET_SERVER")
 
 }
 

@@ -13,6 +13,9 @@ const (
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
 	InstallTokenEnv    = "TOKEN"
 	ExternalFacterFile = "/etc/puppetlabs/facter/facts.d/new_installation.yaml"
+	// Marker written by linuxaid-install when the node was set up without an
+	// Obmondo token; linuxaid-cli skips Obmondo API calls when it exists.
+	OpensourceModeFile = "/etc/obmondo/opensource-mode"
 	PuppetPrivKeyPath  = "/etc/puppetlabs/puppet/ssl/private_keys"
 
 	// Lock and Disabled

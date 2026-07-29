@@ -38,12 +38,15 @@ This produces two binaries: `linuxaid-install` and `linuxaid-cli`.
 
 ### linuxaid-install
 
-Initial system provisioning tool that installs and configures the Puppet agent (openvox-agent). Requires an `TOKEN` environment variable for authentication.
+Initial system provisioning tool that installs and configures the Puppet agent (openvox-agent). Obmondo customers authenticate with the `TOKEN` environment variable; opensource users can run it without a token.
 
 **Usage:**
 
 ```bash
-TOKEN='your-token'
+# Obmondo customers
+TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
+
+# Opensource users (no token required)
 linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
 ```
 
@@ -82,12 +85,12 @@ Configuration uses a three-tier precedence system via Viper:
 
 These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
-- `--certname` / `CERTNAME` - Certificate name (required)
+- `--certname` / `CERTNAME` - Certificate name (defaults to the machine's FQDN)
 - `--debug` / `DEBUG` - Enable debug logging
+- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname (for `linuxaid-install`, required when no `TOKEN` is set; for `linuxaid-cli`, overrides the customer settings)
 
 ## `linuxaid-install` Specific Flags
 
-- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname
 - `--openvox-environment` / `OPENVOX_ENVIRONMENT` - Openvox environment (Linuxaid release version)
 
 ## `linuxaid-cli` Command-Specific Flags
