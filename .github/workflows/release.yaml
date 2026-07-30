@@ -26,3 +26,64 @@ jobs:
           args: release --clean -f .goreleaser-github.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  bump-linuxaid:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout linuxaid-cli
+        uses: actions/checkout@v5.0.0
+
+      - name: Compute version
+        id: version
+        run: |
+          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ steps.version.outputs.tag }}" \
+            --repo Obmondo/linuxaid-cli \
+            --pattern "linuxaid-cli_${{ steps.version.outputs.version }}_checksums.txt" \
+            --output checksums.txt
+
+      - name: Checkout LinuxAid
+        uses: actions/checkout@v5.0.0
+        with:
+          repository: Obmondo/LinuxAid
+          token: ${{ secrets.LINUXAID_REPO_TOKEN }}
+          path: LinuxAid
+
+      - name: Bump version and checksums in LinuxAid hiera data
+        run: |
+          python3 scripts/bump-linuxaid-hiera.py LinuxAid "${{ steps.version.outputs.version }}" checksums.txt
+
+      - name: Open PR against LinuxAid
+        env:
+          GH_TOKEN: ${{ secrets.LINUXAID_REPO_TOKEN }}
+        working-directory: LinuxAid
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="bump-linuxaid-cli-${VERSION}"
+
+          if ! git diff --quiet; then
+            git config user.name "obmondo-bot"
+            git config user.email "bot@obmondo.com"
+            git checkout -B "${BRANCH}"
+            git add modules/enableit/common/data/common.yaml \
+              modules/enableit/common/data/architectures/armv7l.yaml \
+              modules/enableit/common/data/architectures/aarch64.yaml
+            git commit -m "Bump linuxaid-cli to ${VERSION}" \
+              -m "Automated bump triggered by Obmondo/linuxaid-cli release v${VERSION}. Checksums taken from the release's checksums.txt. Keeps the newest 4 versions in each hiera checksums map."
+            git push --force-with-lease origin "${BRANCH}"
+            gh pr create \
+              --repo Obmondo/LinuxAid \
+              --title "Bump linuxaid-cli to ${VERSION}" \
+              --body "Automated bump triggered by [Obmondo/linuxaid-cli v${VERSION}](https://github.com/Obmondo/linuxaid-cli/releases/tag/v${VERSION})." \
+              --head "${BRANCH}" \
+              || echo "PR create failed or already exists for ${BRANCH}, check manually."
+          else
+            echo "No changes detected, skipping PR (already up to date)."
+          fi
