@@ -41,6 +41,11 @@ jobs:
       - name: Checkout linuxaid-cli
         uses: actions/checkout@v5.0.0
 
+      - name: Set up Go
+        uses: actions/setup-go@v6.0.0
+        with:
+          go-version-file: go.mod
+
       - name: Compute version
         id: version
         run: |
@@ -66,7 +71,7 @@ jobs:
 
       - name: Bump version and checksums in LinuxAid hiera data
         run: |
-          python3 scripts/bump-linuxaid-hiera.py LinuxAid "${{ steps.version.outputs.version }}" checksums.txt
+          go run ./scripts/bump-linuxaid-hiera LinuxAid "${{ steps.version.outputs.version }}" checksums.txt
 
       - name: Open PR against LinuxAid
         env:
