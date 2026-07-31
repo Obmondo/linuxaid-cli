@@ -77,6 +77,8 @@ func (s *Provisioner) provisionForDebian() error {
 		ubuntuVersion = "ubuntu22.04"
 	case "noble":
 		ubuntuVersion = "ubuntu24.04"
+	case "resolute":
+		ubuntuVersion = "ubuntu26.04"
 	}
 
 	switch runtime.GOARCH {
