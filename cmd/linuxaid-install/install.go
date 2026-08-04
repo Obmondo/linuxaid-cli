@@ -162,7 +162,7 @@ func Install() {
 	// nolint: errcheck
 	progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-		puppetService.RunAgent(true, "noop")
+		puppetService.RunAgent(true, "noop", openvoxEnv)
 		if hasToken {
 			// nolint:errcheck
 			obmondoAPI.UpdatePuppetLastRunReport()
