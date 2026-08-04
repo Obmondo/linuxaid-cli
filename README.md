@@ -91,7 +91,7 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 ## `linuxaid-install` Specific Flags
 
-- `--environment` / `-E` / `OPENVOX_ENVIRONMENT` - Openvox environment to install (Linuxaid release version, default `master`). `--openvox-environment` is still accepted as a deprecated alias
+- `--environment` / `-E` / `OPENVOX_ENVIRONMENT` - Openvox environment to install (Linuxaid release version, default `master`)
 
 ## `linuxaid-cli` Command-Specific Flags
 

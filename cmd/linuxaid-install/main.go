@@ -11,7 +11,6 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
-	"github.com/spf13/pflag"
 )
 
 var Version string
@@ -81,30 +80,23 @@ func init() {
 	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (defaults to the machine's FQDN)")
 	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
 	rootCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, constant.DefaultOpenvoxEnv, "Openvox environment to install (Linuxaid release version)")
-	// --openvox-environment was the original name and appears in the documented install commands
-	rootCmd.SetGlobalNormalizationFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
-		if name == constant.CobraFlagOpenvoxEnv {
-			name = constant.CobraFlagEnvironment
-		}
-		return pflag.NormalizedName(name)
-	})
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
 	v.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
 	v.BindPFlag(constant.CobraFlagCertname, rootCmd.Flags().Lookup(constant.CobraFlagCertname))
 	v.BindPFlag(constant.CobraFlagOpenvoxServer, rootCmd.Flags().Lookup(constant.CobraFlagOpenvoxServer))
-	v.BindPFlag(constant.CobraFlagOpenvoxEnv, rootCmd.Flags().Lookup(constant.CobraFlagEnvironment))
+	v.BindPFlag(constant.ViperKeyInstallEnvironment, rootCmd.Flags().Lookup(constant.CobraFlagEnvironment))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagDebug)
 	v.BindEnv(constant.CobraFlagCertname)
 	v.BindEnv(constant.CobraFlagOpenvoxServer, "PUPPET_SERVER")
-	v.BindEnv(constant.CobraFlagOpenvoxEnv, "OPENVOX_ENVIRONMENT")
+	v.BindEnv(constant.ViperKeyInstallEnvironment, "OPENVOX_ENVIRONMENT")
 
 	// Set default values
 	v.SetDefault(constant.CobraFlagOpenvoxServer, defaultServer)
-	v.SetDefault(constant.CobraFlagOpenvoxEnv, constant.DefaultOpenvoxEnv)
+	v.SetDefault(constant.ViperKeyInstallEnvironment, constant.DefaultOpenvoxEnv)
 }
 
 func main() {

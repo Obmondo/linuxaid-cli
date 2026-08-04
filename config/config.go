@@ -24,9 +24,10 @@ func GetOpenvoxServer() string {
 	return viperConfig.GetString(constant.CobraFlagOpenvoxServer)
 }
 
-func GetOpenvoxEnv() string {
+// GetInstallEnvironment returns the environment linuxaid-install bootstraps a node with.
+func GetInstallEnvironment() string {
 	initIfNil()
-	return viperConfig.GetString(constant.CobraFlagOpenvoxEnv)
+	return viperConfig.GetString(constant.ViperKeyInstallEnvironment)
 }
 
 func IsDebug() bool {
