@@ -68,28 +68,40 @@ func (c *obmondoClient) VerifyInstallToken(input *InstallScriptInput) error {
 	const scriptFailureLogErrorMessage = "failed to validate install token"
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
-		err := errors.New("invalid token")
-		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "invalid token")
 	case http.StatusNotAcceptable:
-		err := errors.New("invalid token or certname")
-		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "invalid token or certname")
 	case http.StatusOK:
 		return nil
 	case http.StatusBadRequest:
-		apiResponse := &ObmondoAPIResponse[string]{}
-		if err := json.NewDecoder(resp.Body).Decode(apiResponse); err != nil {
-			slog.Error("failed to decode api response", slog.Any("error", err))
-			return err
-		}
-		prettyfmt.PrettyPrintln(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
-		return errors.New(apiResponse.ErrorText)
+		return decodeAPIError(resp.Body, resp.StatusCode, scriptFailureLogErrorMessage)
 	default:
 		err := errors.New(scriptFailureLogErrorMessage)
 		slog.Error(err.Error(), slog.Int("http_status", resp.StatusCode))
 		return err
 	}
+}
+
+// decodeAPIError parses the Obmondo API's response envelope out of body and
+// renders its error_text/resolution to the operator, returning an error
+// built from error_text. Falls back to fallbackMsg (logged with statusCode
+// and the raw body) when body is empty or does not decode into a usable
+// error_text.
+func decodeAPIError(body io.Reader, statusCode int, fallbackMsg string) error {
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		slog.Error(fallbackMsg, slog.Int("http_status", statusCode), slog.Any("error", err))
+		return errors.New(fallbackMsg)
+	}
+
+	apiResponse := &ObmondoAPIResponse[string]{}
+	if err := json.Unmarshal(raw, apiResponse); err != nil || apiResponse.ErrorText == "" {
+		slog.Error(fallbackMsg, slog.Int("http_status", statusCode), slog.String("response", string(raw)))
+		return errors.New(fallbackMsg)
+	}
+
+	prettyfmt.PrettyPrintln(prettyfmt.FontRed(fmt.Sprintf("error: %s, resolution: %s", apiResponse.ErrorText, apiResponse.Resolution)))
+	return errors.New(apiResponse.ErrorText)
 }
 
 func (c *obmondoClient) UpdatePuppetLastRunReport() error {
@@ -114,19 +126,7 @@ func (c *obmondoClient) UpdatePuppetLastRunReport() error {
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
-		const failureLogMsg = "api returned non-204 response"
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			slog.Error(fmt.Sprintf("%s, failed to parse JSON body", failureLogMsg),
-				slog.Int("status_code", resp.StatusCode),
-				slog.Any("error", err),
-			)
-
-			return err
-		}
-		err = errors.New("failed to inform about latest puppet run status")
-		slog.Error(fmt.Sprintf("%s while informing about last puppet run status", failureLogMsg), slog.Int("status_code", resp.StatusCode), slog.String("api_response", string(body)))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "failed to inform about latest puppet run status")
 	}
 
 	return nil
@@ -209,17 +209,12 @@ func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptInput) er
 		}
 	}()
 
-	const scriptFailureLogErrorMessage = "failed to notify about script failure to obmondo"
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
-		err := errors.New("invalid token")
-		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "invalid token")
 
 	case http.StatusNotAcceptable:
-		err := errors.New("invalid token or certname")
-		slog.Error(scriptFailureLogErrorMessage, slog.Any("error", err))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "invalid token or certname")
 
 	case http.StatusNoContent:
 		fmt.Printf("\nInstallation setup failed, please contact ops@obmondo.com\nDon't worry, obmondo has the failed logs to analyze it.\n") //nolint:revive,forbidigo
@@ -227,11 +222,8 @@ func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptInput) er
 	case http.StatusOK:
 		return nil
 	default:
-		err := errors.New(scriptFailureLogErrorMessage)
-		slog.Error(err.Error(), slog.Int("http_status", resp.StatusCode))
-		return err
+		return decodeAPIError(resp.Body, resp.StatusCode, "failed to notify about script failure to obmondo")
 	}
-
 }
 
 func (c *obmondoClient) getCustomHTTPTransportWithPuppetCerts() (*http.Transport, error) {
@@ -315,8 +307,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 	}
 
 	if statusCode != http.StatusOK {
-		slog.Error("unexpected", slog.Int("status_code", statusCode), slog.String("response", string(responseBody)))
-		return nil, fmt.Errorf("unexpected non-200 HTTP status code received: %d", statusCode)
+		return nil, decodeAPIError(bytes.NewReader(responseBody), statusCode, fmt.Sprintf("unexpected non-200 HTTP status code received: %d", statusCode))
 	}
 
 	serviceWindow, err := GetServiceWindowDetails(responseBody)
@@ -353,15 +344,7 @@ func (c *obmondoClient) CloseServiceWindow(windowType, certname, timezone, comme
 	case http.StatusAccepted, http.StatusNoContent, http.StatusAlreadyReported:
 		return nil
 	default:
-		bodyBytes, err := io.ReadAll(closeWindow.Body)
-		if err != nil {
-			slog.Error("failed to read response body", slog.String("error", err.Error()))
-			return err
-		}
-
-		// Log the response status code and body
-		slog.Error("closing service window failed", slog.Int("status_code", closeWindow.StatusCode), slog.String("response", string(bodyBytes)))
-		return fmt.Errorf("incorrect response code received from API: %d", closeWindow.StatusCode)
+		return decodeAPIError(closeWindow.Body, closeWindow.StatusCode, fmt.Sprintf("incorrect response code received from API: %d", closeWindow.StatusCode))
 	}
 }
 
@@ -384,7 +367,7 @@ func (c *obmondoClient) GetCustomerSettings(customerID string) (*CustomerSetting
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code fetching customer settings: %d", resp.StatusCode)
+		return nil, decodeAPIError(resp.Body, resp.StatusCode, fmt.Sprintf("unexpected status code fetching customer settings: %d", resp.StatusCode))
 	}
 
 	var apiResp ObmondoAPIResponse[CustomerSettings]
