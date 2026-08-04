@@ -40,16 +40,14 @@ const (
 	CobraFlagDebug         = "debug"
 	CobraFlagCertname      = "certname"
 	CobraFlagOpenvoxServer = "puppet-server"
-	// ViperKeyInstallEnvironment is the viper key behind linuxaid-install's --environment flag. It
-	// deliberately does not match the flag name: viper runs with AutomaticEnv, so a key named
-	// "environment" would be satisfied by any stray ENVIRONMENT variable on the host.
-	ViperKeyInstallEnvironment = "install-environment"
-	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag on run-openvox
+	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag
 	CobraFlagEnvironment          = "environment"
 	CobraFlagEnvironmentShorthand = "E"
-	CobraFlagNoReboot             = "no-reboot"
-	CobraFlagSkipOpenvox          = "skip-openvox"
-	CobraFlagSecurityExporterURL  = "security-exporter-url"
+	// EnvVarEnvironment is the environment variable form of --environment
+	EnvVarEnvironment            = "ENVIRONMENT"
+	CobraFlagNoReboot            = "no-reboot"
+	CobraFlagSkipOpenvox         = "skip-openvox"
+	CobraFlagSecurityExporterURL = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )

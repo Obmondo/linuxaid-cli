@@ -95,7 +95,7 @@ func Install() {
 
 	certname := helper.GetCertname()
 	openvoxServer := config.GetOpenvoxServer()
-	openvoxEnv := config.GetInstallEnvironment()
+	openvoxEnv := installEnvironment()
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPI)

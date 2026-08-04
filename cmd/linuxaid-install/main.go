@@ -79,24 +79,38 @@ func init() {
 	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logs")
 	rootCmd.Flags().StringVar(&certNameFlag, constant.CobraFlagCertname, "", "Certificate name (defaults to the machine's FQDN)")
 	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
-	rootCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, constant.DefaultOpenvoxEnv, "Openvox environment to install (Linuxaid release version)")
+	// no default here: it is applied in installEnvironment(), after the environment variable
+	rootCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, "", "Openvox environment to install (Linuxaid release version, default "+constant.DefaultOpenvoxEnv+")")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
 	v.BindPFlag(constant.CobraFlagDebug, rootCmd.Flags().Lookup(constant.CobraFlagDebug))
 	v.BindPFlag(constant.CobraFlagCertname, rootCmd.Flags().Lookup(constant.CobraFlagCertname))
 	v.BindPFlag(constant.CobraFlagOpenvoxServer, rootCmd.Flags().Lookup(constant.CobraFlagOpenvoxServer))
-	v.BindPFlag(constant.ViperKeyInstallEnvironment, rootCmd.Flags().Lookup(constant.CobraFlagEnvironment))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagDebug)
 	v.BindEnv(constant.CobraFlagCertname)
 	v.BindEnv(constant.CobraFlagOpenvoxServer, "PUPPET_SERVER")
-	v.BindEnv(constant.ViperKeyInstallEnvironment, "OPENVOX_ENVIRONMENT")
 
 	// Set default values
 	v.SetDefault(constant.CobraFlagOpenvoxServer, defaultServer)
-	v.SetDefault(constant.ViperKeyInstallEnvironment, constant.DefaultOpenvoxEnv)
+}
+
+// installEnvironment is the openvox environment the node is bootstrapped with: the --environment
+// flag, then the ENVIRONMENT variable, then the default release. It is read here rather than
+// through viper so the environment variable is an explicit choice instead of whatever
+// viper.AutomaticEnv happens to match.
+func installEnvironment() string {
+	if openvoxEnvFlag != "" {
+		return openvoxEnvFlag
+	}
+
+	if environment := os.Getenv(constant.EnvVarEnvironment); environment != "" {
+		return environment
+	}
+
+	return constant.DefaultOpenvoxEnv
 }
 
 func main() {
