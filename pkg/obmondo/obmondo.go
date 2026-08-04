@@ -34,6 +34,7 @@ type ObmondoClient interface {
 	NotifyInstallScriptFailure(input *InstallScriptInput) error
 	ServerPing() error
 	UpdatePuppetLastRunReport() error
+	GetServerEnvironment(certname string) (string, error)
 }
 
 type obmondoClient struct {
@@ -393,6 +394,36 @@ func (c *obmondoClient) GetCustomerSettings(customerID string) (*CustomerSetting
 	}
 
 	return &apiResp.Data, nil
+}
+
+// GetServerEnvironment asks the API which puppet environment this node should run with. The
+// endpoint is authenticated by the node's client certificate and always resolves an answer, so an
+// empty environment means the API could not decide and the caller has to fall back.
+func (c *obmondoClient) GetServerEnvironment(certname string) (string, error) {
+	environmentURL := fmt.Sprintf("%s/servers/environment/certname/%s", c.apiURL, certname)
+
+	resp, err := c.apiCallWithTransport(environmentURL, nil, http.MethodGet)
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			if cerr := resp.Body.Close(); cerr != nil {
+				slog.Error("failed to close body", slog.Any("error", cerr))
+			}
+		}
+	}()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch the puppet environment: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code fetching the puppet environment: %d", resp.StatusCode)
+	}
+
+	var apiResp ObmondoAPIResponse[ServerEnvironment]
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return "", fmt.Errorf("failed to decode the puppet environment: %w", err)
+	}
+
+	return apiResp.Data.Environment, nil
 }
 
 func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {

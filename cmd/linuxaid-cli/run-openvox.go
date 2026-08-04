@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
@@ -11,18 +12,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var openvoxEnvFlag string
+
 var runOpenvoxCmd = &cobra.Command{
 	Use:     "run-openvox",
 	Short:   "Execute run-openvox command",
 	Long:    "A longer description of run-openvox command",
-	Example: `$ linuxaid-cli run-openvox --certname web01.example`,
+	Example: `$ linuxaid-cli run-openvox --certname web01.example --openvox-environment testing`,
 	Run: func(*cobra.Command, []string) {
 		RunOpenvox()
 	},
 }
 
 // Run the puppet agent in noop mode for now
-func runOpenvoxAgent() error {
+func runOpenvoxAgent(environment string) error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -40,6 +43,11 @@ func runOpenvoxAgent() error {
 	statusCodeSucceededWithChanges := 2
 
 	agentCmd := "/opt/puppetlabs/bin/puppet agent -t --noop"
+	// The agent decides the environment: the ENC no longer sends one, and puppet.conf no longer
+	// pins one, so an environment missing here would leave the run on puppet's own default.
+	if environment != "" {
+		agentCmd += " --environment " + environment
+	}
 	// An explicit --puppet-server/PUPPET_SERVER override must reach the agent
 	// too, otherwise it keeps using the server from puppet.conf.
 	if server := config.GetOpenvoxServer(); server != "" {
@@ -103,8 +111,11 @@ func RunOpenvox() {
 		obmondoAPI.ServerPing()
 	}
 
+	environment := resolveOpenvoxEnvironment(obmondoAPI, certname, opensource)
+	slog.Info("resolved puppet environment", slog.String("environment", environment))
+
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runOpenvoxAgent(); err != nil {
+	if err := runOpenvoxAgent(environment); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
@@ -114,6 +125,48 @@ func RunOpenvox() {
 	}
 }
 
+// resolveOpenvoxEnvironment decides which puppet environment this run uses:
+//
+//  1. --openvox-environment (or OPENVOX_ENVIRONMENT), for a one-off run against another branch or
+//     tag. It is never sent to the API, so it applies to this run only.
+//  2. the environment the API resolved for this certname: the pinned override, or the latest
+//     linuxaid release.
+//  3. the default environment, when the flag is unset and the API cannot be reached.
+func resolveOpenvoxEnvironment(obmondoAPI api.ObmondoClient, certname string, opensource bool) string {
+	if environment := config.GetOpenvoxEnv(); environment != "" {
+		slog.Info("using the environment given on the command line", slog.String("environment", environment))
+		return environment
+	}
+
+	if opensource {
+		return constant.DefaultOpenvoxEnv
+	}
+
+	environment, err := obmondoAPI.GetServerEnvironment(certname)
+	if err != nil {
+		slog.Warn("could not fetch the environment from Obmondo, falling back to the default",
+			slog.Any("error", err), slog.String("environment", constant.DefaultOpenvoxEnv))
+		return constant.DefaultOpenvoxEnv
+	}
+
+	if environment == "" {
+		slog.Warn("Obmondo returned no environment, falling back to the default",
+			slog.String("environment", constant.DefaultOpenvoxEnv))
+		return constant.DefaultOpenvoxEnv
+	}
+
+	return environment
+}
+
 func init() {
 	rootCmd.AddCommand(runOpenvoxCmd)
+
+	// no default here: an unset flag means "ask the API", which is what a normal run does
+	runOpenvoxCmd.Flags().StringVar(&openvoxEnvFlag, constant.CobraFlagOpenvoxEnv, "", "Puppet environment for this run only (defaults to the environment set in Obmondo)")
+
+	v := config.GetViperInstance()
+	// nolint:errcheck
+	v.BindPFlag(constant.CobraFlagOpenvoxEnv, runOpenvoxCmd.Flags().Lookup(constant.CobraFlagOpenvoxEnv))
+	// nolint:errcheck
+	v.BindEnv(constant.CobraFlagOpenvoxEnv, "OPENVOX_ENVIRONMENT")
 }
