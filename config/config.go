@@ -24,11 +24,6 @@ func GetOpenvoxServer() string {
 	return viperConfig.GetString(constant.CobraFlagOpenvoxServer)
 }
 
-func GetOpenvoxEnv() string {
-	initIfNil()
-	return viperConfig.GetString(constant.CobraFlagOpenvoxEnv)
-}
-
 func IsDebug() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagDebug)

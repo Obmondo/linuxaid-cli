@@ -152,8 +152,8 @@ func updateRedHat() error {
 // ------------------------------------------------
 
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
-func HandlePuppetRun(puppetService *puppet.Service) error {
-	exitCode := puppetService.RunAgent(false, "noop")
+func HandlePuppetRun(puppetService *puppet.Service, environment string) error {
+	exitCode := puppetService.RunAgent(false, "noop", environment)
 	if slices.Contains(constant.PuppetSuccessExitCodes, exitCode) {
 		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
@@ -388,8 +388,11 @@ func SystemUpdate() {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
+		// puppet.conf no longer pins an environment, so the run needs the one set in Obmondo
+		environment := resolveOpenvoxEnvironment(obmondoAPI, certname, "", helper.IsOpensourceMode())
+
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-		if err := HandlePuppetRun(puppetService); err != nil {
+		if err := HandlePuppetRun(puppetService, environment); err != nil {
 			slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
 			return
 		}

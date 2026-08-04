@@ -10,6 +10,9 @@ import (
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
 
+// MockServerEnvironment is the puppet environment the mock API resolves for every certname.
+const MockServerEnvironment = "v1_0_0"
+
 // nolint: revive
 type MockObmondoClient struct{}
 
@@ -30,6 +33,11 @@ func (*MockObmondoClient) ServerPing() error {
 // UpdatePuppetLastRunReport implements api.ObmondoClient.
 func (*MockObmondoClient) UpdatePuppetLastRunReport() error {
 	return nil
+}
+
+// GetServerEnvironment implements api.ObmondoClient.
+func (*MockObmondoClient) GetServerEnvironment(_ string) (string, error) {
+	return MockServerEnvironment, nil
 }
 
 func (*MockObmondoClient) GetCustomerSettings(_ string) (*api.CustomerSettings, error) {

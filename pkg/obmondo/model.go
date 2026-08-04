@@ -48,3 +48,10 @@ type CustomerSettings struct {
 	CustomerID string            `json:"customer_id"`
 	LinuxAid   *LinuxAidSettings `json:"linuxaid,omitempty"`
 }
+
+// ServerEnvironment is the puppet environment the API resolved for a certname: the pinned
+// override when one exists, otherwise the latest linuxaid tag.
+type ServerEnvironment struct {
+	Certname    string `json:"certname"`
+	Environment string `json:"environment"`
+}

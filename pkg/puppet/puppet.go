@@ -27,7 +27,6 @@ type Service struct {
 	apiClient     api.ObmondoClient
 	certName      string
 	openvoxServer string
-	openvoxEnv    string
 }
 
 // NewService initializes a new Puppet service instance
@@ -37,7 +36,6 @@ func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 		apiClient:     apiClient,
 		certName:      helper.GetCertname(),
 		openvoxServer: config.GetOpenvoxServer(),
-		openvoxEnv:    config.GetOpenvoxEnv(),
 		webtee:        webtee,
 	}
 }
@@ -87,9 +85,13 @@ func (*Service) DisableAgent(msg string) error {
 	return nil
 }
 
-// Run agent
-func (s *Service) RunAgent(remoteLog bool, noopMode string) int {
+// RunAgent runs the puppet agent. The environment is passed on the command line rather than read
+// from puppet.conf, which no longer pins one: the caller decides which environment a run uses.
+func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 	cmd := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopMode)
+	if environment != "" {
+		cmd += " --environment " + environment
+	}
 	if remoteLog {
 		s.webtee.RemoteLogObmondo([]string{cmd}, s.certName)
 		return 0
@@ -143,6 +145,8 @@ func (s *Service) WaitForAgent(timeoutSeconds int) {
 
 // Configure agent
 func (s *Service) ConfigureAgent() {
+	// no environment here on purpose: pinning one in puppet.conf would compete with the
+	// environment the caller passes to each run, and the two would eventually disagree
 	cfg := `[main]
 server = %s
 certname = %s
@@ -153,13 +157,12 @@ masterport = 443
 report = true
 pluginsync = true
 noop = true
-environment = %s
 `
 	server := s.openvoxServer
 	if parsed, err := url.Parse(server); err == nil && parsed.Hostname() != "" {
 		server = parsed.Hostname()
 	}
-	content := fmt.Sprintf(cfg, server, s.certName, s.openvoxEnv)
+	content := fmt.Sprintf(cfg, server, s.certName)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		os.Exit(1)

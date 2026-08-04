@@ -37,10 +37,16 @@ const (
 	BarSizeHundred     = 100
 
 	// Cobra Flags
-	CobraFlagDebug               = "debug"
-	CobraFlagCertname            = "certname"
-	CobraFlagOpenvoxServer       = "puppet-server"
-	CobraFlagOpenvoxEnv          = "openvox-environment"
+	CobraFlagDebug         = "debug"
+	CobraFlagCertname      = "certname"
+	CobraFlagOpenvoxServer = "puppet-server"
+	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag
+	CobraFlagEnvironment          = "environment"
+	CobraFlagEnvironmentShorthand = "E"
+	// EnvVarOpenvoxEnvironment is the environment variable form of linuxaid-install's --environment
+	// flag. It is deliberately not called ENVIRONMENT, which CI systems and deploy tooling
+	// commonly set for their own purposes.
+	EnvVarOpenvoxEnvironment     = "OPENVOX_ENVIRONMENT"
 	CobraFlagNoReboot            = "no-reboot"
 	CobraFlagSkipOpenvox         = "skip-openvox"
 	CobraFlagSecurityExporterURL = "security-exporter-url"

@@ -95,7 +95,7 @@ func Install() {
 
 	certname := helper.GetCertname()
 	openvoxServer := config.GetOpenvoxServer()
-	openvoxEnv := config.GetOpenvoxEnv()
+	openvoxEnv := installEnvironment()
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPI)
@@ -162,7 +162,7 @@ func Install() {
 	// nolint: errcheck
 	progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-		puppetService.RunAgent(true, "noop")
+		puppetService.RunAgent(true, "noop", openvoxEnv)
 		if hasToken {
 			// nolint:errcheck
 			obmondoAPI.UpdatePuppetLastRunReport()

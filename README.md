@@ -44,10 +44,10 @@ Initial system provisioning tool that installs and configures the Puppet agent (
 
 ```bash
 # Obmondo customers
-TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
+TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --environment master
 
 # Opensource users (no token required)
-linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --openvox-environment master
+linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --environment master
 ```
 
 ### linuxaid-cli
@@ -91,7 +91,7 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 ## `linuxaid-install` Specific Flags
 
-- `--openvox-environment` / `OPENVOX_ENVIRONMENT` - Openvox environment (Linuxaid release version)
+- `--environment` / `-E` / `OPENVOX_ENVIRONMENT` - Openvox environment to install (Linuxaid release version, default `master`)
 
 ## `linuxaid-cli` Command-Specific Flags
 
@@ -103,7 +103,9 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 ### run-openvox
 
-No command-specific flags available. Uses global flags only.
+- `--environment` / `-E` - Openvox environment for this run only. Without it, the environment set for
+  the server in Obmondo is used, falling back to `master` when the API cannot be reached. The value
+  is never sent to Obmondo, so it applies to that single run
 
 ## Dependencies
 
