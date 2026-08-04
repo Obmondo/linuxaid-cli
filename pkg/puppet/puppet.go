@@ -27,9 +27,6 @@ type Service struct {
 	apiClient     api.ObmondoClient
 	certName      string
 	openvoxServer string
-	// openvoxEnv is the environment the node is bootstrapped with, used for the install run only:
-	// later runs get their environment from Obmondo through linuxaid-cli.
-	openvoxEnv string
 }
 
 // NewService initializes a new Puppet service instance
@@ -39,7 +36,6 @@ func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 		apiClient:     apiClient,
 		certName:      helper.GetCertname(),
 		openvoxServer: config.GetOpenvoxServer(),
-		openvoxEnv:    config.GetOpenvoxEnv(),
 		webtee:        webtee,
 	}
 }
