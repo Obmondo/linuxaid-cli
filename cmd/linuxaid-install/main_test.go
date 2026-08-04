@@ -7,6 +7,9 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 )
 
+// testEnvironment is the environment the flag tests below install with.
+const testEnvironment = "v1_8_3"
+
 // The install environment flag was renamed from --openvox-environment to --environment. The old
 // spelling appears in the documented install commands, so it has to keep working.
 func TestEnvironmentFlagAcceptsBothSpellings(t *testing.T) {
@@ -14,9 +17,9 @@ func TestEnvironmentFlagAcceptsBothSpellings(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "current spelling", args: []string{"--environment", "v1_8_3"}},
-		{name: "shorthand", args: []string{"-E", "v1_8_3"}},
-		{name: "deprecated spelling", args: []string{"--openvox-environment", "v1_8_3"}},
+		{name: "current spelling", args: []string{"--environment", testEnvironment}},
+		{name: "shorthand", args: []string{"-E", testEnvironment}},
+		{name: "deprecated spelling", args: []string{"--openvox-environment", testEnvironment}},
 	}
 
 	for _, test := range tests {
@@ -29,12 +32,12 @@ func TestEnvironmentFlagAcceptsBothSpellings(t *testing.T) {
 				t.Fatalf("could not parse %v: %v", test.args, err)
 			}
 
-			if openvoxEnvFlag != "v1_8_3" {
-				t.Errorf("expected the flag to be v1_8_3, got %q", openvoxEnvFlag)
+			if openvoxEnvFlag != testEnvironment {
+				t.Errorf("expected the flag to be %q, got %q", testEnvironment, openvoxEnvFlag)
 			}
 
-			if environment := config.GetOpenvoxEnv(); environment != "v1_8_3" {
-				t.Errorf("expected the resolved environment to be v1_8_3, got %q", environment)
+			if environment := config.GetOpenvoxEnv(); environment != testEnvironment {
+				t.Errorf("expected the resolved environment to be %q, got %q", testEnvironment, environment)
 			}
 		})
 	}
@@ -48,11 +51,11 @@ func TestEnvironmentFlagIgnoresStrayEnvironmentVariable(t *testing.T) {
 		openvoxEnvFlag = constant.DefaultOpenvoxEnv
 	})
 
-	if err := rootCmd.ParseFlags([]string{"--environment", "v1_8_3"}); err != nil {
+	if err := rootCmd.ParseFlags([]string{"--environment", testEnvironment}); err != nil {
 		t.Fatalf("could not parse flags: %v", err)
 	}
 
-	if environment := config.GetOpenvoxEnv(); environment != "v1_8_3" {
-		t.Errorf("expected the resolved environment to be v1_8_3, got %q", environment)
+	if environment := config.GetOpenvoxEnv(); environment != testEnvironment {
+		t.Errorf("expected the resolved environment to be %q, got %q", testEnvironment, environment)
 	}
 }
