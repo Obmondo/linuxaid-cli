@@ -127,8 +127,8 @@ func RunOpenvox() {
 
 // resolveOpenvoxEnvironment decides which puppet environment this run uses:
 //
-//  1. --environment/-E (or OPENVOX_ENVIRONMENT), for a one-off run against another branch or tag.
-//     It is never sent to the API, so it applies to this run only.
+//  1. --environment/-E, for a one-off run against another branch or tag. It is never sent to the
+//     API, so it applies to this run only.
 //  2. the environment the API resolved for this certname: the pinned override, or the latest
 //     linuxaid release.
 //  3. the default environment, when the flag is unset and the API cannot be reached.
@@ -165,8 +165,9 @@ func init() {
 	runOpenvoxCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, "", "Puppet environment for this run only (defaults to the environment set in Obmondo)")
 
 	v := config.GetViperInstance()
+	// no BindEnv here on purpose: linuxaid-install binds OPENVOX_ENVIRONMENT to the release a node
+	// is bootstrapped with, and picking that up here would turn it into a permanent override of
+	// the environment set in Obmondo for every run
 	// nolint:errcheck
 	v.BindPFlag(constant.CobraFlagEnvironment, runOpenvoxCmd.Flags().Lookup(constant.CobraFlagEnvironment))
-	// nolint:errcheck
-	v.BindEnv(constant.CobraFlagEnvironment, "OPENVOX_ENVIRONMENT")
 }
