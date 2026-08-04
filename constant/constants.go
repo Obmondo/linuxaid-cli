@@ -40,7 +40,11 @@ const (
 	CobraFlagDebug         = "debug"
 	CobraFlagCertname      = "certname"
 	CobraFlagOpenvoxServer = "puppet-server"
-	CobraFlagOpenvoxEnv    = "openvox-environment"
+	// CobraFlagOpenvoxEnv is the previous name of linuxaid-install's --environment flag, kept as a
+	// deprecated alias so documented install commands keep working. It stays the viper key for
+	// that flag as well: viper runs with AutomaticEnv, so a key named "environment" would be
+	// satisfied by any stray ENVIRONMENT variable on the host.
+	CobraFlagOpenvoxEnv = "openvox-environment"
 	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag on run-openvox
 	CobraFlagEnvironment          = "environment"
 	CobraFlagEnvironmentShorthand = "E"
