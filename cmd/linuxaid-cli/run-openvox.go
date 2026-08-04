@@ -18,7 +18,7 @@ var runOpenvoxCmd = &cobra.Command{
 	Use:     "run-openvox",
 	Short:   "Execute run-openvox command",
 	Long:    "A longer description of run-openvox command",
-	Example: `$ linuxaid-cli run-openvox --certname web01.example --openvox-environment testing`,
+	Example: `$ linuxaid-cli run-openvox --certname web01.example --environment testing`,
 	Run: func(*cobra.Command, []string) {
 		RunOpenvox()
 	},
@@ -127,13 +127,13 @@ func RunOpenvox() {
 
 // resolveOpenvoxEnvironment decides which puppet environment this run uses:
 //
-//  1. --openvox-environment (or OPENVOX_ENVIRONMENT), for a one-off run against another branch or
-//     tag. It is never sent to the API, so it applies to this run only.
+//  1. --environment/-E (or OPENVOX_ENVIRONMENT), for a one-off run against another branch or tag.
+//     It is never sent to the API, so it applies to this run only.
 //  2. the environment the API resolved for this certname: the pinned override, or the latest
 //     linuxaid release.
 //  3. the default environment, when the flag is unset and the API cannot be reached.
 func resolveOpenvoxEnvironment(obmondoAPI api.ObmondoClient, certname string, opensource bool) string {
-	if environment := config.GetOpenvoxEnv(); environment != "" {
+	if environment := config.GetEnvironment(); environment != "" {
 		slog.Info("using the environment given on the command line", slog.String("environment", environment))
 		return environment
 	}
@@ -162,11 +162,11 @@ func init() {
 	rootCmd.AddCommand(runOpenvoxCmd)
 
 	// no default here: an unset flag means "ask the API", which is what a normal run does
-	runOpenvoxCmd.Flags().StringVar(&openvoxEnvFlag, constant.CobraFlagOpenvoxEnv, "", "Puppet environment for this run only (defaults to the environment set in Obmondo)")
+	runOpenvoxCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, "", "Puppet environment for this run only (defaults to the environment set in Obmondo)")
 
 	v := config.GetViperInstance()
 	// nolint:errcheck
-	v.BindPFlag(constant.CobraFlagOpenvoxEnv, runOpenvoxCmd.Flags().Lookup(constant.CobraFlagOpenvoxEnv))
+	v.BindPFlag(constant.CobraFlagEnvironment, runOpenvoxCmd.Flags().Lookup(constant.CobraFlagEnvironment))
 	// nolint:errcheck
-	v.BindEnv(constant.CobraFlagOpenvoxEnv, "OPENVOX_ENVIRONMENT")
+	v.BindEnv(constant.CobraFlagEnvironment, "OPENVOX_ENVIRONMENT")
 }

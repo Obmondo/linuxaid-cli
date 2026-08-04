@@ -37,13 +37,16 @@ const (
 	BarSizeHundred     = 100
 
 	// Cobra Flags
-	CobraFlagDebug               = "debug"
-	CobraFlagCertname            = "certname"
-	CobraFlagOpenvoxServer       = "puppet-server"
-	CobraFlagOpenvoxEnv          = "openvox-environment"
-	CobraFlagNoReboot            = "no-reboot"
-	CobraFlagSkipOpenvox         = "skip-openvox"
-	CobraFlagSecurityExporterURL = "security-exporter-url"
+	CobraFlagDebug         = "debug"
+	CobraFlagCertname      = "certname"
+	CobraFlagOpenvoxServer = "puppet-server"
+	CobraFlagOpenvoxEnv    = "openvox-environment"
+	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag on run-openvox
+	CobraFlagEnvironment          = "environment"
+	CobraFlagEnvironmentShorthand = "E"
+	CobraFlagNoReboot             = "no-reboot"
+	CobraFlagSkipOpenvox          = "skip-openvox"
+	CobraFlagSecurityExporterURL  = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )

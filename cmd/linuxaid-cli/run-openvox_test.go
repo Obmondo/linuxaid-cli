@@ -70,9 +70,9 @@ func TestResolveOpenvoxEnvironment(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config.GetViperInstance().Set(constant.CobraFlagOpenvoxEnv, test.flagValue)
+			config.GetViperInstance().Set(constant.CobraFlagEnvironment, test.flagValue)
 			t.Cleanup(func() {
-				config.GetViperInstance().Set(constant.CobraFlagOpenvoxEnv, "")
+				config.GetViperInstance().Set(constant.CobraFlagEnvironment, "")
 			})
 
 			environment := resolveOpenvoxEnvironment(test.client, certname, test.opensource)

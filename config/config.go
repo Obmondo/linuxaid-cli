@@ -29,6 +29,13 @@ func GetOpenvoxEnv() string {
 	return viperConfig.GetString(constant.CobraFlagOpenvoxEnv)
 }
 
+// GetEnvironment returns the puppet environment requested for a single run through
+// --environment/-E, empty when the flag was not given.
+func GetEnvironment() string {
+	initIfNil()
+	return viperConfig.GetString(constant.CobraFlagEnvironment)
+}
+
 func IsDebug() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagDebug)
