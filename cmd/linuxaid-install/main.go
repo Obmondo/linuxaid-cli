@@ -98,7 +98,7 @@ func init() {
 }
 
 // installEnvironment is the openvox environment the node is bootstrapped with: the --environment
-// flag, then the ENVIRONMENT variable, then the default release. It is read here rather than
+// flag, then the OPENVOX_ENVIRONMENT variable, then the default release. It is read here rather than
 // through viper so the environment variable is an explicit choice instead of whatever
 // viper.AutomaticEnv happens to match.
 func installEnvironment() string {
@@ -106,7 +106,7 @@ func installEnvironment() string {
 		return openvoxEnvFlag
 	}
 
-	if environment := os.Getenv(constant.EnvVarEnvironment); environment != "" {
+	if environment := os.Getenv(constant.EnvVarOpenvoxEnvironment); environment != "" {
 		return environment
 	}
 

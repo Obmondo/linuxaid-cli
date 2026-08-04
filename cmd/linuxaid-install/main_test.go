@@ -25,7 +25,7 @@ func TestInstallEnvironment(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv(constant.EnvVarEnvironment, test.envVar)
+			t.Setenv(constant.EnvVarOpenvoxEnvironment, test.envVar)
 			t.Cleanup(func() {
 				openvoxEnvFlag = ""
 			})
