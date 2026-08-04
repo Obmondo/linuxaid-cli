@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/mock"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
@@ -70,12 +69,7 @@ func TestResolveOpenvoxEnvironment(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config.GetViperInstance().Set(constant.CobraFlagEnvironment, test.flagValue)
-			t.Cleanup(func() {
-				config.GetViperInstance().Set(constant.CobraFlagEnvironment, "")
-			})
-
-			environment := resolveOpenvoxEnvironment(test.client, certname, test.opensource)
+			environment := resolveOpenvoxEnvironment(test.client, certname, test.flagValue, test.opensource)
 			if environment != test.expected {
 				t.Errorf("expected environment %q, got %q", test.expected, environment)
 			}

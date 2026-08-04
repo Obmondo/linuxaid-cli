@@ -111,7 +111,7 @@ func RunOpenvox() {
 		obmondoAPI.ServerPing()
 	}
 
-	environment := resolveOpenvoxEnvironment(obmondoAPI, certname, opensource)
+	environment := resolveOpenvoxEnvironment(obmondoAPI, certname, openvoxEnvFlag, opensource)
 	slog.Info("resolved puppet environment", slog.String("environment", environment))
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
@@ -128,14 +128,16 @@ func RunOpenvox() {
 // resolveOpenvoxEnvironment decides which puppet environment this run uses:
 //
 //  1. --environment/-E, for a one-off run against another branch or tag. It is never sent to the
-//     API, so it applies to this run only.
+//     API, so it applies to this run only. The flag is read straight from cobra rather than
+//     through viper, whose AutomaticEnv would otherwise let a stray ENVIRONMENT variable pin
+//     every run.
 //  2. the environment the API resolved for this certname: the pinned override, or the latest
 //     linuxaid release.
 //  3. the default environment, when the flag is unset and the API cannot be reached.
-func resolveOpenvoxEnvironment(obmondoAPI api.ObmondoClient, certname string, opensource bool) string {
-	if environment := config.GetEnvironment(); environment != "" {
-		slog.Info("using the environment given on the command line", slog.String("environment", environment))
-		return environment
+func resolveOpenvoxEnvironment(obmondoAPI api.ObmondoClient, certname, flagEnvironment string, opensource bool) string {
+	if flagEnvironment != "" {
+		slog.Info("using the environment given on the command line", slog.String("environment", flagEnvironment))
+		return flagEnvironment
 	}
 
 	if opensource {
@@ -163,11 +165,4 @@ func init() {
 
 	// no default here: an unset flag means "ask the API", which is what a normal run does
 	runOpenvoxCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, "", "Puppet environment for this run only (defaults to the environment set in Obmondo)")
-
-	v := config.GetViperInstance()
-	// no BindEnv here on purpose: linuxaid-install binds OPENVOX_ENVIRONMENT to the release a node
-	// is bootstrapped with, and picking that up here would turn it into a permanent override of
-	// the environment set in Obmondo for every run
-	// nolint:errcheck
-	v.BindPFlag(constant.CobraFlagEnvironment, runOpenvoxCmd.Flags().Lookup(constant.CobraFlagEnvironment))
 }
