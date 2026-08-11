@@ -1,0 +1,9 @@
+tag_prefix = "v"
+branch_whitelist = ["main"]
+ignore_merge_commits = true
+disable_changelog = true
+
+post_bump_hooks = [
+  "git push github main {{version_tag}}",
+  "git push origin main {{version_tag}}",
+]
