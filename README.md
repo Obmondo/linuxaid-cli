@@ -107,6 +107,24 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
   the server in Obmondo is used, falling back to `master` when the API cannot be reached. The value
   is never sent to Obmondo, so it applies to that single run
 
+## Release Management
+
+Releases are managed via [Cocogitto](https://docs.cocogitto.io/) (`cog`) based on Conventional Commits history.
+
+To cut a new release, simply run:
+
+```bash
+make release
+```
+
+This command will:
+
+1. Verify you are on the `main` branch.
+2. Fetch tags and pull the latest changes with rebase from both remotes (`github` and `origin`).
+3. Automatically determine the version bump (`--auto`) based on conventional commits since the last tag (or specify a bump level, e.g. `make release --patch`, `make release --minor`, or `make release --major`).
+4. Create the release commit and tag locally, and push the tag to **both** remotes (`github` and `origin`).
+5. Pushing tags to the remotes automatically triggers GitHub Actions and Gitea workflows to build binaries and publish releases.
+
 ## Dependencies
 
 - Cobra for CLI framework
