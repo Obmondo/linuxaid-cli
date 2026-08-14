@@ -40,26 +40,23 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *web
 }
 
 func (s *Provisioner) ProvisionPuppet() {
+	var err error
 	switch os.Getenv("ID") {
 	case helper.ConstDistributionNameUbuntu, helper.ConstDistributionNameDebian:
-		if err := s.provisionForDebian(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
+		err = s.provisionForDebian()
 	case helper.ConstDistributionNameSLES:
-		if err := s.provisionForSuse(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
+		err = s.provisionForSuse()
 	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameRocky, helper.ConstDistributionNameOracleLinux:
-		if err := s.provisionForRedHat(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
-		}
+		err = s.provisionForRedHat()
 	case helper.ConstDistributionNameTurrisOS:
 		s.provisionForTurris()
 	default:
 		slog.Error("unknown distribution, exiting")
+		os.Exit(1)
+	}
+
+	if err != nil {
+		slog.Error("failed to install puppet", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
@@ -102,41 +99,37 @@ func (s *Provisioner) provisionForDebian() error {
 	return nil
 }
 
+// rpmSpec captures how an RPM-based distribution names, downloads, and
+// installs the openvox-agent package.
+type rpmSpec struct {
+	prereqCmd     string // installs iptables before the agent
+	versionFmt    string // verbs: openvox version, major release
+	repoURLFmt    string // verbs: puppet major version, major release, arch, package name
+	installCmdFmt string // verb: download path
+}
+
 // provisionForRedHat installs puppet-agent on RHEL/CentOS systems
 func (s *Provisioner) provisionForRedHat() error {
-	s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName)
-
-	majRelease := helper.GetMajorRelease()
-
-	runtimeArch := runtime.GOARCH
-	switch runtimeArch {
-	case archAmd64:
-		runtimeArch = "x86_64"
-	case archArm64:
-		runtimeArch = "aarch64"
-	default:
-		return errors.New("unsupported system architecture")
-	}
-
-	fullPuppetVersion := fmt.Sprintf("%s-1.el%s", constant.OpenvoxVersion, majRelease)
-	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
-	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/openvox/yum/%s/el/%s/%s/%s.rpm",
-		constant.PuppetMajorVersion, majRelease, runtimeArch, packageName)
-
-	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
-		return err
-	}
-
-	installCmd := []string{fmt.Sprintf("yum install %s -y", downloadPath)}
-	s.webtee.RemoteLogObmondo(installCmd, s.certName)
-
-	return nil
+	return s.provisionRPMBased(rpmSpec{
+		prereqCmd:     "yum install -y iptables",
+		versionFmt:    "%s-1.el%s",
+		repoURLFmt:    "https://repos.obmondo.com/openvox/yum/%s/el/%s/%s/%s.rpm",
+		installCmdFmt: "yum install %s -y",
+	})
 }
 
 // provisionForSuse installs puppet-agent on SUSE systems
 func (s *Provisioner) provisionForSuse() error {
-	s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName)
+	return s.provisionRPMBased(rpmSpec{
+		prereqCmd:     "zypper install -y iptables",
+		versionFmt:    "%s-1.sles%s",
+		repoURLFmt:    "https://repos.obmondo.com/openvox/sles/%s/%s/%s/%s.rpm",
+		installCmdFmt: "rpm -ivh %s",
+	})
+}
+
+func (s *Provisioner) provisionRPMBased(spec rpmSpec) error {
+	s.webtee.RemoteLogObmondo([]string{spec.prereqCmd}, s.certName)
 
 	majRelease := helper.GetMajorRelease()
 
@@ -150,17 +143,16 @@ func (s *Provisioner) provisionForSuse() error {
 		return errors.New("unsupported system architecture")
 	}
 
-	fullPuppetVersion := fmt.Sprintf("%s-1.sles%s", constant.OpenvoxVersion, majRelease)
+	fullPuppetVersion := fmt.Sprintf(spec.versionFmt, constant.OpenvoxVersion, majRelease)
 	packageName := fmt.Sprintf("openvox-agent-%s.%s", fullPuppetVersion, runtimeArch)
 	downloadPath := filepath.Join(tmpDir, packageName+".rpm")
-	url := fmt.Sprintf("https://repos.obmondo.com/openvox/sles/%s/%s/%s/%s.rpm",
-		constant.PuppetMajorVersion, majRelease, runtimeArch, packageName)
+	url := fmt.Sprintf(spec.repoURLFmt, constant.PuppetMajorVersion, majRelease, runtimeArch, packageName)
 
 	if err := s.puppet.DownloadAgent(downloadPath, url); err != nil {
 		return err
 	}
 
-	installCmd := []string{fmt.Sprintf("rpm -ivh %s", downloadPath)}
+	installCmd := []string{fmt.Sprintf(spec.installCmdFmt, downloadPath)}
 	s.webtee.RemoteLogObmondo(installCmd, s.certName)
 
 	return nil

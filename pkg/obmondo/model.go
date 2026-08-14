@@ -5,10 +5,6 @@ type InstallScriptInput struct {
 	Token    string
 }
 
-type UpdateScriptFailureInput struct {
-	Certname string
-}
-
 type PuppetLastRunReport struct {
 	Time                        string `yaml:"time" json:"time"`
 	Status                      string `yaml:"status" json:"status"`

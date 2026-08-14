@@ -82,30 +82,6 @@ func TestGetInstalledKernel(t *testing.T) {
 
 // Need tests for 204 and 208 and a failed scenario as well
 
-func TestExtractHostname(t *testing.T) {
-	tests := []struct {
-		name     string
-		rawURL   string
-		expected string
-	}{
-		{"https URL", "https://prom-test.obmondo.com", "prom-test.obmondo.com"},
-		{"https URL with port", "https://prom-test.obmondo.com:9090", "prom-test.obmondo.com"},
-		{"https URL with path", "https://prom-test.obmondo.com/api/v1", "prom-test.obmondo.com"},
-		{"http URL", "http://prometheus.local:9090", "prometheus.local"},
-		{"empty string", "", ""},
-		{"bare hostname (no scheme)", "prom-test.obmondo.com", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractHostname(tt.rawURL)
-			if got != tt.expected {
-				t.Errorf("extractHostname(%q) = %q, want %q", tt.rawURL, got, tt.expected)
-			}
-		})
-	}
-}
-
 // mockSettingsClient is a mock that returns configurable customer settings.
 type mockSettingsClient struct {
 	mock.MockObmondoClient

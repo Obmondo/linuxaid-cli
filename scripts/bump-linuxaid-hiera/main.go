@@ -30,6 +30,12 @@ const keepVersions = 4
 const (
 	versionKey   = "common::system::openvox::linuxaid_cli::version"
 	checksumsKey = "common::system::openvox::linuxaid_cli::checksums"
+
+	// checksums.txt lines are "<sha> <filename>"
+	checksumLineFields = 2
+	hieraFileMode      = 0o644
+	// program name plus the three arguments in the usage line below
+	expectedArgs = 4
 )
 
 // files maps each hiera file (relative to the LinuxAid repo root) to the
@@ -59,7 +65,7 @@ func parseChecksums(path string) (map[string]string, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 2 {
+		if len(fields) < checksumLineFields {
 			continue
 		}
 		sums[fields[1]] = fields[0]
@@ -149,17 +155,17 @@ func run(repoRoot, version, checksumsPath string) error {
 		}
 		text = bumpVersionLine(text, version)
 
-		if err := os.WriteFile(fullPath, []byte(text), 0o644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(text), hieraFileMode); err != nil {
 			return err
 		}
-		fmt.Printf("updated %s (%s -> %s)\n", relPath, arch, sha)
+		fmt.Printf("updated %s (%s -> %s)\n", relPath, arch, sha) //nolint:forbidigo
 	}
 
 	return nil
 }
 
 func main() {
-	if len(os.Args) != 4 {
+	if len(os.Args) != expectedArgs {
 		fmt.Fprintln(os.Stderr, "usage: bump-linuxaid-hiera <path-to-LinuxAid-checkout> <version> <checksums.txt>")
 		os.Exit(1)
 	}

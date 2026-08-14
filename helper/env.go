@@ -5,46 +5,27 @@ import (
 	"log/slog"
 	"os"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"github.com/joho/godotenv"
 )
 
-func RequirePuppetEnv() {
-	_, certOk := os.LookupEnv(constant.PuppetCertEnv)
-	if !certOk {
-		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetCertEnv))
-		os.Exit(1)
-	}
-
-	_, keyOk := os.LookupEnv(constant.PuppetPrivKeyEnv)
-	if !keyOk {
-		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetPrivKeyEnv))
+// requireEnv exits when the given environment variable is not set.
+func requireEnv(name string) {
+	if _, ok := os.LookupEnv(name); !ok {
+		slog.Error(fmt.Sprintf("%s env variable not set", name))
 		os.Exit(1)
 	}
 }
 
 func RequireOSNameEnv() {
-	_, codeName := os.LookupEnv("NAME")
-	if !codeName {
-		slog.Error("NAME env variable not set")
-		os.Exit(1)
-	}
+	requireEnv("NAME")
 }
 
 func RequireOSVersionEnv() {
-	_, codeName := os.LookupEnv("VERSION")
-	if !codeName {
-		slog.Error("VERSION env variable not set")
-		os.Exit(1)
-	}
+	requireEnv("VERSION")
 }
 
 func RequireUbuntuCodeNameEnv() {
-	_, codeName := os.LookupEnv("UBUNTU_CODENAME")
-	if !codeName {
-		slog.Error("UBUNTU_CODENAME env variable not set")
-		os.Exit(1)
-	}
+	requireEnv("UBUNTU_CODENAME")
 }
 
 func LoadOSReleaseEnv() {

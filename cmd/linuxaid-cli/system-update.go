@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -22,9 +21,9 @@ import (
 )
 
 const (
-	agentDisabledFile          = constant.AgentDisabledLockFile
 	bootDirectory              = "/boot"
 	defaultSecurityExporterURL = "http://127.254.254.254:63396"
+	defaultPrometheusHost      = "prometheus.obmondo.com"
 )
 
 var securityExporterURLFlag string
@@ -52,97 +51,80 @@ func cleanup(puppetService *puppet.Service) {
 	slog.Info("ending system-update")
 }
 
+// updateSpec describes how a distribution family refreshes its package
+// metadata and upgrades installed packages.
+type updateSpec struct {
+	env             map[string]string // extra environment for the package manager
+	refreshCmd      string            // failure here is only logged; the upgrade decides the outcome
+	upgradeCmd      string
+	postUpgradeCmds []string // e.g. removing unused dependencies
+}
+
+var (
+	debianUpdate = updateSpec{
+		env:             map[string]string{"DEBIAN_FRONTEND": "noninteractive"},
+		refreshCmd:      "apt-get update",
+		upgradeCmd:      "apt-get --with-new-pkgs upgrade -y",
+		postUpgradeCmds: []string{"apt-get autoremove -y"},
+	}
+	suseUpdate   = updateSpec{refreshCmd: "zypper refresh", upgradeCmd: "zypper update -y"}
+	redhatUpdate = updateSpec{refreshCmd: "yum repolist", upgradeCmd: "yum update -y"}
+
+	// distributionUpdateSpecs maps an os-release ID to its update commands.
+	distributionUpdateSpecs = map[string]updateSpec{
+		"ubuntu": debianUpdate,
+		"debian": debianUpdate,
+		"sles":   suseUpdate,
+		"centos": redhatUpdate,
+		"rhel":   redhatUpdate,
+		"rocky":  redhatUpdate,
+	}
+)
+
 // UpdateSystem performs a system update based on the specified Linux distribution.
 //
 // This function accepts a `distribution` string representing the type of Linux distribution that needs
-// to be updated. Depending on the distribution provided, it will invoke the appropriate update function.
+// to be updated. Depending on the distribution provided, it runs that distribution's update commands.
 func UpdateSystem(distribution string) error {
-	switch distribution {
-	case "ubuntu", "debian":
-		return updateDebian()
-	case "sles":
-		return updateSUSE()
-	case "centos", "rhel", "rocky":
-		return updateRedHat()
-	default:
+	spec, known := distributionUpdateSpecs[distribution]
+	if !known {
 		slog.Error("unknown distribution", slog.String("distribution", distribution))
 		return nil
 	}
+
+	return runSystemUpdate(spec)
 }
 
-func updateDebian() error {
-	slog.Info("running apt update/upgrade/autoremove")
-	enverr := os.Setenv("DEBIAN_FRONTEND", "noninteractive")
-	if enverr != nil {
-		slog.Error(enverr.Error())
-		os.Exit(1)
+func runSystemUpdate(spec updateSpec) error {
+	for name, value := range spec.env {
+		if err := os.Setenv(name, value); err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
 	}
 
-	if err := script.Exec("apt-get update").Wait(); err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
+	slog.Info("refreshing package repositories", slog.String("command", spec.refreshCmd))
+	if err := script.Exec(spec.refreshCmd).Wait(); err != nil {
+		slog.Error("failed to refresh package repositories", slog.String("command", spec.refreshCmd), slog.String("error", err.Error()))
 	}
-	pipe := script.Exec("apt-get --with-new-pkgs upgrade -y")
-	_, err := pipe.Stdout()
-	if err != nil {
-		slog.Error("failed to upgrade all packages", slog.String("error", err.Error()))
+
+	slog.Info("upgrading system packages", slog.String("command", spec.upgradeCmd))
+	pipe := script.Exec(spec.upgradeCmd)
+	if _, err := pipe.Stdout(); err != nil {
+		slog.Error("failed to upgrade packages", slog.String("error", err.Error()))
 		return err
 	}
 
-	exitStatus := pipe.ExitStatus()
-	if exitStatus != 0 {
-		slog.Error("exiting, apt update failed")
-		return fmt.Errorf("apt-get update and upgrade failed: exit status %d", exitStatus)
+	if exitStatus := pipe.ExitStatus(); exitStatus != 0 {
+		slog.Error("exiting, package upgrade failed", slog.String("command", spec.upgradeCmd))
+		return fmt.Errorf("%s failed: exit status %d", spec.upgradeCmd, exitStatus)
 	}
 
-	pipe = script.Exec("apt-get autoremove -y")
-	_, err = pipe.Stdout()
-	if err != nil {
-		slog.Error("failed to remove unused dependencies", slog.String("error", err.Error()))
-		return err
-	}
-
-	return nil
-}
-
-func updateSUSE() error {
-	slog.Info("running zypper refresh/update")
-	if err := script.Exec("zypper refresh").Wait(); err != nil {
-		slog.Error("failed to refresh all repositories", slog.String("error", err.Error()))
-	}
-
-	pipe := script.Exec("zypper update -y")
-	_, err := pipe.Stdout()
-	if err != nil {
-		slog.Error("failed to update all repositories", slog.String("error", err.Error()))
-		return err
-	}
-
-	exitStatus := pipe.ExitStatus()
-	if exitStatus != 0 {
-		slog.Error("exiting, suse update failed")
-		return fmt.Errorf("suse update failed: exit status %d", exitStatus)
-	}
-
-	return nil
-}
-
-func updateRedHat() error {
-	slog.Info("running yum repolist/update")
-	if err := script.Exec("yum repolist").Wait(); err != nil {
-		slog.Error("failed to fetch all repositories", slog.String("error", err.Error()))
-	}
-
-	pipe := script.Exec("yum update -y")
-	_, err := pipe.Stdout()
-	if err != nil {
-		slog.Error("failed to update all packages", slog.String("error", err.Error()))
-		return err
-	}
-
-	exitStatus := pipe.ExitStatus()
-	if exitStatus != 0 {
-		slog.Error("exiting, yum update failed")
-		return fmt.Errorf("yum update failed: exit status %d", exitStatus)
+	for _, cmd := range spec.postUpgradeCmds {
+		if _, err := script.Exec(cmd).Stdout(); err != nil {
+			slog.Error("failed to run post-upgrade command", slog.String("command", cmd), slog.String("error", err.Error()))
+			return err
+		}
 	}
 
 	return nil
@@ -154,6 +136,8 @@ func updateRedHat() error {
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
 func HandlePuppetRun(puppetService *puppet.Service, environment string) error {
 	exitCode := puppetService.RunAgent(false, "noop", environment)
+	// deliberately not helper.IsPuppetSuccessExitCode: system-update has never
+	// tolerated TurrisOS's extra exit code 4 when gating the update
 	if slices.Contains(constant.PuppetSuccessExitCodes, exitCode) {
 		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
@@ -238,16 +222,21 @@ func buildPostUpdateComment(exporter security.SecurityExporter) string {
 	}
 }
 
-const defaultPrometheusHost = "prometheus.obmondo.com"
-
-// extractHostname parses a URL and returns just the hostname.
-// Returns empty string if parsing fails.
-func extractHostname(rawURL string) string {
-	parsed, err := url.Parse(rawURL)
-	if err == nil && parsed.Hostname() != "" {
-		return parsed.Hostname()
+// settingHostname extracts the hostname from a customer-configured URL,
+// keeping fallback (with a warning) when none can be extracted.
+func settingHostname(rawURL, fallback, field string) string {
+	if rawURL == "" {
+		return fallback
 	}
-	return ""
+
+	hostname := helper.ExtractHostname(rawURL)
+	if hostname == "" {
+		slog.Warn("could not extract hostname from customer setting, using default",
+			slog.String(field, rawURL))
+		return fallback
+	}
+
+	return hostname
 }
 
 // resolveCustomerURLs fetches customer settings and returns resolved prometheus
@@ -262,10 +251,7 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 	// PUPPET_SERVER env) always wins over customer settings.
 	defer func() {
 		if server := config.GetOpenvoxServer(); server != "" {
-			if h := extractHostname(server); h != "" {
-				server = h
-			}
-			puppetServerHost = server
+			puppetServerHost = helper.NormalizeToHostname(server)
 		}
 	}()
 
@@ -294,33 +280,38 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 		return
 	}
 
-	if settings.LinuxAid.PrometheusURL != "" {
-		h := extractHostname(settings.LinuxAid.PrometheusURL)
-		if h == "" {
-			slog.Warn("could not extract hostname from prometheus_url, using default",
-				slog.String("prometheus_url", settings.LinuxAid.PrometheusURL))
-		}
-		if h != "" {
-			prometheusHost = h
-		}
-	}
-
-	if settings.LinuxAid.PuppetserverURL != "" {
-		h := extractHostname(settings.LinuxAid.PuppetserverURL)
-		if h == "" {
-			slog.Warn("could not extract hostname from puppetserver_url, using default",
-				slog.String("puppetserver_url", settings.LinuxAid.PuppetserverURL))
-		}
-		if h != "" {
-			puppetServerHost = h
-		}
-	}
+	prometheusHost = settingHostname(settings.LinuxAid.PrometheusURL, prometheusHost, "prometheus_url")
+	puppetServerHost = settingHostname(settings.LinuxAid.PuppetserverURL, puppetServerHost, "puppetserver_url")
 
 	return
 }
 
 // ------------------------------------------------
 // ------------------------------------------------
+
+// prepareOpenvoxForUpdate runs the puppet agent once and then disables it for
+// the duration of the package upgrade. The caller re-enables it via cleanup.
+func prepareOpenvoxForUpdate(puppetService *puppet.Service, obmondoAPI api.ObmondoClient, certname string) error {
+	// Check if any existing puppet agent is already running
+	puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
+
+	// puppet.conf no longer pins an environment, so the run needs the one set in Obmondo
+	environment := resolveOpenvoxEnvironment(obmondoAPI, certname, "", helper.IsOpensourceMode())
+
+	// Run puppet-agent and abort unless it exits with a success code
+	if err := HandlePuppetRun(puppetService, environment); err != nil {
+		slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
+		return err
+	}
+
+	// Disable puppet-agent, since we'll be running upgrade commands
+	if err := puppetService.DisableAgent("puppet has been disabled by the system-update"); err != nil {
+		slog.Error("failed to disable agent", slog.Any("error", err))
+		return err
+	}
+
+	return nil
+}
 
 func SystemUpdate() {
 	helper.LoadOSReleaseEnv()
@@ -343,7 +334,7 @@ func SystemUpdate() {
 
 	// check if agent disable file exists
 	openvoxInitiallyEnabled := true
-	if _, err := os.Stat(agentDisabledFile); err == nil {
+	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		openvoxInitiallyEnabled = false
 		slog.Warn("openvox agent was disabled before system-update, will skip openvox operations")
 	}
@@ -385,21 +376,7 @@ func SystemUpdate() {
 	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
 
 	if openvoxInitiallyEnabled && !config.ShouldSkipOpenvox() {
-		// Check if any existing puppet agent is already running
-		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-
-		// puppet.conf no longer pins an environment, so the run needs the one set in Obmondo
-		environment := resolveOpenvoxEnvironment(obmondoAPI, certname, "", helper.IsOpensourceMode())
-
-		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
-		if err := HandlePuppetRun(puppetService, environment); err != nil {
-			slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
-			return
-		}
-
-		// Disable puppet-agent, since we'll be running upgrade commands
-		if err := puppetService.DisableAgent("puppet has been disabled by the system-update"); err != nil {
-			slog.Error("failed to disable agent", slog.Any("error", err))
+		if err := prepareOpenvoxForUpdate(puppetService, obmondoAPI, certname); err != nil {
 			return
 		}
 
@@ -422,7 +399,7 @@ func SystemUpdate() {
 	securityExporterURL := config.GetSecurityExporterURL()
 	closeComment := buildPostUpdateComment(security.NewSecurityExporter(securityExporterURL))
 
-	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, certname, serviceWindowNow.Timezone, closeComment); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}

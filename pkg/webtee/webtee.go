@@ -8,11 +8,9 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"sync"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
 )
@@ -26,6 +24,17 @@ const (
 type Webtee struct {
 	obmondoAPIURL string
 	obmondoAPI    api.ObmondoClient
+}
+
+// failInstall reports the failure to Obmondo, logs it, and exits.
+func (w *Webtee) failInstall(certname, msg string, err error) {
+	// nolint: errcheck
+	w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+		Certname: certname,
+	})
+
+	slog.Error(msg, slog.String("error", err.Error()))
+	os.Exit(1)
 }
 
 func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
@@ -46,59 +55,40 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		// nolint: errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
-			Certname: certname,
-		})
-
-		slog.Error("failed to connect to stdout pipe", slog.String("error", err.Error()))
-		os.Exit(1)
+		w.failInstall(certname, "failed to connect to stdout pipe", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		//nolint:errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
-			Certname: certname,
-		})
-		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
-		os.Exit(1)
+		w.failInstall(certname, "failed to connect to stderr pipe", err)
 	}
 
 	// Start command execution.
-	err = cmd.Start()
-	if err != nil {
-		//nolint:errcheck
-		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
-			Certname: certname,
-		})
-		slog.Error("failed to start command", slog.String("error", err.Error()))
-		os.Exit(1)
+	if err := cmd.Start(); err != nil {
+		w.failInstall(certname, "failed to start command", err)
 	}
 
 	// For each line in stdout & stderr, wrap it in an "echo" command and send it to webtee server.
 	var pipeWg sync.WaitGroup
 	pipeWg.Add(1)
-	go readPipe(stderr, lines, false, &pipeWg)
+	go readPipe(stderr, lines, pipeNameStderr, &pipeWg)
 	pipeWg.Add(1)
-	go readPipe(stdout, lines, true, &pipeWg)
+	go readPipe(stdout, lines, pipeNameStdout, &pipeWg)
 
 	// Now wait for the pipes to finish reading & sending to lines channel.
 	pipeWg.Wait()
 
 	err = cmd.Wait()
 
-	// Don't complain if the command being run is puppet agent and the exit status is mentioned in the constant.PuppetSuccessExitCodes.
-	// Else, check the error and complain about the same.
-	if !shouldIgnorePuppetAgentError(command, cmd.ProcessState.ExitCode()) {
-		if err != nil {
-			slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
-			//nolint:forbidigo, errcheck
-			w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
-				Certname: certname,
-			})
+	// Don't complain if the command being run is puppet agent and the exit status is a
+	// puppet success code. Else, check the error and complain about the same.
+	if err != nil && !shouldIgnorePuppetAgentError(command, cmd.ProcessState.ExitCode()) {
+		slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
+		//nolint:forbidigo, errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+			Certname: certname,
+		})
 
-			os.Exit(1)
-		}
+		os.Exit(1)
 	}
 
 	// Close the lines channel.
@@ -109,34 +99,19 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 }
 
 func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
-	// We're patching the error handling for turrisos for now, since we're still updating
-	// linuxaid support. Once done, we'll remove this special handling.
-	successStatusCodes := constant.PuppetSuccessExitCodes
-	if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
-		successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
-	}
-
-	return strings.Contains(strings.Join(command, " "), "puppet agent") && slices.Contains(successStatusCodes, exitCode)
+	return strings.Contains(strings.Join(command, " "), "puppet agent") && helper.IsPuppetSuccessExitCode(exitCode)
 }
 
-// readPipe reads a pipe, wraps every line in an "echo" command, prints it, and sends the line to
-// the lines channel. It should always be run in a separate goroutine because
+// readPipe reads a pipe and sends every line to the lines channel, tagged with
+// the pipe's name. It should always be run in a separate goroutine because
 // we decrement wg waitgroup after execution.
-func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.WaitGroup) {
+func readPipe(pipe io.ReadCloser, lines chan logLine, pipeName string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	scanner := bufio.NewScanner(pipe)
 	for scanner.Scan() {
-		m := scanner.Text()
-		if isStdout {
-			lines <- logLine{
-				line: m,
-				pipe: pipeNameStdout,
-			}
-		} else {
-			lines <- logLine{
-				line: m,
-				pipe: pipeNameStderr,
-			}
+		lines <- logLine{
+			line: scanner.Text(),
+			pipe: pipeName,
 		}
 	}
 }

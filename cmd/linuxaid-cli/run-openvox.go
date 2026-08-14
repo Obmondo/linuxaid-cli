@@ -51,10 +51,7 @@ func runOpenvoxAgent(environment string) error {
 	// An explicit --puppet-server/PUPPET_SERVER override must reach the agent
 	// too, otherwise it keeps using the server from puppet.conf.
 	if server := config.GetOpenvoxServer(); server != "" {
-		if h := extractHostname(server); h != "" {
-			server = h
-		}
-		agentCmd += " --server " + server
+		agentCmd += " --server " + helper.NormalizeToHostname(server)
 	}
 
 	slog.Info("executing the puppet agent command")

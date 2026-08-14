@@ -44,27 +44,42 @@ type obmondoClient struct {
 	keyPath                    string
 }
 
+// closeBody closes a response body, tolerating nil responses so it can be
+// deferred before the request error is checked.
+func closeBody(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+	if err := resp.Body.Close(); err != nil {
+		slog.Error("failed to close body", slog.Any("error", err))
+	}
+}
+
+// doPlainRequest calls a token-authenticated install-script endpoint, which
+// uses a plain HTTP client rather than the puppet client certificate.
+func doPlainRequest(method, url, action string) (*http.Response, error) {
+	request, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		slog.Error("failed to create request for "+action, slog.Any("error", err), slog.String("url", url))
+		return nil, err
+	}
+
+	resp, err := (&http.Client{}).Do(request)
+	if err != nil {
+		slog.Error("request failed for "+action, slog.Any("error", err), slog.String("url", url))
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (c *obmondoClient) VerifyInstallToken(input *InstallScriptInput) error {
 	url := fmt.Sprintf("%s/servers/install-script/verify/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
-	client := &http.Client{}
 
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	resp, err := doPlainRequest(http.MethodGet, url, "validating install token")
 	if err != nil {
-		slog.Error("failed to create request for validating install token", slog.Any("error", err), slog.String("url", url))
 		return err
 	}
-	resp, err := client.Do(request)
-	if err != nil {
-		slog.Error("error occurred while requesting client to validate install token", slog.Any("error", err), slog.String("url", url))
-		return err
-	}
-	defer func() {
-		if resp.Body != nil {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("failed to close body", slog.Any("error", err))
-			}
-		}
-	}()
+	defer closeBody(resp)
 
 	const scriptFailureLogErrorMessage = "failed to validate install token"
 	switch resp.StatusCode {
@@ -113,13 +128,7 @@ func (c *obmondoClient) UpdatePuppetLastRunReport() error {
 	}
 
 	resp, err := c.apiCallWithTransport(url, data, http.MethodPut)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			if cerr := resp.Body.Close(); cerr != nil {
-				slog.Error("failed to close body", slog.Any("error", cerr))
-			}
-		}
-	}()
+	defer closeBody(resp)
 	if err != nil {
 		slog.Error("error occurred while trying to inform obmondo about puppet run",
 			slog.Any("error", err), slog.String("url", url))
@@ -169,13 +178,7 @@ func (c *obmondoClient) ServerPing() error {
 	url := fmt.Sprintf("%s/servers/ping", c.apiURL)
 
 	resp, err := c.apiCallWithTransport(url, nil, http.MethodPut)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			if cerr := resp.Body.Close(); cerr != nil {
-				slog.Error("failed to close body", slog.Any("error", cerr))
-			}
-		}
-	}()
+	defer closeBody(resp)
 	if err != nil {
 		slog.Error("error occurred while trying to inform obmondo about puppet run",
 			slog.Any("error", err), slog.String("url", url))
@@ -190,25 +193,12 @@ func (c *obmondoClient) NotifyInstallScriptFailure(input *InstallScriptInput) er
 		return nil
 	}
 	url := fmt.Sprintf("%s/servers/install-script-failure/certname/%s?token=%s", c.apiURL, input.Certname, url.QueryEscape(input.Token))
-	client := &http.Client{}
 
-	request, err := http.NewRequest(http.MethodPut, url, nil)
+	resp, err := doPlainRequest(http.MethodPut, url, "notifying script failure")
 	if err != nil {
-		slog.Error("failed to create request for notifying script failure", slog.Any("error", err), slog.String("url", url))
 		return err
 	}
-	resp, err := client.Do(request)
-	if err != nil {
-		slog.Error("error occurred after notifying script failure", slog.Any("error", err), slog.String("url", url))
-		return err
-	}
-	defer func() {
-		if resp.Body != nil {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("failed to close body", slog.Any("error", err))
-			}
-		}
-	}()
+	defer closeBody(resp)
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
@@ -300,7 +290,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer closeBody(resp)
 	statusCode, responseBody, err := helper.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
@@ -329,14 +319,14 @@ func (c *obmondoClient) CloseServiceWindow(windowType, certname, timezone, comme
 	}
 	yearMonthDay := time.Now().In(location).Format(time.DateOnly)
 	closeWindowURL := fmt.Sprintf("%s/window/close/customer/%s/certname/%s/date/%s/type/%s", c.apiURL, customerID, certname, yearMonthDay, windowType)
-	data := []byte(fmt.Sprintf(`{"comments": %q}`, comment))
+	data := fmt.Appendf(nil, `{"comments": %q}`, comment)
 
 	closeWindow, err := c.apiCallWithTransport(closeWindowURL, data, http.MethodPut)
 	if err != nil {
 		slog.Error("closing service window failed", slog.String("error", err.Error()))
 		return err
 	}
-	defer closeWindow.Body.Close()
+	defer closeBody(closeWindow)
 
 	switch closeWindow.StatusCode {
 	// 202 -> When a certname says it's done but the overall window is not auto-closed
@@ -356,13 +346,7 @@ func (c *obmondoClient) GetCustomerSettings(customerID string) (*CustomerSetting
 	settingsURL := fmt.Sprintf("%s/customer/settings/%s", c.apiURL, customerID)
 
 	resp, err := c.apiCallWithTransport(settingsURL, nil, http.MethodGet)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			if cerr := resp.Body.Close(); cerr != nil {
-				slog.Error("failed to close body", slog.Any("error", cerr))
-			}
-		}
-	}()
+	defer closeBody(resp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch customer settings: %w", err)
 	}
@@ -386,13 +370,7 @@ func (c *obmondoClient) GetServerEnvironment(certname string) (string, error) {
 	environmentURL := fmt.Sprintf("%s/servers/environment/certname/%s", c.apiURL, certname)
 
 	resp, err := c.apiCallWithTransport(environmentURL, nil, http.MethodGet)
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			if cerr := resp.Body.Close(); cerr != nil {
-				slog.Error("failed to close body", slog.Any("error", cerr))
-			}
-		}
-	}()
+	defer closeBody(resp)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch the puppet environment: %w", err)
 	}

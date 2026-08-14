@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"time"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
@@ -40,17 +39,22 @@ func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 	}
 }
 
-// Enable agent
-func (*Service) EnableAgent() error {
-	pipe := script.Exec("puppet agent --enable")
+// setAgentState runs a puppet agent enable/disable command and reports how it went.
+func setAgentState(cmd, action string) error {
+	pipe := script.Exec(cmd)
 	if err := pipe.Wait(); err != nil {
-		return fmt.Errorf("failed to enable puppet agent: %w", err)
+		return fmt.Errorf("failed to %s puppet agent: %w", action, err)
 	}
 	if pipe.ExitStatus() != 0 {
-		return fmt.Errorf("puppet agent enable exited with non-zero status")
+		return fmt.Errorf("puppet agent %s exited with non-zero status", action)
 	}
-	slog.Info("successfully enabled puppet")
+	slog.Info("successfully " + action + "d puppet")
 	return nil
+}
+
+// Enable agent
+func (*Service) EnableAgent() error {
+	return setAgentState("puppet agent --enable", "enable")
 }
 
 // Disable puppet-agent service (sanity-check)
@@ -73,16 +77,7 @@ func (s *Service) DisableAgentService() {
 
 // Disable agent with message
 func (*Service) DisableAgent(msg string) error {
-	cmd := fmt.Sprintf("puppet agent --disable '%s'", msg)
-	pipe := script.Exec(cmd)
-	if err := pipe.Wait(); err != nil {
-		return fmt.Errorf("failed to disable puppet agent: %w", err)
-	}
-	if pipe.ExitStatus() != 0 {
-		return fmt.Errorf("puppet agent disable exited with non-zero status")
-	}
-	slog.Info("successfully disabled puppet")
-	return nil
+	return setAgentState(fmt.Sprintf("puppet agent --disable '%s'", msg), "disable")
 }
 
 // RunAgent runs the puppet agent. The environment is passed on the command line rather than read
@@ -100,14 +95,7 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
 	pipe := script.Exec(cmd)
 	if _, err := pipe.Stdout(); err != nil {
-		// We're patching the error handling for turrisos for now, since we're still updating
-		// linuxaid support. Once done, we'll remove this special handling.
-		successStatusCodes := constant.PuppetSuccessExitCodes
-		if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
-			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
-		}
-
-		if !slices.Contains(successStatusCodes, pipe.ExitStatus()) {
+		if !helper.IsPuppetSuccessExitCode(pipe.ExitStatus()) {
 			slog.Error("stdout error", slog.Any("error", err))
 		}
 	}
@@ -158,10 +146,7 @@ report = true
 pluginsync = true
 noop = true
 `
-	server := s.openvoxServer
-	if parsed, err := url.Parse(server); err == nil && parsed.Hostname() != "" {
-		server = parsed.Hostname()
-	}
+	server := helper.NormalizeToHostname(s.openvoxServer)
 	content := fmt.Sprintf(cfg, server, s.certName)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
@@ -219,7 +204,7 @@ func (s *Service) DownloadAgent(downloadPath, url string) error {
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(io.MultiWriter(f), resp.Body); err != nil {
+	if _, err := io.Copy(f, resp.Body); err != nil {
 		return fmt.Errorf("failed to save file: %w", err)
 	}
 	return nil

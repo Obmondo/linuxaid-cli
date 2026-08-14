@@ -91,15 +91,6 @@ func (*MockObmondoClient) CloseServiceWindow(string, string, string, string) err
 	return nil
 }
 
-func (*MockObmondoClient) CloseServiceWindowNow(string, string) (*http.Response, error) {
-	response := &http.Response{
-		StatusCode: http.StatusAccepted,
-		Body:       io.NopCloser(bytes.NewBufferString("")),
-		Header:     make(http.Header),
-	}
-	return response, nil
-}
-
 func NewMockObmondoClient() api.ObmondoClient {
 	return &MockObmondoClient{}
 }
