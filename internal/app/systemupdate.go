@@ -170,21 +170,29 @@ func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname strin
 	return resolveOpenvoxEnvironment(obmondoAPI, certname, "", opensource)
 }
 
-func SystemUpdate() {
-	system.LoadOSReleaseEnv()
-
-	envErr := os.Setenv("PATH", constant.PuppetPath)
-	if envErr != nil {
-		slog.Error("failed to set the PATH env, exiting", slog.Any("error", envErr))
-		os.Exit(1)
+// SystemUpdate runs the update workflow. A returned error means the run failed in a way the
+// caller should surface as a non-zero exit; the paths that give up quietly return nil on purpose,
+// so systemd does not mark the unit failed for an inactive window or an unreachable API.
+func SystemUpdate() error {
+	if err := system.LoadOSReleaseEnv(); err != nil {
+		return err
 	}
 
-	system.RequireRootUser()
-	system.RequireOSNameEnv()
+	if err := os.Setenv("PATH", constant.PuppetPath); err != nil {
+		return fmt.Errorf("failed to set the PATH env: %w", err)
+	}
+
+	if err := system.RequireRootUser(); err != nil {
+		return err
+	}
+
+	if err := system.RequireOSNameEnv(); err != nil {
+		return err
+	}
+
 	cmds, err := system.IsSupportedOS()
 	if err != nil {
-		slog.Error("OS not supported", slog.String("err", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("OS not supported: %w", err)
 	}
 
 	slog.Info("starting system-update")
@@ -202,25 +210,23 @@ func SystemUpdate() {
 	serviceWindowNow, err := obmondoAPI.GetServiceWindowStatus()
 	if err != nil {
 		slog.Error("unable to get service window status", slog.String("error", err.Error()))
-		return
+		return nil
 	}
 
 	// lets fail with exit 0, otherwise systemd service will be in failed status
 	if !serviceWindowNow.IsWindowOpen {
 		slog.Warn("exiting, service window is inactive")
-		return
+		return nil
 	}
 
 	slog.Info("service window is active, going ahead")
 
 	if err := cmds.UpdateRepositoryList(); err != nil {
-		slog.Error("unable to update repository", slog.String("err", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("unable to update repository: %w", err)
 	}
 
 	if err := cmds.CheckAndInstallCaCertificates(); err != nil {
-		slog.Error("unable to check if ca certs are installed", slog.String("err", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("unable to check if ca certs are installed: %w", err)
 	}
 
 	certname := certs.GetCertname()
@@ -242,13 +248,13 @@ func SystemUpdate() {
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {
 			slog.Error("unable to run puppet-agent", slog.String("error", err.Error()))
-			return
+			return nil
 		}
 
 		// Disable puppet-agent, since we'll be running upgrade commands
 		if err := puppetService.DisableAgent("puppet has been disabled by the system-update"); err != nil {
 			slog.Error("failed to disable agent", slog.Any("error", err))
-			return
+			return nil
 		}
 
 		// Ensure the cleanup is done regardless of the outcome of the update script execution
@@ -258,13 +264,13 @@ func SystemUpdate() {
 	distribution, distIDExists := os.LookupEnv("ID")
 	if !distIDExists {
 		slog.Error("env variable ID not set")
-		return
+		return nil
 	}
 
 	// Apt/Yum/Zypper update
 	if err := system.UpdateSystem(distribution); err != nil {
 		slog.Error("unable to update system", slog.String("error", err.Error()))
-		return
+		return nil
 	}
 
 	securityExporterURL := config.GetSecurityExporterURL()
@@ -272,7 +278,7 @@ func SystemUpdate() {
 
 	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, certs.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
-		return
+		return nil
 	}
 
 	slog.Info("service window is closed now for this respective node")
@@ -285,6 +291,8 @@ func SystemUpdate() {
 
 	if err := system.CheckKernelAndRebootIfNeeded(config.NoReboot()); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
-		return
+		return nil
 	}
+
+	return nil
 }

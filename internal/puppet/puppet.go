@@ -145,7 +145,7 @@ func (s *Service) WaitForAgent(timeoutSeconds int) {
 }
 
 // Configure agent
-func (s *Service) ConfigureAgent() {
+func (s *Service) ConfigureAgent() error {
 	// no environment here on purpose: pinning one in puppet.conf would compete with the
 	// environment the caller passes to each run, and the two would eventually disagree
 	cfg := `[main]
@@ -166,8 +166,10 @@ noop = true
 	content := fmt.Sprintf(cfg, server, s.certName)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
-		os.Exit(1)
+		return fmt.Errorf("could not write %s: %w", constant.PuppetConfig, err)
 	}
+
+	return nil
 }
 
 // Check server status
@@ -226,7 +228,7 @@ func (s *Service) DownloadAgent(downloadPath, url string) error {
 	return nil
 }
 
-func (s *Service) FacterNewSetup() {
+func (s *Service) FacterNewSetup() error {
 	// Ensure facts.d directory exists
 	if _, err := script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d").Stdout(); err != nil {
 		slog.Error("failed to create facts directory", slog.Any("error", err))
@@ -248,8 +250,10 @@ func (s *Service) FacterNewSetup() {
 		)
 		errMsg := fmt.Sprintf("echo cannot create external facter file: %s", err.Error())
 		s.webtee.RemoteLogObmondo([]string{errMsg}, s.certName)
-		os.Exit(1)
+		return fmt.Errorf("could not create %s: %w", constant.ExternalFacterFile, err)
 	}
 
 	slog.Debug("facter external setup file created", slog.String("path", constant.ExternalFacterFile))
+
+	return nil
 }

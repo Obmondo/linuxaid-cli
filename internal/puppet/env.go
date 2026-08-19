@@ -2,35 +2,17 @@ package puppet
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"github.com/joho/godotenv"
 )
 
-func RequirePuppetEnv() {
-	_, certOk := os.LookupEnv(constant.PuppetCertEnv)
-	if !certOk {
-		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetCertEnv))
-		os.Exit(1)
-	}
-
-	_, keyOk := os.LookupEnv(constant.PuppetPrivKeyEnv)
-	if !keyOk {
-		slog.Error(fmt.Sprintf("%s env variable not set", constant.PuppetPrivKeyEnv))
-		os.Exit(1)
-	}
-}
-
 // LoadPuppetEnv doesnt throw error if the file doesnt exist
-func LoadPuppetEnv() {
+func LoadPuppetEnv() error {
 	err := godotenv.Load("/etc/default/run_puppet")
-	if os.IsNotExist(err) {
-		return
+	if err == nil || os.IsNotExist(err) {
+		return nil
 	}
-	if err != nil {
-		slog.Error("error loading .env file", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
+
+	return fmt.Errorf("could not load /etc/default/run_puppet: %w", err)
 }

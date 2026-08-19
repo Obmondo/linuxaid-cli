@@ -3,7 +3,6 @@ package provisioner
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,34 +39,34 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *web
 	}
 }
 
-func (s *Provisioner) ProvisionPuppet() {
+func (s *Provisioner) ProvisionPuppet() error {
 	switch os.Getenv("ID") {
 	case system.ConstDistributionNameUbuntu, system.ConstDistributionNameDebian:
 		if err := s.provisionForDebian(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to install puppet: %w", err)
 		}
 	case system.ConstDistributionNameSLES:
 		if err := s.provisionForSuse(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to install puppet: %w", err)
 		}
 	case system.ConstDistributionNameCentOS, system.ConstDistributionNameRHEL, system.ConstDistributionNameRocky, system.ConstDistributionNameOracleLinux:
 		if err := s.provisionForRedHat(); err != nil {
-			slog.Error("failed to install puppet", slog.Any("error", err))
-			os.Exit(1)
+			return fmt.Errorf("failed to install puppet: %w", err)
 		}
 	case system.ConstDistributionNameTurrisOS:
 		s.provisionForTurris()
 	default:
-		slog.Error("unknown distribution, exiting")
-		os.Exit(1)
+		return errors.New("unknown distribution")
 	}
+
+	return nil
 }
 
 // provisionForDebian installs puppet-agent on Ubuntu/Debian systems
 func (s *Provisioner) provisionForDebian() error {
-	system.RequireUbuntuCodeNameEnv()
+	if err := system.RequireUbuntuCodeNameEnv(); err != nil {
+		return err
+	}
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName)

@@ -24,8 +24,9 @@ var systemUpdateCmd = &cobra.Command{
 			slog.Info("Openvox-agent run will be skipped")
 		}
 	},
-	Run: func(*cobra.Command, []string) {
-		app.SystemUpdate()
+	SilenceUsage: true,
+	RunE: func(*cobra.Command, []string) error {
+		return app.SystemUpdate()
 	},
 }
 

@@ -67,8 +67,12 @@ func runOpenvoxAgent(environment string) error {
 }
 
 // Entry point
-func RunOpenvox(environmentFlag string) {
-	puppet.LoadPuppetEnv()
+// RunOpenvox performs one puppet agent run. As with SystemUpdate, nil means "nothing more to do"
+// rather than "everything succeeded": the paths that give up quietly keep their exit 0.
+func RunOpenvox(environmentFlag string) error {
+	if err := puppet.LoadPuppetEnv(); err != nil {
+		return err
+	}
 
 	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
 
@@ -93,7 +97,7 @@ func RunOpenvox(environmentFlag string) {
 			slog.Error("unable to connect to required hosts, aborting",
 				slog.String("prometheus", prometheusHost),
 				slog.String("puppet_server", puppetServerHost))
-			return
+			return nil
 		}
 
 		// nolint:errcheck
@@ -112,6 +116,8 @@ func RunOpenvox(environmentFlag string) {
 		// nolint:errcheck
 		obmondoAPI.UpdatePuppetLastRunReport()
 	}
+
+	return nil
 }
 
 // resolveOpenvoxEnvironment decides which puppet environment this run uses:

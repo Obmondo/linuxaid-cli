@@ -69,8 +69,9 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-	Run: func(*cobra.Command, []string) {
-		app.Install(installEnvironment())
+	SilenceUsage: true,
+	RunE: func(*cobra.Command, []string) error {
+		return app.Install(installEnvironment())
 	},
 }
 

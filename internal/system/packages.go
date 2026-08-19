@@ -28,10 +28,8 @@ func UpdateSystem(distribution string) error {
 
 func updateDebian() error {
 	slog.Info("running apt update/upgrade/autoremove")
-	enverr := os.Setenv("DEBIAN_FRONTEND", "noninteractive")
-	if enverr != nil {
-		slog.Error(enverr.Error())
-		os.Exit(1)
+	if err := os.Setenv("DEBIAN_FRONTEND", "noninteractive"); err != nil {
+		return fmt.Errorf("could not set DEBIAN_FRONTEND: %w", err)
 	}
 
 	if err := script.Exec("apt-get update").Wait(); err != nil {

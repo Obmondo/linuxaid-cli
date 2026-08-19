@@ -1,22 +1,20 @@
 package system
 
 import (
-	"log/slog"
-	"os"
+	"fmt"
 	"os/user"
 )
 
-// Check if the current user is root or not
-// fail if user is not root
-func RequireRootUser() {
-	user, err := user.Current()
+// RequireRootUser reports whether the current user is root.
+func RequireRootUser() error {
+	current, err := user.Current()
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		return fmt.Errorf("could not determine the current user: %w", err)
 	}
-	if user.Username == "root" {
-		return
+
+	if current.Username != "root" {
+		return fmt.Errorf("%w, current user is %q", errNotRoot, current.Username)
 	}
-	slog.Error("exiting, script needs to be run as root user,", slog.String("current_user", user.Username))
-	os.Exit(1)
+
+	return nil
 }

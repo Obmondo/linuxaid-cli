@@ -23,12 +23,23 @@ import (
 
 func compatibilityCheck(puppetService *puppet.Service) error {
 	// Sanity check
-	system.LoadOSReleaseEnv()
-	system.RequireRootUser()
+	if err := system.LoadOSReleaseEnv(); err != nil {
+		return err
+	}
+
+	if err := system.RequireRootUser(); err != nil {
+		return err
+	}
 
 	// Check required envs and OS
-	system.RequireOSNameEnv()
-	system.RequireOSVersionEnv()
+	if err := system.RequireOSNameEnv(); err != nil {
+		return err
+	}
+
+	if err := system.RequireOSVersionEnv(); err != nil {
+		return err
+	}
+
 	if _, err := system.IsSupportedOS(); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		return err
@@ -87,7 +98,7 @@ func shouldContinueAfterConfirmation() bool {
 	}
 }
 
-func Install(openvoxEnv string) {
+func Install(openvoxEnv string) error {
 	// Re-initialise the logger with progressbar writer to not disturb the
 	// progressbar if we print any logs. Everything is handled by progressbar's
 	// Bprintf method under the hood.
@@ -107,7 +118,7 @@ func Install(openvoxEnv string) {
 	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"))
 
 	if !shouldContinueAfterConfirmation() {
-		return
+		return nil
 	}
 
 	// Token is only required for Obmondo customers; opensource users can run
@@ -122,7 +133,7 @@ func Install(openvoxEnv string) {
 
 			return obmondoAPI.VerifyInstallToken(input)
 		}); err != nil {
-			os.Exit(1)
+			return err
 		}
 	}
 
@@ -135,29 +146,34 @@ func Install(openvoxEnv string) {
 	if err := progress.NonDeterministicFunc("Checking Compatibility", func() error {
 		return compatibilityCheck(puppetService)
 	}); err != nil {
-		os.Exit(1)
+		return err
 	}
 
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
 		webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certs.GetCertname())
-		os.Exit(0)
+
+		// an already-disabled agent is not a failure: keep the exit 0 this always had
+		return nil
 	}
 
-	// nolint: errcheck
-	progress.NonDeterministicFunc("Installing Openvox", func() error {
-		provisioner.ProvisionPuppet()
-		return nil
-	})
+	if err := progress.NonDeterministicFunc("Installing Openvox", func() error {
+		return provisioner.ProvisionPuppet()
+	}); err != nil {
+		return err
+	}
 
-	// nolint: errcheck
-	progress.NonDeterministicFunc("Configuring Openvox", func() error {
+	if err := progress.NonDeterministicFunc("Configuring Openvox", func() error {
 		puppetService.DisableAgentService()
-		puppetService.ConfigureAgent()
-		puppetService.FacterNewSetup()
-		return nil
-	})
+		if err := puppetService.ConfigureAgent(); err != nil {
+			return err
+		}
+
+		return puppetService.FacterNewSetup()
+	}); err != nil {
+		return err
+	}
 
 	// nolint: errcheck
 	progress.NonDeterministicFunc("Running Openvox", func() error {
@@ -173,4 +189,6 @@ func Install(openvoxEnv string) {
 	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
 	prettyfmt.PrettyPrintln("\n ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
 	prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.FontWhite("Head to"), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."))
+
+	return nil
 }

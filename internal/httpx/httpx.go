@@ -3,8 +3,9 @@ package httpx
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -34,14 +35,12 @@ func FetchURL(url string) (*http.Response, error) {
 	puppetPrivKey := script.IfExists(os.Getenv(constant.PuppetPrivKeyEnv))
 
 	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
-		slog.Error("puppet host cert or puppet private key is not present on the node")
-		os.Exit(1)
+		return nil, errors.New("puppet host cert or puppet private key is not present on the node")
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv))
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		return nil, fmt.Errorf("could not load the puppet key pair: %w", err)
 	}
 
 	t := &http.Transport{
@@ -61,8 +60,8 @@ func FetchURL(url string) (*http.Response, error) {
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		slog.Error("unexpected error received", slog.String("error", err.Error()))
-		os.Exit(1)
+		return nil, fmt.Errorf("request to %s failed: %w", url, err)
 	}
+
 	return response, nil
 }

@@ -1,40 +1,42 @@
 package system
 
 import (
-	"log/slog"
+	"errors"
+	"fmt"
+
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
-func RequireOSNameEnv() {
-	_, codeName := os.LookupEnv("NAME")
-	if !codeName {
-		slog.Error("NAME env variable not set")
-		os.Exit(1)
+// requireEnv reports a missing environment variable as an error rather than terminating: the
+// caller decides whether a missing variable is fatal for what it is doing.
+func requireEnv(name string) error {
+	if _, ok := os.LookupEnv(name); !ok {
+		return fmt.Errorf("%s env variable not set", name)
 	}
+
+	return nil
 }
 
-func RequireOSVersionEnv() {
-	_, codeName := os.LookupEnv("VERSION")
-	if !codeName {
-		slog.Error("VERSION env variable not set")
-		os.Exit(1)
-	}
+func RequireOSNameEnv() error {
+	return requireEnv("NAME")
 }
 
-func RequireUbuntuCodeNameEnv() {
-	_, codeName := os.LookupEnv("UBUNTU_CODENAME")
-	if !codeName {
-		slog.Error("UBUNTU_CODENAME env variable not set")
-		os.Exit(1)
-	}
+func RequireOSVersionEnv() error {
+	return requireEnv("VERSION")
 }
 
-func LoadOSReleaseEnv() {
-	err := godotenv.Load("/etc/os-release")
-	if err != nil {
-		slog.Error("error loading .env file", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
+func RequireUbuntuCodeNameEnv() error {
+	return requireEnv("UBUNTU_CODENAME")
 }
+
+func LoadOSReleaseEnv() error {
+	if err := godotenv.Load("/etc/os-release"); err != nil {
+		return fmt.Errorf("could not load /etc/os-release: %w", err)
+	}
+
+	return nil
+}
+
+var errNotRoot = errors.New("this command needs to be run as the root user")
