@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bitfield/script"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 )
 
 const (
@@ -37,6 +37,7 @@ const (
 )
 
 type CertificateManagerCommands struct {
+	runner                   shell.Runner
 	updateRepoListCmd        string
 	checkCACertificatesCmd   string
 	installCACertificatesCmd string
@@ -48,11 +49,13 @@ func GetMajorRelease() string {
 }
 
 // List of Supported OS
-func IsSupportedOS() (CertificateManagerCommands, error) {
+func IsSupportedOS(runner shell.Runner) (CertificateManagerCommands, error) {
 	commands, err := getCommandsForInstallingCACertificates()
 	if err != nil {
 		return commands, fmt.Errorf("failed determining the os distribution: %w", err)
 	}
+
+	commands.runner = runner
 
 	return commands, nil
 }
@@ -93,34 +96,25 @@ func getCommandsForInstallingCACertificates() (CertificateManagerCommands, error
 
 // UpdateRepositoryList updates repository list for any distribution
 func (c *CertificateManagerCommands) UpdateRepositoryList() error {
-	pipe := script.Exec(c.updateRepoListCmd)
-	if err := pipe.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return c.runner.Quiet(c.updateRepoListCmd).Err
 }
 
 // CheckAndInstallCaCertificates handles the installation of CA certificates for any distribution
 func (c *CertificateManagerCommands) CheckAndInstallCaCertificates() error {
-	isInstalled := isCaCertificateInstalled(c.checkCACertificatesCmd)
-	if !isInstalled {
-		pipe := script.Exec(c.installCACertificatesCmd)
-		if err := pipe.Wait(); err != nil {
-			return err
-		}
+	if c.isCaCertificateInstalled() {
+		return nil
 	}
 
-	return nil
+	return c.runner.Quiet(c.installCACertificatesCmd).Err
 }
 
 // isCaCertificateInstalled reports whether the distribution's CA certificate packages are already
 // installed, by running the distribution's own query command.
-func isCaCertificateInstalled(cmd string) bool {
-	pipe := script.Exec(cmd)
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to determine if ca-certificates is installed", slog.String("error", err.Error()))
+func (c *CertificateManagerCommands) isCaCertificateInstalled() bool {
+	result := c.runner.Quiet(c.checkCACertificatesCmd)
+	if result.Err != nil {
+		slog.Error("failed to determine if ca-certificates is installed", slog.Any("error", result.Err))
 	}
 
-	return pipe.ExitStatus() == 0
+	return result.ExitCode == 0
 }

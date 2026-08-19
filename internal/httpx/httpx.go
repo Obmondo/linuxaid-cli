@@ -3,7 +3,6 @@ package httpx
 import (
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,8 +10,6 @@ import (
 	"time"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-
-	"github.com/bitfield/script"
 )
 
 const (
@@ -31,11 +28,11 @@ func ParseResponse(response *http.Response) (int, []byte, error) {
 
 // FetchURL calls an Obmondo API URL
 func FetchURL(url string) (*http.Response, error) {
-	puppetCert := script.IfExists(os.Getenv(constant.PuppetCertEnv))
-	puppetPrivKey := script.IfExists(os.Getenv(constant.PuppetPrivKeyEnv))
-
-	if puppetCert.ExitStatus() != 0 || puppetPrivKey.ExitStatus() != 0 {
-		return nil, errors.New("puppet host cert or puppet private key is not present on the node")
+	// a plain existence check; it needs no shell
+	for _, path := range []string{os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv)} {
+		if _, err := os.Stat(path); err != nil {
+			return nil, fmt.Errorf("puppet host cert or puppet private key is not present on the node: %w", err)
+		}
 	}
 
 	cert, err := tls.LoadX509KeyPair(os.Getenv(constant.PuppetCertEnv), os.Getenv(constant.PuppetPrivKeyEnv))

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
@@ -190,7 +191,9 @@ func SystemUpdate() error {
 		return err
 	}
 
-	cmds, err := system.IsSupportedOS()
+	runner := shell.New()
+
+	cmds, err := system.IsSupportedOS(runner)
 	if err != nil {
 		return fmt.Errorf("OS not supported: %w", err)
 	}
@@ -236,7 +239,7 @@ func SystemUpdate() error {
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServer))
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI))
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI), runner)
 
 	if openvoxInitiallyEnabled && !config.ShouldSkipOpenvox() {
 		// Check if any existing puppet agent is already running
@@ -268,7 +271,7 @@ func SystemUpdate() error {
 	}
 
 	// Apt/Yum/Zypper update
-	if err := system.UpdateSystem(distribution); err != nil {
+	if err := system.UpdateSystem(runner, distribution); err != nil {
 		slog.Error("unable to update system", slog.String("error", err.Error()))
 		return nil
 	}
@@ -289,7 +292,7 @@ func SystemUpdate() error {
 		cleanup(puppetService)
 	}
 
-	if err := system.CheckKernelAndRebootIfNeeded(config.NoReboot()); err != nil {
+	if err := system.CheckKernelAndRebootIfNeeded(runner, config.NoReboot()); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return nil
 	}

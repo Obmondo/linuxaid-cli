@@ -6,17 +6,17 @@ import (
 	"strings"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
-	"github.com/bitfield/script"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 )
 
 const bootDirectory = "/boot"
 
 // CheckKernelAndRebootIfNeeded checks if a new kernel is installed and reboots if necessary.
-func CheckKernelAndRebootIfNeeded(noReboot bool) error {
+func CheckKernelAndRebootIfNeeded(runner shell.Runner, noReboot bool) error {
 	// Get installed kernel of the system
 	// If kernel is installed, then only we will try to reboot.
 	// In lxc kernel wont be present
-	installedKernel, err := getInstalledKernel(bootDirectory)
+	installedKernel, err := getInstalledKernel(runner, bootDirectory)
 	if err != nil {
 		slog.Error("error occurred while trying to find kernel", slog.String("error", err.Error()))
 		return err
@@ -27,12 +27,12 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 	}
 
 	// Get running kernel of the system
-	runningKernel, err := script.Exec("uname -r").String()
-	if err != nil {
-		slog.Error("Failed to fetch Running Kernel", slog.String("error", err.Error()))
-		return err
+	running := runner.Capture("uname -r")
+	if running.Err != nil {
+		slog.Error("Failed to fetch Running Kernel", slog.Any("error", running.Err))
+		return running.Err
 	}
-	runningKernel = strings.TrimSpace(runningKernel)
+	runningKernel := strings.TrimSpace(running.Output)
 
 	// Check the disk size
 	if err := disk.CheckDiskSize(); err != nil {
@@ -43,16 +43,16 @@ func CheckKernelAndRebootIfNeeded(noReboot bool) error {
 	// Reboot the node, if we have installed a new kernel
 	if installedKernel != runningKernel && !noReboot {
 		slog.Info("looks like newer kernel is installed, so going ahead with reboot now")
-		script.Exec("reboot --force")
+		runner.Run("reboot --force")
 	}
 
 	return nil
 }
 
 // getInstalledKernel returns the installed Kernel
-func getInstalledKernel(bootDirectory string) (string, error) {
+func getInstalledKernel(runner shell.Runner, bootDirectory string) (string, error) {
 	formatedBashCommand := fmt.Sprintf("find %s/vmlinuz-* | sort -V | tail -n 1 | sed 's|.*vmlinuz-||'", bootDirectory)
-	installedKernel, err := script.Exec(fmt.Sprintf("/bin/bash -c \"%s\"", formatedBashCommand)).String()
-	installedKernel = strings.TrimSpace(installedKernel)
-	return installedKernel, err
+	result := runner.Capture(fmt.Sprintf("/bin/bash -c \"%s\"", formatedBashCommand))
+
+	return strings.TrimSpace(result.Output), result.Err
 }

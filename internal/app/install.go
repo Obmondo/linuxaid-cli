@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
@@ -22,7 +23,7 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
-func compatibilityCheck(puppetService *puppet.Service) error {
+func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) error {
 	// Sanity check
 	if err := system.LoadOSReleaseEnv(); err != nil {
 		return err
@@ -41,7 +42,7 @@ func compatibilityCheck(puppetService *puppet.Service) error {
 		return err
 	}
 
-	if _, err := system.IsSupportedOS(); err != nil {
+	if _, err := system.IsSupportedOS(runner); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		return err
 	}
@@ -111,7 +112,8 @@ func Install(openvoxEnv string) error {
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPI)
-	puppetService := puppet.NewService(obmondoAPI, webtee)
+	runner := shell.New()
+	puppetService := puppet.NewService(obmondoAPI, webtee, runner)
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
 	//nolint:errcheck // a banner failing must not abort the install
@@ -146,7 +148,7 @@ func Install(openvoxEnv string) error {
 	}
 
 	if err := progress.NonDeterministicFunc("Checking Compatibility", func() error {
-		return compatibilityCheck(puppetService)
+		return compatibilityCheck(puppetService, runner)
 	}); err != nil {
 		return err
 	}

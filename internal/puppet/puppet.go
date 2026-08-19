@@ -17,16 +17,16 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
-
-	"github.com/bitfield/script"
 )
 
 // puppetExitCodeFailed mirrors puppet's own "run failed" exit code.
 const puppetExitCodeFailed = 1
 
 type Service struct {
+	runner        shell.Runner
 	webtee        *webtee.Webtee
 	apiClient     api.ObmondoClient
 	certName      string
@@ -34,9 +34,9 @@ type Service struct {
 }
 
 // NewService initializes a new Puppet service instance
-func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
-
+func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee, runner shell.Runner) *Service {
 	return &Service{
+		runner:        runner,
 		apiClient:     apiClient,
 		certName:      certs.GetCertname(),
 		openvoxServer: config.GetOpenvoxServer(),
@@ -45,12 +45,12 @@ func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 }
 
 // Enable agent
-func (*Service) EnableAgent() error {
-	pipe := script.Exec("puppet agent --enable")
-	if err := pipe.Wait(); err != nil {
-		return fmt.Errorf("failed to enable puppet agent: %w", err)
+func (s *Service) EnableAgent() error {
+	result := s.runner.Quiet("puppet agent --enable")
+	if result.Err != nil {
+		return fmt.Errorf("failed to enable puppet agent: %w", result.Err)
 	}
-	if pipe.ExitStatus() != 0 {
+	if result.ExitCode != 0 {
 		return fmt.Errorf("puppet agent enable exited with non-zero status")
 	}
 	slog.Info("successfully enabled puppet")
@@ -82,13 +82,13 @@ func (s *Service) DisableAgentService() error {
 }
 
 // Disable agent with message
-func (*Service) DisableAgent(msg string) error {
+func (s *Service) DisableAgent(msg string) error {
 	cmd := fmt.Sprintf("puppet agent --disable '%s'", msg)
-	pipe := script.Exec(cmd)
-	if err := pipe.Wait(); err != nil {
-		return fmt.Errorf("failed to disable puppet agent: %w", err)
+	result := s.runner.Quiet(cmd)
+	if result.Err != nil {
+		return fmt.Errorf("failed to disable puppet agent: %w", result.Err)
 	}
-	if pipe.ExitStatus() != 0 {
+	if result.ExitCode != 0 {
 		return fmt.Errorf("puppet agent disable exited with non-zero status")
 	}
 	slog.Info("successfully disabled puppet")
@@ -112,8 +112,8 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 	}
 
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
-	pipe := script.Exec(cmd)
-	if _, err := pipe.Stdout(); err != nil {
+	result := s.runner.Run(cmd)
+	if err := result.Err; err != nil {
 		// We're patching the error handling for turrisos for now, since we're still updating
 		// linuxaid support. Once done, we'll remove this special handling.
 		successStatusCodes := constant.PuppetSuccessExitCodes
@@ -121,12 +121,12 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
 		}
 
-		if !slices.Contains(successStatusCodes, pipe.ExitStatus()) {
+		if !slices.Contains(successStatusCodes, result.ExitCode) {
 			slog.Error("stdout error", slog.Any("error", err))
 		}
 	}
 
-	return pipe.ExitStatus()
+	return result.ExitCode
 }
 
 // Check if agent is running
@@ -248,8 +248,8 @@ func (s *Service) DownloadAgent(downloadPath, url string) error {
 
 func (s *Service) FacterNewSetup() error {
 	// Ensure facts.d directory exists
-	if _, err := script.Exec("mkdir -p /etc/puppetlabs/facter/facts.d").Stdout(); err != nil {
-		slog.Error("failed to create facts directory", slog.Any("error", err))
+	if result := s.runner.Run("mkdir -p /etc/puppetlabs/facter/facts.d"); result.Err != nil {
+		slog.Error("failed to create facts directory", slog.Any("error", result.Err))
 	}
 
 	currentTime := time.Now()
@@ -260,7 +260,8 @@ func (s *Service) FacterNewSetup() error {
 		currentTime.Day(),
 	)
 
-	_, err := script.Echo(facter).WriteFile(constant.ExternalFacterFile)
+	// nolint: mnd
+	err := os.WriteFile(constant.ExternalFacterFile, []byte(facter), 0o644)
 	if err != nil {
 		slog.Debug("failed to write external facter file",
 			slog.String("file_path", constant.ExternalFacterFile),

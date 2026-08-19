@@ -4,17 +4,17 @@ import (
 	"log/slog"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/checkconnectivity"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
-	"github.com/bitfield/script"
 )
 
 // Run the puppet agent in noop mode for now
-func runOpenvoxAgent(environment string) error {
+func runOpenvoxAgent(runner shell.Runner, environment string) error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -47,18 +47,17 @@ func runOpenvoxAgent(environment string) error {
 	}
 
 	slog.Info("executing the puppet agent command")
-	cmdPipe := script.Exec(agentCmd)
-	_, err := cmdPipe.Stdout()
-	if err != nil {
+	result := runner.Run(agentCmd)
+	if result.Err != nil {
 		// When encountering status code 1, consider it as an error, and return.
-		if cmdPipe.ExitStatus() == statusCodeFailed {
-			slog.Error("puppet agent command execution failed", slog.String("status", err.Error()))
-			return err
+		if result.ExitCode == statusCodeFailed {
+			slog.Error("puppet agent command execution failed", slog.Any("status", result.Err))
+			return result.Err
 		}
 
 		// When encountering status codes other than 2, just log it as a warning.
-		if cmdPipe.ExitStatus() != statusCodeSucceededWithChanges {
-			slog.Warn("puppet agent run succeeded, but with failures", slog.String("status", err.Error()))
+		if result.ExitCode != statusCodeSucceededWithChanges {
+			slog.Warn("puppet agent run succeeded, but with failures", slog.Any("status", result.Err))
 		}
 	}
 
@@ -108,7 +107,7 @@ func RunOpenvox(environmentFlag string) error {
 	slog.Info("resolved puppet environment", slog.String("environment", environment))
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runOpenvoxAgent(environment); err != nil {
+	if err := runOpenvoxAgent(shell.New(), environment); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 
