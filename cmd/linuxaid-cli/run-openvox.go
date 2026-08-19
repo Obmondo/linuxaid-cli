@@ -3,11 +3,11 @@ package main
 import (
 	"log/slog"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/checkconnectivity"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/checkconnectivity"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"github.com/bitfield/script"
 	"github.com/spf13/cobra"
 )

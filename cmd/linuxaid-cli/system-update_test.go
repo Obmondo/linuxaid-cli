@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/mock"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/mock"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
 
 func TestGetCustomerID(t *testing.T) {

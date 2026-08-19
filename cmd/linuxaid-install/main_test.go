@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
 // testEnvironment is the environment the flag tests below install with.

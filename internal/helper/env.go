@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"github.com/joho/godotenv"
 )
 

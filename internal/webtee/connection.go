@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	rpc "gitea.obmondo.com/EnableIT/linuxaid-cli/rpc"
+	rpc "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

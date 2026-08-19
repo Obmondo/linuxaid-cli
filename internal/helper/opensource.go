@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
 // SetOpensourceMode records whether this node was set up without an Obmondo

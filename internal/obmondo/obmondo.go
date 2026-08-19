@@ -13,9 +13,9 @@ import (
 	"os"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 	"gopkg.in/yaml.v3"
 )
 

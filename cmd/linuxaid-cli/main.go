@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
 )
 
 var Version string

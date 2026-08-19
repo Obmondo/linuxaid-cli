@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
 
 // MockServerEnvironment is the puppet environment the mock API resolves for every certname.

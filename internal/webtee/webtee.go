@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
 
 // Pipenames

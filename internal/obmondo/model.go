@@ -3,7 +3,7 @@ package api
 import (
 	"strings"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
 type InstallScriptInput struct {

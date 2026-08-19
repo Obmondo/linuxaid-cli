@@ -1,7 +1,7 @@
 package config
 
 import (
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"github.com/spf13/viper"
 )
 

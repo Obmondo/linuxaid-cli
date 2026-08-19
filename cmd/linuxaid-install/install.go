@@ -6,18 +6,18 @@ import (
 	"os"
 	"strings"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/progress"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/provisioner"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/disk"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/obmondo"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/puppet"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/webtee"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/progress"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/provisioner"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 )
 
 func compatibilityCheck(puppetService *puppet.Service) error {

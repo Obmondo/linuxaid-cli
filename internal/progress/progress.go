@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 	"github.com/schollz/progressbar/v3"
 )
 
