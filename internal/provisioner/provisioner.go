@@ -54,7 +54,9 @@ func (s *Provisioner) ProvisionPuppet() error {
 			return fmt.Errorf("failed to install puppet: %w", err)
 		}
 	case system.ConstDistributionNameTurrisOS:
-		s.provisionForTurris()
+		if err := s.provisionForTurris(); err != nil {
+			return fmt.Errorf("failed to install puppet: %w", err)
+		}
 	default:
 		return errors.New("unknown distribution")
 	}
@@ -69,8 +71,12 @@ func (s *Provisioner) provisionForDebian() error {
 	}
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
-	s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName)
-	s.webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, s.certName)
+	if err := s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName); err != nil {
+		return err
+	}
+	if err := s.webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, s.certName); err != nil {
+		return err
+	}
 	var ubuntuVersion string
 	switch codeName {
 	case "jammy":
@@ -97,14 +103,18 @@ func (s *Provisioner) provisionForDebian() error {
 	}
 
 	installCmd := []string{fmt.Sprintf("apt install -y %s", downloadPath)}
-	s.webtee.RemoteLogObmondo(installCmd, s.certName)
+	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // provisionForRedHat installs puppet-agent on RHEL/CentOS systems
 func (s *Provisioner) provisionForRedHat() error {
-	s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName)
+	if err := s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName); err != nil {
+		return err
+	}
 
 	majRelease := system.GetMajorRelease()
 
@@ -129,14 +139,18 @@ func (s *Provisioner) provisionForRedHat() error {
 	}
 
 	installCmd := []string{fmt.Sprintf("yum install %s -y", downloadPath)}
-	s.webtee.RemoteLogObmondo(installCmd, s.certName)
+	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // provisionForSuse installs puppet-agent on SUSE systems
 func (s *Provisioner) provisionForSuse() error {
-	s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName)
+	if err := s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName); err != nil {
+		return err
+	}
 
 	majRelease := system.GetMajorRelease()
 
@@ -161,16 +175,26 @@ func (s *Provisioner) provisionForSuse() error {
 	}
 
 	installCmd := []string{fmt.Sprintf("rpm -ivh %s", downloadPath)}
-	s.webtee.RemoteLogObmondo(installCmd, s.certName)
+	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // provisionForTurris installs puppet via gem on TurrisOS
-func (s *Provisioner) provisionForTurris() {
-	s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName)
-	s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-stdlib ruby-dev ruby-gems"}, s.certName)
+func (s *Provisioner) provisionForTurris() error {
+	if err := s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName); err != nil {
+		return err
+	}
+	if err := s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-stdlib ruby-dev ruby-gems"}, s.certName); err != nil {
+		return err
+	}
 
 	installCmd := []string{fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxVersion)}
-	s.webtee.RemoteLogObmondo(installCmd, s.certName)
+	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -3,8 +3,8 @@ package webtee
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log/slog"
-	"os"
 	"time"
 
 	rpc "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/rpc"
@@ -22,7 +22,7 @@ type logLine struct {
 	pipe string
 }
 
-func connectToServer(app *application) {
+func connectToServer(app *application) error {
 	// Initialize connection to webtee server
 	var err error
 	opts := []grpc.DialOption{
@@ -43,9 +43,10 @@ func connectToServer(app *application) {
 	// even if connection to server failed.
 
 	if !(isConnected) && !(app.config.ContinueOnDisconnect()) {
-		slog.Debug("ContinueOnDisconnect is set to false so quitting without executing command")
-		os.Exit(1)
+		return errors.New("could not connect to the webtee server and ContinueOnDisconnect is not set")
 	}
+
+	return nil
 }
 
 func getTLSDialOption(noTLS bool) grpc.DialOption {

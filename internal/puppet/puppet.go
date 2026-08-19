@@ -23,6 +23,9 @@ import (
 	"github.com/bitfield/script"
 )
 
+// puppetExitCodeFailed mirrors puppet's own "run failed" exit code.
+const puppetExitCodeFailed = 1
+
 type Service struct {
 	webtee        *webtee.Webtee
 	apiClient     api.ObmondoClient
@@ -55,21 +58,27 @@ func (*Service) EnableAgent() error {
 }
 
 // Disable puppet-agent service (sanity-check)
-func (s *Service) DisableAgentService() {
+func (s *Service) DisableAgentService() error {
 	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
 	if os.Getenv("ID") != system.ConstDistributionNameTurrisOS {
 		// Disable unattended-upgrades so puppet-agent package does not update
-		s.webtee.RemoteLogObmondo([]string{
+		if err := s.webtee.RemoteLogObmondo([]string{
 			"puppet resource service unattended-upgrades ensure=stopped enable=false",
-		}, s.certName)
+		}, s.certName); err != nil {
+			return err
+		}
 
 		// Stop puppet agent service, since we manage it via run_puppet service
-		s.webtee.RemoteLogObmondo([]string{
+		if err := s.webtee.RemoteLogObmondo([]string{
 			"puppet resource service puppet ensure=stopped enable=false",
-		}, s.certName)
+		}, s.certName); err != nil {
+			return err
+		}
 
 		slog.Debug("puppet agent service disabled")
 	}
+
+	return nil
 }
 
 // Disable agent with message
@@ -94,7 +103,11 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 		cmd += " --environment " + environment
 	}
 	if remoteLog {
-		s.webtee.RemoteLogObmondo([]string{cmd}, s.certName)
+		if err := s.webtee.RemoteLogObmondo([]string{cmd}, s.certName); err != nil {
+			slog.Error("remote-logged puppet run failed", slog.Any("error", err))
+			return puppetExitCodeFailed
+		}
+
 		return 0
 	}
 
@@ -122,11 +135,13 @@ func (s *Service) IsAgentRunning() bool {
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Debug("puppet lock file not found")
-			s.webtee.RemoteLogObmondo([]string{"echo lock file not found"}, s.certName)
+			//nolint:errcheck // a diagnostic echo failing must not mask the real error
+			_ = s.webtee.RemoteLogObmondo([]string{"echo lock file not found"}, s.certName)
 			return false
 		}
 		slog.Debug("error checking lock file", slog.Any("error", err))
-		s.webtee.RemoteLogObmondo([]string{"echo error checking lock file"}, s.certName)
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{"echo error checking lock file"}, s.certName)
 		return false
 	}
 	return true
@@ -165,7 +180,8 @@ noop = true
 	}
 	content := fmt.Sprintf(cfg, server, s.certName)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
-		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
 		return fmt.Errorf("could not write %s: %w", constant.PuppetConfig, err)
 	}
 
@@ -192,7 +208,8 @@ func (s *Service) CheckServerStatus() error {
 
 	resp, err := client.Get(statusURL)
 	if err != nil {
-		s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo Unable to reach Puppetserver: %s", err)}, s.certName)
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo Unable to reach Puppetserver: %s", err)}, s.certName)
 		return err
 	}
 	defer resp.Body.Close()
@@ -212,7 +229,8 @@ func (s *Service) DownloadAgent(downloadPath, url string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.webtee.RemoteLogObmondo([]string{"echo deb file not present at url"}, url)
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{"echo deb file not present at url"}, url)
 		return fmt.Errorf("puppet agent download failed with status %d", resp.StatusCode)
 	}
 
@@ -249,7 +267,8 @@ func (s *Service) FacterNewSetup() error {
 			slog.Any("error", err),
 		)
 		errMsg := fmt.Sprintf("echo cannot create external facter file: %s", err.Error())
-		s.webtee.RemoteLogObmondo([]string{errMsg}, s.certName)
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{errMsg}, s.certName)
 		return fmt.Errorf("could not create %s: %w", constant.ExternalFacterFile, err)
 	}
 

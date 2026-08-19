@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -113,7 +114,8 @@ func Install(openvoxEnv string) error {
 	puppetService := puppet.NewService(obmondoAPI, webtee)
 	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
 
-	webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
+	//nolint:errcheck // a banner failing must not abort the install
+	_ = webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
 	prettyfmt.PrettyPrintf(" %s  %s %s %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with Openvox Server"), prettyfmt.FontYellow(openvoxServer), prettyfmt.FontWhite("and environment"), prettyfmt.FontYellow(openvoxEnv))
 	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"))
 
@@ -152,7 +154,8 @@ func Install(openvoxEnv string) error {
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
-		webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certs.GetCertname())
+		//nolint:errcheck // a banner failing must not abort the install
+		_ = webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certs.GetCertname())
 
 		// an already-disabled agent is not a failure: keep the exit 0 this always had
 		return nil
@@ -165,7 +168,10 @@ func Install(openvoxEnv string) error {
 	}
 
 	if err := progress.NonDeterministicFunc("Configuring Openvox", func() error {
-		puppetService.DisableAgentService()
+		if err := puppetService.DisableAgentService(); err != nil {
+			return err
+		}
+
 		if err := puppetService.ConfigureAgent(); err != nil {
 			return err
 		}
@@ -175,18 +181,26 @@ func Install(openvoxEnv string) error {
 		return err
 	}
 
-	// nolint: errcheck
-	progress.NonDeterministicFunc("Running Openvox", func() error {
+	if err := progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-		puppetService.RunAgent(true, "noop", openvoxEnv)
+
+		// the remote-logged run used to abort the whole process from inside webtee; keep it fatal
+		if exitCode := puppetService.RunAgent(true, "noop", openvoxEnv); exitCode != 0 {
+			return fmt.Errorf("the openvox run failed with exit code %d", exitCode)
+		}
+
 		if hasToken {
 			// nolint:errcheck
 			obmondoAPI.UpdatePuppetLastRunReport()
 		}
-		return nil
-	})
 
-	webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	//nolint:errcheck // a banner failing must not abort the install
+	_ = webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
 	prettyfmt.PrettyPrintln("\n ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
 	prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.FontWhite("Head to"), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."))
 

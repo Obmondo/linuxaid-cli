@@ -28,11 +28,16 @@ type Webtee struct {
 	obmondoAPI    api.ObmondoClient
 }
 
-func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
+// RemoteLogObmondo runs a command locally and streams its output to the webtee server. A
+// returned error means the command could not be run or did not succeed; the caller decides
+// whether that is fatal.
+func (w *Webtee) RemoteLogObmondo(command []string, certname string) error {
 	app := &application{
 		config: WebTeeConfig{w.obmondoAPIURL, true, command, certname, false},
 	}
-	connectToServer(app)
+	if err := connectToServer(app); err != nil {
+		return err
+	}
 	// nolint: errcheck
 	defer app.conn.Close()
 
@@ -51,8 +56,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 			Certname: certname,
 		})
 
-		slog.Error("failed to connect to stdout pipe", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to connect to stdout pipe: %w", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -60,8 +64,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 			Certname: certname,
 		})
-		slog.Error("failed to connect to stderr pipe", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to connect to stderr pipe: %w", err)
 	}
 
 	// Start command execution.
@@ -71,8 +74,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
 			Certname: certname,
 		})
-		slog.Error("failed to start command", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("failed to start command: %w", err)
 	}
 
 	// For each line in stdout & stderr, wrap it in an "echo" command and send it to webtee server.
@@ -97,7 +99,7 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 				Certname: certname,
 			})
 
-			os.Exit(1)
+			return fmt.Errorf("command %q failed: %w", strings.Join(command, " "), err)
 		}
 	}
 
@@ -106,6 +108,8 @@ func (w *Webtee) RemoteLogObmondo(command []string, certname string) {
 
 	// Wait for goroutines (like the grpc stream) to finish.
 	app.wg.Wait()
+
+	return nil
 }
 
 func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
