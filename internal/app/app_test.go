@@ -1,86 +1,81 @@
-package main
+package app
 
 import (
 	"errors"
-	"path/filepath"
 	"testing"
-	"time"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/mock"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
 
-func TestGetCustomerID(t *testing.T) {
-	t.Setenv("CERTNAME", "hostname.example")
-	expected := "example"
-	op := certs.GetCustomerID("hostname.example")
-	if op != expected {
-		t.Errorf("Failed to parse customer id, expeceted: %s, output: %s", expected, op)
-	}
+// failingEnvironmentClient stands in for an unreachable Obmondo API.
+type failingEnvironmentClient struct {
+	api.ObmondoClient
 }
 
-func TestGetServiceWindowStatus(t *testing.T) {
-	mockObmondoClient := mock.NewMockObmondoClient()
-	serviceWindowNow, err := mockObmondoClient.GetServiceWindowStatus()
-	if err != nil {
-		t.Errorf("o/p: %+v", err)
-	}
-
-	if !serviceWindowNow.IsWindowOpen {
-		t.Errorf("Expected service window to be open, but got: %t", serviceWindowNow.IsWindowOpen)
-	}
-
-	if serviceWindowNow.WindowType != "automatic" {
-		t.Errorf("Expected window type to be 'automatic', but got: %s", serviceWindowNow.WindowType)
-	}
-	if serviceWindowNow.Timezone != "UTC" {
-		t.Errorf("Expected window timezone to be 'UTC', but got: %s", serviceWindowNow.Timezone)
-	}
-
-	if !serviceWindowNow.DoesWindowExist {
-		t.Errorf("Expected service window to exist, but got: %t", serviceWindowNow.DoesWindowExist)
-	}
-	if serviceWindowNow.Linux == nil {
-		t.Fatal("Expected linux window details to be present, but got nil")
-	}
-	if !serviceWindowNow.Linux.NeedsReboot {
-		t.Errorf("Expected needs reboot to be true, but got: %t", serviceWindowNow.Linux.NeedsReboot)
-	}
-	if serviceWindowNow.Linux.LinuxAidTag != "11.0.0" {
-		t.Errorf("Expected linuxaid tag to be '11.0.0', but got: %s", serviceWindowNow.Linux.LinuxAidTag)
-	}
-
+func (*failingEnvironmentClient) GetServerEnvironment(_ string) (string, error) {
+	return "", errors.New("api is unreachable")
 }
 
-func TestCloseWindow(t *testing.T) {
-	mockObmondoClient := mock.NewMockObmondoClient()
-
-	if err := mockObmondoClient.CloseServiceWindow("automatic", "hostname.example", time.UTC.String(), "server has been updated"); err != nil {
-		t.Errorf("o/p: %+v", err)
-	}
+// emptyEnvironmentClient answers without resolving an environment.
+type emptyEnvironmentClient struct {
+	api.ObmondoClient
 }
 
-func TestGetInstalledKernel(t *testing.T) {
-	testBootDirectory, err := filepath.Abs("../../test/boot/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectedKernelOutput := "6.11.0-3-generic"
-
-	latestKernel, err := getInstalledKernel(testBootDirectory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if latestKernel != expectedKernelOutput {
-		t.Errorf("\n expected: %s\n actual: %s", expectedKernelOutput, latestKernel)
-		t.FailNow()
-	}
-
+func (*emptyEnvironmentClient) GetServerEnvironment(_ string) (string, error) {
+	return "", nil
 }
 
-// Need tests for 204 and 208 and a failed scenario as well
+func TestResolveOpenvoxEnvironment(t *testing.T) {
+	const certname = "hostname.example"
+
+	tests := []struct {
+		name       string
+		flagValue  string
+		client     api.ObmondoClient
+		opensource bool
+		expected   string
+	}{
+		{
+			name:      "the flag wins over the environment set in Obmondo",
+			flagValue: "testing",
+			client:    mock.NewMockObmondoClient(),
+			expected:  "testing",
+		},
+		{
+			name:     "without the flag the environment comes from Obmondo",
+			client:   mock.NewMockObmondoClient(),
+			expected: mock.MockServerEnvironment,
+		},
+		{
+			name:     "an unreachable api falls back to the default environment",
+			client:   &failingEnvironmentClient{},
+			expected: constant.DefaultOpenvoxEnv,
+		},
+		{
+			name:     "an unresolved environment falls back to the default environment",
+			client:   &emptyEnvironmentClient{},
+			expected: constant.DefaultOpenvoxEnv,
+		},
+		{
+			// opensource nodes are not registered with Obmondo, so they never call the API
+			name:       "opensource nodes use the default environment",
+			client:     &failingEnvironmentClient{},
+			opensource: true,
+			expected:   constant.DefaultOpenvoxEnv,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			environment := resolveOpenvoxEnvironment(test.client, certname, test.flagValue, test.opensource)
+			if environment != test.expected {
+				t.Errorf("expected environment %q, got %q", test.expected, environment)
+			}
+		})
+	}
+}
 
 func TestExtractHostname(t *testing.T) {
 	tests := []struct {

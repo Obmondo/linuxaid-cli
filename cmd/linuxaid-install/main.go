@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/app"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
@@ -69,7 +70,7 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(*cobra.Command, []string) {
-		Install()
+		app.Install(installEnvironment())
 	},
 }
 

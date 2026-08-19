@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bufio"
@@ -6,19 +6,19 @@ import (
 	"os"
 	"strings"
 
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
-	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/progress"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/provisioner"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
-
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
 func compatibilityCheck(puppetService *puppet.Service) error {
@@ -87,7 +87,7 @@ func shouldContinueAfterConfirmation() bool {
 	}
 }
 
-func Install() {
+func Install(openvoxEnv string) {
 	// Re-initialise the logger with progressbar writer to not disturb the
 	// progressbar if we print any logs. Everything is handled by progressbar's
 	// Bprintf method under the hood.
@@ -96,7 +96,6 @@ func Install() {
 
 	certname := certs.GetCertname()
 	openvoxServer := config.GetOpenvoxServer()
-	openvoxEnv := installEnvironment()
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
 	webtee := webtee.NewWebtee(obmondoAPI)
