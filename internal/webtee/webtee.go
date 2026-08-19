@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 )
 
 // Pipenames
@@ -112,7 +112,7 @@ func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
 	// We're patching the error handling for turrisos for now, since we're still updating
 	// linuxaid support. Once done, we'll remove this special handling.
 	successStatusCodes := constant.PuppetSuccessExitCodes
-	if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
+	if os.Getenv("ID") == system.ConstDistributionNameTurrisOS {
 		successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
 	}
 

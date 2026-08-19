@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
 )
 
@@ -40,7 +40,7 @@ var rootCmd = &cobra.Command{
 		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
-		if helper.GetCertname() == "" {
+		if certs.GetCertname() == "" {
 			slog.Error("failed to fetch the certname")
 			os.Exit(1)
 		}

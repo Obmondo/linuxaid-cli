@@ -1,8 +1,9 @@
-package helper
+package system
 
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -102,7 +103,7 @@ func (c *CertificateManagerCommands) UpdateRepositoryList() error {
 
 // CheckAndInstallCaCertificates handles the installation of CA certificates for any distribution
 func (c *CertificateManagerCommands) CheckAndInstallCaCertificates() error {
-	isInstalled := IsCaCertificateInstalled(c.checkCACertificatesCmd)
+	isInstalled := isCaCertificateInstalled(c.checkCACertificatesCmd)
 	if !isInstalled {
 		pipe := script.Exec(c.installCACertificatesCmd)
 		if err := pipe.Wait(); err != nil {
@@ -111,4 +112,15 @@ func (c *CertificateManagerCommands) CheckAndInstallCaCertificates() error {
 	}
 
 	return nil
+}
+
+// isCaCertificateInstalled reports whether the distribution's CA certificate packages are already
+// installed, by running the distribution's own query command.
+func isCaCertificateInstalled(cmd string) bool {
+	pipe := script.Exec(cmd)
+	if err := pipe.Wait(); err != nil {
+		slog.Error("failed to determine if ca-certificates is installed", slog.String("error", err.Error()))
+	}
+
+	return pipe.ExitStatus() == 0
 }

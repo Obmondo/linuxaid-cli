@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
@@ -34,29 +35,29 @@ func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *web
 	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
-		certName:  helper.GetCertname(),
+		certName:  certs.GetCertname(),
 		webtee:    webtee,
 	}
 }
 
 func (s *Provisioner) ProvisionPuppet() {
 	switch os.Getenv("ID") {
-	case helper.ConstDistributionNameUbuntu, helper.ConstDistributionNameDebian:
+	case system.ConstDistributionNameUbuntu, system.ConstDistributionNameDebian:
 		if err := s.provisionForDebian(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case helper.ConstDistributionNameSLES:
+	case system.ConstDistributionNameSLES:
 		if err := s.provisionForSuse(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case helper.ConstDistributionNameCentOS, helper.ConstDistributionNameRHEL, helper.ConstDistributionNameRocky, helper.ConstDistributionNameOracleLinux:
+	case system.ConstDistributionNameCentOS, system.ConstDistributionNameRHEL, system.ConstDistributionNameRocky, system.ConstDistributionNameOracleLinux:
 		if err := s.provisionForRedHat(); err != nil {
 			slog.Error("failed to install puppet", slog.Any("error", err))
 			os.Exit(1)
 		}
-	case helper.ConstDistributionNameTurrisOS:
+	case system.ConstDistributionNameTurrisOS:
 		s.provisionForTurris()
 	default:
 		slog.Error("unknown distribution, exiting")
@@ -66,7 +67,7 @@ func (s *Provisioner) ProvisionPuppet() {
 
 // provisionForDebian installs puppet-agent on Ubuntu/Debian systems
 func (s *Provisioner) provisionForDebian() error {
-	helper.RequireUbuntuCodeNameEnv()
+	system.RequireUbuntuCodeNameEnv()
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
 	s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName)
@@ -106,7 +107,7 @@ func (s *Provisioner) provisionForDebian() error {
 func (s *Provisioner) provisionForRedHat() error {
 	s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName)
 
-	majRelease := helper.GetMajorRelease()
+	majRelease := system.GetMajorRelease()
 
 	runtimeArch := runtime.GOARCH
 	switch runtimeArch {
@@ -138,7 +139,7 @@ func (s *Provisioner) provisionForRedHat() error {
 func (s *Provisioner) provisionForSuse() error {
 	s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName)
 
-	majRelease := helper.GetMajorRelease()
+	majRelease := system.GetMajorRelease()
 
 	runtimeArch := runtime.GOARCH
 	switch runtimeArch {

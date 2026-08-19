@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/httpx"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
 
@@ -79,7 +79,7 @@ func (m *MockObmondoClient) GetServiceWindowStatus() (*api.ServiceWindow, error)
 	}
 
 	defer resp.Body.Close()
-	_, responseBody, err := helper.ParseResponse(resp)
+	_, responseBody, err := httpx.ParseResponse(resp)
 	if err != nil {
 		return nil, err
 	}

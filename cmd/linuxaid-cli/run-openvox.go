@@ -3,11 +3,12 @@ package main
 import (
 	"log/slog"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/checkconnectivity"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"github.com/bitfield/script"
 	"github.com/spf13/cobra"
 )
@@ -79,18 +80,18 @@ func runOpenvoxAgent(environment string) error {
 
 // Entry point
 func RunOpenvox() {
-	helper.LoadPuppetEnv()
+	puppet.LoadPuppetEnv()
 
 	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
 
 	// Opensource nodes are not registered with Obmondo, so the API would
 	// reject every call; skip them instead of logging errors on each run.
-	opensource := helper.IsOpensourceMode()
+	opensource := config.IsOpensourceMode()
 	if opensource {
 		slog.Info("opensource mode, skipping Obmondo API calls")
 	}
 
-	certname := helper.GetCertname()
+	certname := certs.GetCertname()
 	prometheusHost, puppetServerHost := resolveCustomerURLs(obmondoAPI, certname)
 	slog.Info("resolved customer URLs",
 		slog.String("prometheus", prometheusHost),

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/mock"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 )
@@ -15,7 +15,7 @@ import (
 func TestGetCustomerID(t *testing.T) {
 	t.Setenv("CERTNAME", "hostname.example")
 	expected := "example"
-	op := helper.GetCustomerID("hostname.example")
+	op := certs.GetCustomerID("hostname.example")
 	if op != expected {
 		t.Errorf("Failed to parse customer id, expeceted: %s, output: %s", expected, op)
 	}

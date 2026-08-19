@@ -13,10 +13,11 @@ import (
 	"slices"
 	"time"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 
 	"github.com/bitfield/script"
@@ -34,7 +35,7 @@ func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee) *Service {
 
 	return &Service{
 		apiClient:     apiClient,
-		certName:      helper.GetCertname(),
+		certName:      certs.GetCertname(),
 		openvoxServer: config.GetOpenvoxServer(),
 		webtee:        webtee,
 	}
@@ -56,7 +57,7 @@ func (*Service) EnableAgent() error {
 // Disable puppet-agent service (sanity-check)
 func (s *Service) DisableAgentService() {
 	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
-	if os.Getenv("ID") != helper.ConstDistributionNameTurrisOS {
+	if os.Getenv("ID") != system.ConstDistributionNameTurrisOS {
 		// Disable unattended-upgrades so puppet-agent package does not update
 		s.webtee.RemoteLogObmondo([]string{
 			"puppet resource service unattended-upgrades ensure=stopped enable=false",
@@ -103,7 +104,7 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 		// We're patching the error handling for turrisos for now, since we're still updating
 		// linuxaid support. Once done, we'll remove this special handling.
 		successStatusCodes := constant.PuppetSuccessExitCodes
-		if os.Getenv("ID") == helper.ConstDistributionNameTurrisOS {
+		if os.Getenv("ID") == system.ConstDistributionNameTurrisOS {
 			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
 		}
 

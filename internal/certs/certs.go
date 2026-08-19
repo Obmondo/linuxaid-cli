@@ -1,4 +1,4 @@
-package helper
+package certs
 
 import (
 	"crypto/x509"
@@ -10,7 +10,6 @@ import (
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"github.com/bitfield/script"
 )
 
 func GetCommonNameFromCertFile(certPath string) string {
@@ -104,14 +103,4 @@ func GetCustomerID(certname string) string {
 	}
 
 	return ""
-}
-
-// Need this, otherwise remotelog func wont work
-func IsCaCertificateInstalled(cmd string) bool {
-	pipe := script.Exec(cmd)
-	if err := pipe.Wait(); err != nil {
-		slog.Error("failed to determine if ca-certificates is installed", slog.String("error", err.Error()))
-	}
-	exitStatus := pipe.ExitStatus()
-	return exitStatus == 0
 }

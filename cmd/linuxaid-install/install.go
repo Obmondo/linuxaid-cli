@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
@@ -13,22 +14,22 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/progress"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/provisioner"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 )
 
 func compatibilityCheck(puppetService *puppet.Service) error {
 	// Sanity check
-	helper.LoadOSReleaseEnv()
-	helper.RequireRootUser()
+	system.LoadOSReleaseEnv()
+	system.RequireRootUser()
 
 	// Check required envs and OS
-	helper.RequireOSNameEnv()
-	helper.RequireOSVersionEnv()
-	if _, err := helper.IsSupportedOS(); err != nil {
+	system.RequireOSNameEnv()
+	system.RequireOSVersionEnv()
+	if _, err := system.IsSupportedOS(); err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		return err
 	}
@@ -93,7 +94,7 @@ func Install() {
 	pbWriter := progress.InitProgressBar()
 	logger.InitLogger(pbWriter, config.IsDebug())
 
-	certname := helper.GetCertname()
+	certname := certs.GetCertname()
 	openvoxServer := config.GetOpenvoxServer()
 	openvoxEnv := installEnvironment()
 	obmondoAPIURL := api.GetObmondoURL()
@@ -128,7 +129,7 @@ func Install() {
 
 	// Remember the mode so linuxaid-cli knows to skip Obmondo API calls on
 	// opensource nodes.
-	if err := helper.SetOpensourceMode(!hasToken); err != nil {
+	if err := config.SetOpensourceMode(!hasToken); err != nil {
 		slog.Warn("failed to record opensource mode", slog.Any("error", err))
 	}
 
@@ -141,7 +142,7 @@ func Install() {
 	// check if agent disable file exists
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
-		webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, helper.GetCertname())
+		webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certs.GetCertname())
 		os.Exit(0)
 	}
 

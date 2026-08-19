@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 )
@@ -43,7 +43,7 @@ var rootCmd = &cobra.Command{
 		prettyfmt.PrettyPrintf("\n %s  %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
 
 		// Get certname from viper (cert, flag, or env)
-		certName := helper.GetCertname()
+		certName := certs.GetCertname()
 		if certName == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
 			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("CERTNAME"))

@@ -8,13 +8,14 @@ import (
 	"slices"
 	"strings"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/security"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 
 	"github.com/bitfield/script"
@@ -271,11 +272,11 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 
 	// Opensource nodes are not registered with Obmondo, so there are no
 	// customer settings to look up.
-	if helper.IsOpensourceMode() {
+	if config.IsOpensourceMode() {
 		return
 	}
 
-	customerID := helper.GetCustomerID(certname)
+	customerID := certs.GetCustomerID(certname)
 	if customerID == "" {
 		slog.Warn("could not determine customer ID from certname, using defaults",
 			slog.String("certname", certname))
@@ -345,7 +346,7 @@ func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname strin
 // ------------------------------------------------
 
 func SystemUpdate() {
-	helper.LoadOSReleaseEnv()
+	system.LoadOSReleaseEnv()
 
 	envErr := os.Setenv("PATH", constant.PuppetPath)
 	if envErr != nil {
@@ -353,9 +354,9 @@ func SystemUpdate() {
 		os.Exit(1)
 	}
 
-	helper.RequireRootUser()
-	helper.RequireOSNameEnv()
-	cmds, err := helper.IsSupportedOS()
+	system.RequireRootUser()
+	system.RequireOSNameEnv()
+	cmds, err := system.IsSupportedOS()
 	if err != nil {
 		slog.Error("OS not supported", slog.String("err", err.Error()))
 		os.Exit(1)
@@ -397,7 +398,7 @@ func SystemUpdate() {
 		os.Exit(1)
 	}
 
-	certname := helper.GetCertname()
+	certname := certs.GetCertname()
 	prometheusHost, puppetServer := resolveCustomerURLs(obmondoAPI, certname)
 	config.GetViperInstance().Set(constant.CobraFlagOpenvoxServer, puppetServer)
 	slog.Info("resolved customer URLs",
@@ -411,7 +412,7 @@ func SystemUpdate() {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
 		// puppet.conf no longer pins an environment, so the run needs the one this window updates to
-		environment := resolveSystemUpdateEnvironment(obmondoAPI, certname, serviceWindowNow, helper.IsOpensourceMode())
+		environment := resolveSystemUpdateEnvironment(obmondoAPI, certname, serviceWindowNow, config.IsOpensourceMode())
 
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {
@@ -444,7 +445,7 @@ func SystemUpdate() {
 	securityExporterURL := config.GetSecurityExporterURL()
 	closeComment := buildPostUpdateComment(security.NewSecurityExporter(securityExporterURL))
 
-	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, helper.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, certs.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return
 	}

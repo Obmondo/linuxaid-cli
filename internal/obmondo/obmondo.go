@@ -13,8 +13,9 @@ import (
 	"os"
 	"time"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/helper"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/httpx"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 	"gopkg.in/yaml.v3"
 )
@@ -301,7 +302,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 	}
 
 	defer resp.Body.Close()
-	statusCode, responseBody, err := helper.ParseResponse(resp)
+	statusCode, responseBody, err := httpx.ParseResponse(resp)
 	if err != nil {
 		slog.Error("unexpected error reading response body", slog.String("error", err.Error()))
 		return nil, err
@@ -321,7 +322,7 @@ func (c *obmondoClient) GetServiceWindowStatus() (*ServiceWindow, error) {
 }
 
 func (c *obmondoClient) CloseServiceWindow(windowType, certname, timezone, comment string) error {
-	customerID := helper.GetCustomerID(certname)
+	customerID := certs.GetCustomerID(certname)
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		slog.Error("failed to get timezone of provided location", slog.Any("error", err), slog.String("location", timezone))
@@ -410,7 +411,7 @@ func (c *obmondoClient) GetServerEnvironment(certname string) (string, error) {
 }
 
 func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
-	certname := helper.GetCertname()
+	certname := certs.GetCertname()
 
 	return &obmondoClient{
 		apiURL:                     obmondoAPIURL,
