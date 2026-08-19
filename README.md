@@ -111,6 +111,8 @@ in Obmondo, falling back to `master` when the API cannot be reached.
 - `--environment` / `-E` - Openvox environment for this run only. Without it, the environment set for
   the server in Obmondo is used, falling back to `master` when the API cannot be reached. The value
   is never sent to Obmondo, so it applies to that single run
+- `--tag` - Restrict this run to the given openvox tags (comma-separated), mapping to `puppet agent
+  --tags`. Without it the agent applies the full catalog
 
 ## Project Layout
 

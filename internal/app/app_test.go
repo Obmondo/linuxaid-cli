@@ -2,12 +2,14 @@ package app
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/mock"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell/shelltest"
 )
 
 // failingEnvironmentClient stands in for an unreachable Obmondo API.
@@ -286,6 +288,68 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 			environment := resolveSystemUpdateEnvironment(test.client, certname, test.serviceWindow, test.opensource)
 			if environment != test.expected {
 				t.Errorf("expected environment %q, got %q", test.expected, environment)
+			}
+		})
+	}
+}
+
+// TestRunOpenvoxAgentBuildsCommand pins how the agent command line is assembled from the
+// environment, the puppet server override and the --tag flag.
+func TestRunOpenvoxAgentBuildsCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         config.Config
+		environment string
+		tags        string
+		wantContain []string
+		wantAbsent  string
+	}{
+		{
+			name:        "no tag runs the full catalog",
+			environment: "testing",
+			wantContain: []string{"puppet agent -t --noop", "--environment testing"},
+			wantAbsent:  "--tags",
+		},
+		{
+			name:        "a tag restricts the run",
+			environment: "testing",
+			tags:        "nginx",
+			wantContain: []string{"--environment testing", "--tags nginx"},
+		},
+		{
+			name:        "comma-separated tags are passed through verbatim",
+			tags:        "nginx,postfix",
+			wantContain: []string{"--tags nginx,postfix"},
+		},
+		{
+			name:        "the puppet server override reaches the agent alongside the tag",
+			cfg:         config.Config{OpenvoxServer: "https://puppet.example.com"},
+			tags:        "nginx",
+			wantContain: []string{"--server puppet.example.com", "--tags nginx"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runner := &shelltest.Recorder{}
+
+			if err := runOpenvoxAgent(runner, test.cfg, test.environment, test.tags); err != nil {
+				t.Fatalf("runOpenvoxAgent returned %v", err)
+			}
+
+			commands := runner.Commands()
+			if len(commands) != 1 {
+				t.Fatalf("expected exactly one command, got %v", commands)
+			}
+
+			for _, want := range test.wantContain {
+				if !strings.Contains(commands[0], want) {
+					t.Errorf("expected command %q to contain %q", commands[0], want)
+				}
+			}
+
+			if test.wantAbsent != "" && strings.Contains(commands[0], test.wantAbsent) {
+				t.Errorf("expected command %q not to contain %q", commands[0], test.wantAbsent)
 			}
 		})
 	}

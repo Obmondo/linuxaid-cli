@@ -48,6 +48,8 @@ const (
 	// CobraFlagEnvironment mirrors puppet's own --environment/-E flag
 	CobraFlagEnvironment          = "environment"
 	CobraFlagEnvironmentShorthand = "E"
+	// CobraFlagTag restricts a run to the given puppet tags, mapping to openvox's own --tags flag
+	CobraFlagTag = "tag"
 	// EnvVarOpenvoxEnvironment is the environment variable form of linuxaid-install's --environment
 	// flag. It is deliberately not called ENVIRONMENT, which CI systems and deploy tooling
 	// commonly set for their own purposes.
