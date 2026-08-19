@@ -63,10 +63,6 @@ func (s *ServiceWindow) PuppetEnvironment() string {
 // becomes an underscore. This mirrors what Obmondo does when it resolves an environment itself,
 // which is why the tag from the service window needs no round trip to the API.
 func sanitizePuppetEnvironment(tag string) string {
-	if tag == "" {
-		return ""
-	}
-
 	return strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':

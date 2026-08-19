@@ -320,20 +320,20 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 }
 
 // resolveSystemUpdateEnvironment decides which puppet environment this update runs with. An
-// automatic window pins the linuxaid tag of its update cycle, and that tag is what the whole
-// group updates to, so it wins over the environment the API resolves for the node - which follows
-// the latest release and would otherwise drift ahead mid-cycle. Everything else (adhoc windows,
-// opensource nodes, and a window that pinned no tag) falls back to the usual resolution.
+// automatic window pins the linuxaid tag of its update cycle, and that tag is what the whole group
+// updates to, so it always wins over the environment the API resolves for the node - both over the
+// latest release, which would drift ahead mid-cycle, and over an environment pinned for the
+// certname. Everything else (adhoc windows, opensource nodes, and a window that pinned no tag)
+// falls back to the usual resolution.
 func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname string, serviceWindow *api.ServiceWindow, opensource bool) string {
 	if !opensource {
 		if environment := serviceWindow.PuppetEnvironment(); environment != "" {
 			slog.Info("using the environment pinned by the automatic service window",
-				slog.String("linuxaid_tag", serviceWindow.Linux.LinuxAidTag),
 				slog.String("environment", environment))
 			return environment
 		}
 
-		if serviceWindow.WindowType == constant.ServiceWindowTypeAutomatic {
+		if serviceWindow != nil && serviceWindow.WindowType == constant.ServiceWindowTypeAutomatic {
 			slog.Warn("the automatic service window pinned no linuxaid tag, asking the API for the environment")
 		}
 	}
@@ -412,7 +412,6 @@ func SystemUpdate() {
 
 		// puppet.conf no longer pins an environment, so the run needs the one this window updates to
 		environment := resolveSystemUpdateEnvironment(obmondoAPI, certname, serviceWindowNow, helper.IsOpensourceMode())
-		slog.Info("resolved puppet environment", slog.String("environment", environment))
 
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {

@@ -287,6 +287,12 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 			client:        &failingEnvironmentClient{},
 			expected:      constant.DefaultOpenvoxEnv,
 		},
+		{
+			name:          "no window at all falls back to the API",
+			serviceWindow: nil,
+			client:        mock.NewMockObmondoClient(),
+			expected:      mock.MockServerEnvironment,
+		},
 	}
 
 	for _, test := range tests {
