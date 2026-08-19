@@ -6,14 +6,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/pkg/prettyfmt"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/app"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/prettyfmt"
 )
 
 var Version string
+
+// cfg is the resolved configuration for this run, assembled once from the flags and environment.
+var cfg config.Config
 
 var (
 	debugFlag         bool
@@ -42,9 +46,10 @@ var rootCmd = &cobra.Command{
 		// Print version first
 		prettyfmt.PrettyPrintf("\n %s  %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
 
-		// Get certname from viper (cert, flag, or env)
-		certName := helper.GetCertname()
-		if certName == "" {
+		// Get certname from the machine's certificates, the flag, or the environment
+		cfg = config.Load()
+		cfg.Certname = certs.GetCertname(cfg.Certname)
+		if cfg.Certname == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
 			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("CERTNAME"))
 
@@ -57,7 +62,7 @@ var rootCmd = &cobra.Command{
 		// server they control.
 		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
 			defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
-			if config.GetOpenvoxServer() == defaultServer {
+			if cfg.OpenvoxServer == defaultServer {
 				errMsg := "Uh ho. Without a TOKEN, the Obmondo server can't sign your certificate. Set the TOKEN env, or pass your own server via"
 				prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("--puppet-server"))
 
@@ -68,8 +73,10 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-	Run: func(*cobra.Command, []string) {
-		Install()
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(*cobra.Command, []string) error {
+		return app.Install(cfg, installEnvironment())
 	},
 }
 

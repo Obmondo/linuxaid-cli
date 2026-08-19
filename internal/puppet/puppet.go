@@ -1,0 +1,278 @@
+package puppet
+
+import (
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
+	"slices"
+	"time"
+
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
+)
+
+// puppetExitCodeFailed mirrors puppet's own "run failed" exit code.
+const puppetExitCodeFailed = 1
+
+type Service struct {
+	runner        shell.Runner
+	webtee        *webtee.Webtee
+	apiClient     api.ObmondoClient
+	certName      string
+	openvoxServer string
+}
+
+// NewService initializes a new Puppet service instance
+func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee, runner shell.Runner, cfg config.Config) *Service {
+	return &Service{
+		runner:        runner,
+		apiClient:     apiClient,
+		certName:      cfg.Certname,
+		openvoxServer: cfg.OpenvoxServer,
+		webtee:        webtee,
+	}
+}
+
+// Enable agent
+func (s *Service) EnableAgent() error {
+	result := s.runner.Quiet("puppet agent --enable")
+	if result.Err != nil {
+		return fmt.Errorf("failed to enable puppet agent: %w", result.Err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("puppet agent enable exited with non-zero status")
+	}
+	slog.Info("successfully enabled puppet")
+	return nil
+}
+
+// Disable puppet-agent service (sanity-check)
+func (s *Service) DisableAgentService() error {
+	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
+	if os.Getenv("ID") != system.ConstDistributionNameTurrisOS {
+		// Disable unattended-upgrades so puppet-agent package does not update
+		if err := s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service unattended-upgrades ensure=stopped enable=false",
+		}, s.certName); err != nil {
+			return err
+		}
+
+		// Stop puppet agent service, since we manage it via run_puppet service
+		if err := s.webtee.RemoteLogObmondo([]string{
+			"puppet resource service puppet ensure=stopped enable=false",
+		}, s.certName); err != nil {
+			return err
+		}
+
+		slog.Debug("puppet agent service disabled")
+	}
+
+	return nil
+}
+
+// Disable agent with message
+func (s *Service) DisableAgent(msg string) error {
+	cmd := fmt.Sprintf("puppet agent --disable '%s'", msg)
+	result := s.runner.Quiet(cmd)
+	if result.Err != nil {
+		return fmt.Errorf("failed to disable puppet agent: %w", result.Err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("puppet agent disable exited with non-zero status")
+	}
+	slog.Info("successfully disabled puppet")
+	return nil
+}
+
+// RunAgent runs the puppet agent. The environment is passed on the command line rather than read
+// from puppet.conf, which no longer pins one: the caller decides which environment a run uses.
+func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
+	cmd := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopMode)
+	if environment != "" {
+		cmd += " --environment " + environment
+	}
+	if remoteLog {
+		if err := s.webtee.RemoteLogObmondo([]string{cmd}, s.certName); err != nil {
+			slog.Error("remote-logged puppet run failed", slog.Any("error", err))
+			return puppetExitCodeFailed
+		}
+
+		return 0
+	}
+
+	slog.Info("running puppet agent", slog.String("mode", noopMode))
+	result := s.runner.Run(cmd)
+	if err := result.Err; err != nil {
+		// We're patching the error handling for turrisos for now, since we're still updating
+		// linuxaid support. Once done, we'll remove this special handling.
+		successStatusCodes := constant.PuppetSuccessExitCodes
+		if os.Getenv("ID") == system.ConstDistributionNameTurrisOS {
+			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
+		}
+
+		if !slices.Contains(successStatusCodes, result.ExitCode) {
+			slog.Error("stdout error", slog.Any("error", err))
+		}
+	}
+
+	return result.ExitCode
+}
+
+// Check if agent is running
+func (s *Service) IsAgentRunning() bool {
+	_, err := os.Stat(constant.AgentRunningLockFile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			slog.Debug("puppet lock file not found")
+			//nolint:errcheck // a diagnostic echo failing must not mask the real error
+			_ = s.webtee.RemoteLogObmondo([]string{"echo lock file not found"}, s.certName)
+			return false
+		}
+		slog.Debug("error checking lock file", slog.Any("error", err))
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{"echo error checking lock file"}, s.certName)
+		return false
+	}
+	return true
+}
+
+// Wait until agent stops (or timeout)
+func (s *Service) WaitForAgent(timeoutSeconds int) {
+	timeout := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
+	for s.IsAgentRunning() {
+		if time.Now().After(timeout) {
+			slog.Warn("puppet still running, aborting wait")
+			break
+		}
+		time.Sleep(constant.SleepTime * time.Second)
+	}
+}
+
+// Configure agent
+func (s *Service) ConfigureAgent() error {
+	// no environment here on purpose: pinning one in puppet.conf would compete with the
+	// environment the caller passes to each run, and the two would eventually disagree
+	cfg := `[main]
+server = %s
+certname = %s
+stringify_facts = false
+masterport = 443
+
+[agent]
+report = true
+pluginsync = true
+noop = true
+`
+	server := s.openvoxServer
+	if parsed, err := url.Parse(server); err == nil && parsed.Hostname() != "" {
+		server = parsed.Hostname()
+	}
+	content := fmt.Sprintf(cfg, server, s.certName)
+	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
+		return fmt.Errorf("could not write %s: %w", constant.PuppetConfig, err)
+	}
+
+	return nil
+}
+
+// Check server status
+func (s *Service) CheckServerStatus() error {
+	// The openvox server value is a bare hostname; default to https when no
+	// scheme is present.
+	server := s.openvoxServer
+	if parsed, err := url.Parse(server); err != nil || parsed.Scheme == "" {
+		server = "https://" + server
+	}
+
+	statusURL := fmt.Sprintf("%s/status/v1/services", server)
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		// nolint: mnd
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Get(statusURL)
+	if err != nil {
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo Unable to reach Puppetserver: %s", err)}, s.certName)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("puppet server not reachable: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// Install agent from URL
+func (s *Service) DownloadAgent(downloadPath, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{"echo deb file not present at url"}, url)
+		return fmt.Errorf("puppet agent download failed with status %d", resp.StatusCode)
+	}
+
+	f, err := os.Create(downloadPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(io.MultiWriter(f), resp.Body); err != nil {
+		return fmt.Errorf("failed to save file: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) FacterNewSetup() error {
+	// Ensure facts.d directory exists
+	if result := s.runner.Run("mkdir -p /etc/puppetlabs/facter/facts.d"); result.Err != nil {
+		slog.Error("failed to create facts directory", slog.Any("error", result.Err))
+	}
+
+	currentTime := time.Now()
+	facter := fmt.Sprintf(
+		"---\ninstall_date: %d%02d%02d\n",
+		currentTime.Year(),
+		currentTime.Month(),
+		currentTime.Day(),
+	)
+
+	// nolint: mnd
+	err := os.WriteFile(constant.ExternalFacterFile, []byte(facter), 0o644)
+	if err != nil {
+		slog.Debug("failed to write external facter file",
+			slog.String("file_path", constant.ExternalFacterFile),
+			slog.Any("error", err),
+		)
+		errMsg := fmt.Sprintf("echo cannot create external facter file: %s", err.Error())
+		//nolint:errcheck // a diagnostic echo failing must not mask the real error
+		_ = s.webtee.RemoteLogObmondo([]string{errMsg}, s.certName)
+		return fmt.Errorf("could not create %s: %w", constant.ExternalFacterFile, err)
+	}
+
+	slog.Debug("facter external setup file created", slog.String("path", constant.ExternalFacterFile))
+
+	return nil
+}

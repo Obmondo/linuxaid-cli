@@ -101,11 +101,44 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 - `--skip-openvox` / `SKIP_OPENVOX` - Skip Puppet agent run
 - `--security-exporter-url` / `SECURITY_EXPORTER_URL` - URL of the security exporter (default: `http://127.254.254.254:63396`)
 
+The Openvox environment for the run is not a flag: an automatic service window pins the Linuxaid
+tag its update cycle runs with, and the update uses that tag so every server in the group updates
+to the same release. Adhoc windows pin no tag, so those runs use the environment set for the server
+in Obmondo, falling back to `master` when the API cannot be reached.
+
 ### run-openvox
 
 - `--environment` / `-E` - Openvox environment for this run only. Without it, the environment set for
   the server in Obmondo is used, falling back to `master` when the API cannot be reached. The value
   is never sent to Obmondo, so it applies to that single run
+- `--tag` - Restrict this run to the given openvox tags (comma-separated), mapping to `puppet agent
+  --tags`. Without it the agent applies the full catalog
+
+## Project Layout
+
+```
+cmd/linuxaid-cli/        cobra wiring for the agent binary: flags, and the Config built from them
+cmd/linuxaid-install/    cobra wiring for the installer binary
+internal/app/            the three workflows: system-update, run-openvox, install
+internal/system/         the host itself: os-release, apt/yum/zypper, kernel and reboot, root check
+internal/shell/          the one place commands are run; shelltest provides a Runner for tests
+internal/puppet/         openvox agent lifecycle
+internal/obmondo/        Obmondo API client
+internal/certs/          certname and customer id resolution
+internal/config/         the Config for a run, assembled from flags and environment
+internal/{disk,httpx,logger,prettyfmt,progress,provisioner,security,webtee}/
+```
+
+Three rules keep this from silting up again:
+
+- **`cmd/` only wires things together.** Flags are parsed and a `config.Config` is built there;
+  every workflow takes that Config as an argument. Nothing under `internal/` reads flags,
+  environment variables, or a global viper instance to find out what it was asked to do.
+- **Library code returns errors, it does not exit.** Only `main` decides the process exit code.
+  This matters beyond testability: `system-update` re-enables the puppet agent in a deferred
+  cleanup, and an `os.Exit` further down would skip it and leave the agent disabled on the node.
+- **Commands go through `shell.Runner`.** Anything that shells out takes a Runner, so tests
+  substitute `shelltest.Recorder` instead of needing a machine with apt and puppet on it.
 
 ## Release Management
 

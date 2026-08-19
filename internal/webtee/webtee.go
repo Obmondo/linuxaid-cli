@@ -1,0 +1,155 @@
+package webtee
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/url"
+	"os"
+	"os/exec"
+	"slices"
+	"strings"
+	"sync"
+
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
+)
+
+// Pipenames
+const (
+	pipeNameStdout = "stdout"
+	pipeNameStderr = "stderr"
+)
+
+type Webtee struct {
+	obmondoAPIURL string
+	obmondoAPI    api.ObmondoClient
+}
+
+// RemoteLogObmondo runs a command locally and streams its output to the webtee server. A
+// returned error means the command could not be run or did not succeed; the caller decides
+// whether that is fatal.
+func (w *Webtee) RemoteLogObmondo(command []string, certname string) error {
+	app := &application{
+		config: WebTeeConfig{w.obmondoAPIURL, true, command, certname, false},
+	}
+	if err := connectToServer(app); err != nil {
+		return err
+	}
+	// nolint: errcheck
+	defer app.conn.Close()
+
+	lines := make(chan logLine)
+
+	app.wg.Add(1)
+	go webTee(app, lines)
+
+	// Prepare the command and create pipes for stderr and stdout.
+	cmd := exec.Command("/bin/bash", "-c", strings.Join(app.config.Command(), " "))
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		// nolint: errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+			Certname: certname,
+		})
+
+		return fmt.Errorf("failed to connect to stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		//nolint:errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+			Certname: certname,
+		})
+		return fmt.Errorf("failed to connect to stderr pipe: %w", err)
+	}
+
+	// Start command execution.
+	err = cmd.Start()
+	if err != nil {
+		//nolint:errcheck
+		w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+			Certname: certname,
+		})
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// For each line in stdout & stderr, wrap it in an "echo" command and send it to webtee server.
+	var pipeWg sync.WaitGroup
+	pipeWg.Add(1)
+	go readPipe(stderr, lines, false, &pipeWg)
+	pipeWg.Add(1)
+	go readPipe(stdout, lines, true, &pipeWg)
+
+	// Now wait for the pipes to finish reading & sending to lines channel.
+	pipeWg.Wait()
+
+	err = cmd.Wait()
+
+	// Don't complain if the command being run is puppet agent and the exit status is mentioned in the constant.PuppetSuccessExitCodes.
+	// Else, check the error and complain about the same.
+	if !shouldIgnorePuppetAgentError(command, cmd.ProcessState.ExitCode()) {
+		if err != nil {
+			slog.Debug("command execution failed", slog.String("command", strings.Join(command, " ")), slog.String("error", err.Error()))
+			//nolint:forbidigo, errcheck
+			w.obmondoAPI.NotifyInstallScriptFailure(&api.InstallScriptInput{
+				Certname: certname,
+			})
+
+			return fmt.Errorf("command %q failed: %w", strings.Join(command, " "), err)
+		}
+	}
+
+	// Close the lines channel.
+	close(lines)
+
+	// Wait for goroutines (like the grpc stream) to finish.
+	app.wg.Wait()
+
+	return nil
+}
+
+func shouldIgnorePuppetAgentError(command []string, exitCode int) bool {
+	// We're patching the error handling for turrisos for now, since we're still updating
+	// linuxaid support. Once done, we'll remove this special handling.
+	successStatusCodes := constant.PuppetSuccessExitCodes
+	if os.Getenv("ID") == system.ConstDistributionNameTurrisOS {
+		successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
+	}
+
+	return strings.Contains(strings.Join(command, " "), "puppet agent") && slices.Contains(successStatusCodes, exitCode)
+}
+
+// readPipe reads a pipe, wraps every line in an "echo" command, prints it, and sends the line to
+// the lines channel. It should always be run in a separate goroutine because
+// we decrement wg waitgroup after execution.
+func readPipe(pipe io.ReadCloser, lines chan logLine, isStdout bool, wg *sync.WaitGroup) {
+	defer wg.Done()
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		m := scanner.Text()
+		if isStdout {
+			lines <- logLine{
+				line: m,
+				pipe: pipeNameStdout,
+			}
+		} else {
+			lines <- logLine{
+				line: m,
+				pipe: pipeNameStderr,
+			}
+		}
+	}
+}
+
+func NewWebtee(obmondoAPI api.ObmondoClient) *Webtee {
+	u, _ := url.Parse(api.GetObmondoURL())
+
+	return &Webtee{
+		obmondoAPIURL: fmt.Sprintf("%s:443", u.Hostname()),
+		obmondoAPI:    obmondoAPI,
+	}
+}

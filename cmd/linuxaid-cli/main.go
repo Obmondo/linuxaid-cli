@@ -6,13 +6,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/config"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/helper/logger"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/logger"
 )
 
 var Version string
+
+// cfg is the resolved configuration for this run, assembled once from the flags and environment
+// and passed into the workflows; nothing below cmd/ reads them for itself.
+var cfg config.Config
 
 var (
 	debugFlag         bool
@@ -39,8 +43,10 @@ var rootCmd = &cobra.Command{
 		// Print version first
 		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
 
-		// Get certname from viper (cert, flag, or env)
-		if helper.GetCertname() == "" {
+		// Get certname from the machine's certificates, the flag, or the environment
+		cfg = config.Load()
+		cfg.Certname = certs.GetCertname(cfg.Certname)
+		if cfg.Certname == "" {
 			slog.Error("failed to fetch the certname")
 			os.Exit(1)
 		}
