@@ -14,6 +14,10 @@ import (
 
 var Version string
 
+// cfg is the resolved configuration for this run, assembled once from the flags and environment
+// and passed into the workflows; nothing below cmd/ reads them for itself.
+var cfg config.Config
+
 var (
 	debugFlag         bool
 	rebootFlag        bool
@@ -39,8 +43,10 @@ var rootCmd = &cobra.Command{
 		// Print version first
 		slog.Info("linuxaid-cli", slog.String("version", cmd.Root().Version))
 
-		// Get certname from viper (cert, flag, or env)
-		if certs.GetCertname() == "" {
+		// Get certname from the machine's certificates, the flag, or the environment
+		cfg = config.Load()
+		cfg.Certname = certs.GetCertname(cfg.Certname)
+		if cfg.Certname == "" {
 			slog.Error("failed to fetch the certname")
 			os.Exit(1)
 		}

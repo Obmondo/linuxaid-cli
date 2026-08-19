@@ -10,13 +10,14 @@ import (
 var openvoxEnvFlag string
 
 var runOpenvoxCmd = &cobra.Command{
-	Use:          "run-openvox",
-	Short:        "Execute run-openvox command",
-	Long:         "A longer description of run-openvox command",
-	Example:      `$ linuxaid-cli run-openvox --certname web01.example --environment testing`,
-	SilenceUsage: true,
+	Use:           "run-openvox",
+	Short:         "Execute run-openvox command",
+	Long:          "A longer description of run-openvox command",
+	Example:       `$ linuxaid-cli run-openvox --certname web01.example --environment testing`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(*cobra.Command, []string) error {
-		return app.RunOpenvox(openvoxEnvFlag)
+		return app.RunOpenvox(cfg, openvoxEnvFlag)
 	},
 }
 

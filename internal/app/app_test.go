@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/mock"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
@@ -125,9 +126,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 				},
 			},
 		}
-		t.Setenv("CERTNAME", "testserver.enableit")
-
-		promHost, puppetHost := resolveCustomerURLs(client, "testserver.enableit")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{Certname: "testserver.enableit"})
 		if promHost != "prom-test.obmondo.com" {
 			t.Errorf("prometheus host = %q, want %q", promHost, "prom-test.obmondo.com")
 		}
@@ -143,9 +142,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 				LinuxAid:   nil,
 			},
 		}
-		t.Setenv("CERTNAME", "testserver.enableit")
-
-		promHost, puppetHost := resolveCustomerURLs(client, "testserver.enableit")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{Certname: "testserver.enableit"})
 		if promHost != defaultPrometheusHost {
 			t.Errorf("prometheus host = %q, want default %q", promHost, defaultPrometheusHost)
 		}
@@ -159,9 +156,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 			settings: nil,
 			err:      errors.New("connection refused"),
 		}
-		t.Setenv("CERTNAME", "testserver.enableit")
-
-		promHost, puppetHost := resolveCustomerURLs(client, "testserver.enableit")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{Certname: "testserver.enableit"})
 		if promHost != defaultPrometheusHost {
 			t.Errorf("prometheus host = %q, want default %q", promHost, defaultPrometheusHost)
 		}
@@ -175,7 +170,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 			settings: &api.CustomerSettings{},
 		}
 
-		promHost, puppetHost := resolveCustomerURLs(client, "")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{})
 		if promHost != defaultPrometheusHost {
 			t.Errorf("prometheus host = %q, want default %q", promHost, defaultPrometheusHost)
 		}
@@ -193,9 +188,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 				},
 			},
 		}
-		t.Setenv("CERTNAME", "testserver.enableit")
-
-		promHost, puppetHost := resolveCustomerURLs(client, "testserver.enableit")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{Certname: "testserver.enableit"})
 		if promHost != defaultPrometheusHost {
 			t.Errorf("prometheus host = %q, want default %q", promHost, defaultPrometheusHost)
 		}
@@ -213,9 +206,7 @@ func TestResolveCustomerURLs(t *testing.T) {
 				},
 			},
 		}
-		t.Setenv("CERTNAME", "testserver.enableit")
-
-		promHost, puppetHost := resolveCustomerURLs(client, "testserver.enableit")
+		promHost, puppetHost := resolveCustomerURLs(client, config.Config{Certname: "testserver.enableit"})
 		if promHost != "custom-prom.example.com" {
 			t.Errorf("prometheus host = %q, want %q", promHost, "custom-prom.example.com")
 		}

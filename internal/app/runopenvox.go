@@ -6,7 +6,6 @@ import (
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/checkconnectivity"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
@@ -14,7 +13,7 @@ import (
 )
 
 // Run the puppet agent in noop mode for now
-func runOpenvoxAgent(runner shell.Runner, environment string) error {
+func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment string) error {
 	// Puppet run execution returns total 5 status codes
 	//
 	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
@@ -39,7 +38,7 @@ func runOpenvoxAgent(runner shell.Runner, environment string) error {
 	}
 	// An explicit --puppet-server/PUPPET_SERVER override must reach the agent
 	// too, otherwise it keeps using the server from puppet.conf.
-	if server := config.GetOpenvoxServer(); server != "" {
+	if server := cfg.OpenvoxServer; server != "" {
 		if h := extractHostname(server); h != "" {
 			server = h
 		}
@@ -68,22 +67,22 @@ func runOpenvoxAgent(runner shell.Runner, environment string) error {
 // Entry point
 // RunOpenvox performs one puppet agent run. As with SystemUpdate, nil means "nothing more to do"
 // rather than "everything succeeded": the paths that give up quietly keep their exit 0.
-func RunOpenvox(environmentFlag string) error {
+func RunOpenvox(cfg config.Config, environmentFlag string) error {
 	if err := puppet.LoadPuppetEnv(); err != nil {
 		return err
 	}
 
-	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false)
+	obmondoAPI := api.NewObmondoClient(api.GetObmondoURL(), false, cfg.Certname)
 
 	// Opensource nodes are not registered with Obmondo, so the API would
 	// reject every call; skip them instead of logging errors on each run.
-	opensource := config.IsOpensourceMode()
+	opensource := cfg.Opensource
 	if opensource {
 		slog.Info("opensource mode, skipping Obmondo API calls")
 	}
 
-	certname := certs.GetCertname()
-	prometheusHost, puppetServerHost := resolveCustomerURLs(obmondoAPI, certname)
+	certname := cfg.Certname
+	prometheusHost, puppetServerHost := resolveCustomerURLs(obmondoAPI, cfg)
 	slog.Info("resolved customer URLs",
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServerHost))
@@ -107,7 +106,7 @@ func RunOpenvox(environmentFlag string) error {
 	slog.Info("resolved puppet environment", slog.String("environment", environment))
 
 	// Need to have case here later in future, when we migrate the endpoints in go-api
-	if err := runOpenvoxAgent(shell.New(), environment); err != nil {
+	if err := runOpenvoxAgent(shell.New(), cfg, environment); err != nil {
 		slog.Error("unable to run the puppet agent", slog.String("error", err.Error()))
 	}
 

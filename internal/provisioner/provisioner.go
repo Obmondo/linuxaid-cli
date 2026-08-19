@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
@@ -30,11 +29,11 @@ type Provisioner struct {
 }
 
 // NewService creates a new Puppet installer service.
-func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *webtee.Webtee) *Provisioner {
+func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *webtee.Webtee, certname string) *Provisioner {
 	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
-		certName:  certs.GetCertname(),
+		certName:  certname,
 		webtee:    webtee,
 	}
 }

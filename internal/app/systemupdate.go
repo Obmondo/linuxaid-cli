@@ -83,7 +83,7 @@ func extractHostname(rawURL string) string {
 // resolveCustomerURLs fetches customer settings and returns resolved prometheus
 // and puppet server hostnames. Falls back to defaults if customer has not
 // configured them or if the API call fails.
-func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometheusHost, puppetServerHost string) {
+func resolveCustomerURLs(obmondoAPI api.ObmondoClient, cfg config.Config) (prometheusHost, puppetServerHost string) {
 	defaultPuppetServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 	prometheusHost = defaultPrometheusHost
 	puppetServerHost = defaultPuppetServer
@@ -91,7 +91,7 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 	// An explicitly provided puppet server (--puppet-server flag or
 	// PUPPET_SERVER env) always wins over customer settings.
 	defer func() {
-		if server := config.GetOpenvoxServer(); server != "" {
+		if server := cfg.OpenvoxServer; server != "" {
 			if h := extractHostname(server); h != "" {
 				server = h
 			}
@@ -101,14 +101,14 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, certname string) (prometh
 
 	// Opensource nodes are not registered with Obmondo, so there are no
 	// customer settings to look up.
-	if config.IsOpensourceMode() {
+	if cfg.Opensource {
 		return
 	}
 
-	customerID := certs.GetCustomerID(certname)
+	customerID := certs.GetCustomerID(cfg.Certname)
 	if customerID == "" {
 		slog.Warn("could not determine customer ID from certname, using defaults",
-			slog.String("certname", certname))
+			slog.String("certname", cfg.Certname))
 		return
 	}
 
@@ -174,7 +174,7 @@ func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname strin
 // SystemUpdate runs the update workflow. A returned error means the run failed in a way the
 // caller should surface as a non-zero exit; the paths that give up quietly return nil on purpose,
 // so systemd does not mark the unit failed for an inactive window or an unreachable API.
-func SystemUpdate() error {
+func SystemUpdate(cfg config.Config) error {
 	if err := system.LoadOSReleaseEnv(); err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func SystemUpdate() error {
 	}
 
 	obmondoAPIURL := api.GetObmondoURL()
-	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, false)
+	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, false, cfg.Certname)
 
 	serviceWindowNow, err := obmondoAPI.GetServiceWindowStatus()
 	if err != nil {
@@ -232,21 +232,23 @@ func SystemUpdate() error {
 		return fmt.Errorf("unable to check if ca certs are installed: %w", err)
 	}
 
-	certname := certs.GetCertname()
-	prometheusHost, puppetServer := resolveCustomerURLs(obmondoAPI, certname)
-	config.GetViperInstance().Set(constant.CobraFlagOpenvoxServer, puppetServer)
+	prometheusHost, puppetServer := resolveCustomerURLs(obmondoAPI, cfg)
+
+	// the resolved customer puppet server is what the rest of the run must use; this used to be
+	// written back into the global viper instance for other packages to pick up
+	cfg.OpenvoxServer = puppetServer
 	slog.Info("resolved customer URLs",
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServer))
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI), runner)
+	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI), runner, cfg)
 
-	if openvoxInitiallyEnabled && !config.ShouldSkipOpenvox() {
+	if openvoxInitiallyEnabled && !cfg.SkipOpenvox {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
 		// puppet.conf no longer pins an environment, so the run needs the one this window updates to
-		environment := resolveSystemUpdateEnvironment(obmondoAPI, certname, serviceWindowNow, config.IsOpensourceMode())
+		environment := resolveSystemUpdateEnvironment(obmondoAPI, cfg.Certname, serviceWindowNow, cfg.Opensource)
 
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {
@@ -276,10 +278,10 @@ func SystemUpdate() error {
 		return nil
 	}
 
-	securityExporterURL := config.GetSecurityExporterURL()
+	securityExporterURL := cfg.SecurityExporterURL
 	closeComment := buildPostUpdateComment(security.NewSecurityExporter(securityExporterURL))
 
-	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, certs.GetCertname(), serviceWindowNow.Timezone, closeComment); err != nil {
+	if err := obmondoAPI.CloseServiceWindow(serviceWindowNow.WindowType, cfg.Certname, serviceWindowNow.Timezone, closeComment); err != nil {
 		slog.Error("unable to close the service window", slog.String("error", err.Error()))
 		return nil
 	}
@@ -292,7 +294,7 @@ func SystemUpdate() error {
 		cleanup(puppetService)
 	}
 
-	if err := system.CheckKernelAndRebootIfNeeded(runner, config.NoReboot()); err != nil {
+	if err := system.CheckKernelAndRebootIfNeeded(runner, cfg.NoReboot); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return nil
 	}

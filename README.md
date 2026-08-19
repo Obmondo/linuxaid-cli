@@ -112,6 +112,32 @@ in Obmondo, falling back to `master` when the API cannot be reached.
   the server in Obmondo is used, falling back to `master` when the API cannot be reached. The value
   is never sent to Obmondo, so it applies to that single run
 
+## Project Layout
+
+```
+cmd/linuxaid-cli/        cobra wiring for the agent binary: flags, and the Config built from them
+cmd/linuxaid-install/    cobra wiring for the installer binary
+internal/app/            the three workflows: system-update, run-openvox, install
+internal/system/         the host itself: os-release, apt/yum/zypper, kernel and reboot, root check
+internal/shell/          the one place commands are run; shelltest provides a Runner for tests
+internal/puppet/         openvox agent lifecycle
+internal/obmondo/        Obmondo API client
+internal/certs/          certname and customer id resolution
+internal/config/         the Config for a run, assembled from flags and environment
+internal/{disk,httpx,logger,prettyfmt,progress,provisioner,security,webtee}/
+```
+
+Three rules keep this from silting up again:
+
+- **`cmd/` only wires things together.** Flags are parsed and a `config.Config` is built there;
+  every workflow takes that Config as an argument. Nothing under `internal/` reads flags,
+  environment variables, or a global viper instance to find out what it was asked to do.
+- **Library code returns errors, it does not exit.** Only `main` decides the process exit code.
+  This matters beyond testability: `system-update` re-enables the puppet agent in a deferred
+  cleanup, and an `os.Exit` further down would skip it and leave the agent disabled on the node.
+- **Commands go through `shell.Runner`.** Anything that shells out takes a Runner, so tests
+  substitute `shelltest.Recorder` instead of needing a machine with apt and puppet on it.
+
 ## Release Management
 
 Releases are managed via [Cocogitto](https://docs.cocogitto.io/) (`cog`) based on Conventional Commits history.

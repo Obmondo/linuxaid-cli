@@ -410,8 +410,7 @@ func (c *obmondoClient) GetServerEnvironment(certname string) (string, error) {
 	return apiResp.Data.Environment, nil
 }
 
-func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool) ObmondoClient {
-	certname := certs.GetCertname()
+func NewObmondoClient(obmondoAPIURL string, notifyInstallScriptFailure bool, certname string) ObmondoClient {
 
 	return &obmondoClient{
 		apiURL:                     obmondoAPIURL,

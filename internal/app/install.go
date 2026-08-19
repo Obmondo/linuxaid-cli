@@ -10,7 +10,6 @@ import (
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/disk"
@@ -100,21 +99,21 @@ func shouldContinueAfterConfirmation() bool {
 	}
 }
 
-func Install(openvoxEnv string) error {
+func Install(cfg config.Config, openvoxEnv string) error {
 	// Re-initialise the logger with progressbar writer to not disturb the
 	// progressbar if we print any logs. Everything is handled by progressbar's
 	// Bprintf method under the hood.
 	pbWriter := progress.InitProgressBar()
-	logger.InitLogger(pbWriter, config.IsDebug())
+	logger.InitLogger(pbWriter, cfg.Debug)
 
-	certname := certs.GetCertname()
-	openvoxServer := config.GetOpenvoxServer()
+	certname := cfg.Certname
+	openvoxServer := cfg.OpenvoxServer
 	obmondoAPIURL := api.GetObmondoURL()
-	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true)
+	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true, certname)
 	webtee := webtee.NewWebtee(obmondoAPI)
 	runner := shell.New()
-	puppetService := puppet.NewService(obmondoAPI, webtee, runner)
-	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee)
+	puppetService := puppet.NewService(obmondoAPI, webtee, runner, cfg)
+	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee, certname)
 
 	//nolint:errcheck // a banner failing must not abort the install
 	_ = webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
@@ -157,7 +156,7 @@ func Install(openvoxEnv string) error {
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
 		//nolint:errcheck // a banner failing must not abort the install
-		_ = webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certs.GetCertname())
+		_ = webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certname)
 
 		// an already-disabled agent is not a failure: keep the exit 0 this always had
 		return nil

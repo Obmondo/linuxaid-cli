@@ -20,13 +20,14 @@ var systemUpdateCmd = &cobra.Command{
 	Long:    "A longer description of system-update command",
 	Example: `$ linuxaid-cli system-update --certname web01.example --no-reboot`,
 	PreRun: func(*cobra.Command, []string) {
-		if config.ShouldSkipOpenvox() {
+		if cfg.SkipOpenvox {
 			slog.Info("Openvox-agent run will be skipped")
 		}
 	},
-	SilenceUsage: true,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(*cobra.Command, []string) error {
-		return app.SystemUpdate()
+		return app.SystemUpdate(cfg)
 	},
 }
 

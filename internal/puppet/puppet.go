@@ -13,7 +13,6 @@ import (
 	"slices"
 	"time"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/certs"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
@@ -34,12 +33,12 @@ type Service struct {
 }
 
 // NewService initializes a new Puppet service instance
-func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee, runner shell.Runner) *Service {
+func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee, runner shell.Runner, cfg config.Config) *Service {
 	return &Service{
 		runner:        runner,
 		apiClient:     apiClient,
-		certName:      certs.GetCertname(),
-		openvoxServer: config.GetOpenvoxServer(),
+		certName:      cfg.Certname,
+		openvoxServer: cfg.OpenvoxServer,
 		webtee:        webtee,
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
@@ -56,7 +55,9 @@ func getCertnameFromPrivateKey() string {
 	return ""
 }
 
-func GetCertname() string {
+// GetCertname resolves this node's certname: the puppet host certificate, then the puppet private
+// key, then the configured value the caller passes in, and finally the machine's FQDN.
+func GetCertname(configured string) string {
 	puppetCert, puppetCertExists := os.LookupEnv(constant.PuppetCertEnv)
 	if puppetCertExists {
 		return GetCommonNameFromCertFile(puppetCert)
@@ -67,8 +68,8 @@ func GetCertname() string {
 		return certname
 	}
 
-	if certname := config.GetCertname(); certname != "" {
-		return certname
+	if configured != "" {
+		return configured
 	}
 
 	return getHostnameFQDN()

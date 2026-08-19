@@ -16,6 +16,9 @@ import (
 
 var Version string
 
+// cfg is the resolved configuration for this run, assembled once from the flags and environment.
+var cfg config.Config
+
 var (
 	debugFlag         bool
 	certNameFlag      string
@@ -43,9 +46,10 @@ var rootCmd = &cobra.Command{
 		// Print version first
 		prettyfmt.PrettyPrintf("\n %s  %s version %s\n", prettyfmt.IconGear, prettyfmt.FontWhite(cmd.Root().Name()), prettyfmt.FontYellow(cmd.Root().Version))
 
-		// Get certname from viper (cert, flag, or env)
-		certName := certs.GetCertname()
-		if certName == "" {
+		// Get certname from the machine's certificates, the flag, or the environment
+		cfg = config.Load()
+		cfg.Certname = certs.GetCertname(cfg.Certname)
+		if cfg.Certname == "" {
 			errMsg := "Uh ho. I couldn't figure out the certname, please provide one as an ENV"
 			prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("CERTNAME"))
 
@@ -58,7 +62,7 @@ var rootCmd = &cobra.Command{
 		// server they control.
 		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
 			defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
-			if config.GetOpenvoxServer() == defaultServer {
+			if cfg.OpenvoxServer == defaultServer {
 				errMsg := "Uh ho. Without a TOKEN, the Obmondo server can't sign your certificate. Set the TOKEN env, or pass your own server via"
 				prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.IconCheckFail, prettyfmt.FontWhite(errMsg), prettyfmt.FontYellow("--puppet-server"))
 
@@ -69,9 +73,10 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
-	SilenceUsage: true,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(*cobra.Command, []string) error {
-		return app.Install(installEnvironment())
+		return app.Install(cfg, installEnvironment())
 	},
 }
 
