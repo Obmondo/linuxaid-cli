@@ -101,6 +101,11 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 - `--skip-openvox` / `SKIP_OPENVOX` - Skip Puppet agent run
 - `--security-exporter-url` / `SECURITY_EXPORTER_URL` - URL of the security exporter (default: `http://127.254.254.254:63396`)
 
+The Openvox environment for the run is not a flag: an automatic service window pins the Linuxaid
+tag its update cycle runs with, and the update uses that tag so every server in the group updates
+to the same release. Adhoc windows pin no tag, so those runs use the environment set for the server
+in Obmondo, falling back to `master` when the API cannot be reached.
+
 ### run-openvox
 
 - `--environment` / `-E` - Openvox environment for this run only. Without it, the environment set for

@@ -25,6 +25,11 @@ const (
 	DefaultPuppetServerDomainSuffix = ".puppet.obmondo.com"
 	DefaultOpenvoxEnv               = "master"
 
+	// ServiceWindowTypeAutomatic is the booking type Obmondo reports for a scheduled service
+	// window. Such a window pins the linuxaid tag its whole update cycle runs with; adhoc
+	// windows are booked by hand and pin no tag.
+	ServiceWindowTypeAutomatic = "automatic"
+
 	// Progress Bar
 	BarProgressSize    = 100
 	BarSizeFive        = 5

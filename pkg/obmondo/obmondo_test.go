@@ -119,3 +119,62 @@ func TestVerifyInstallToken_RendersAPIError(t *testing.T) {
 		t.Errorf("VerifyInstallToken() error = %q, want %q", err.Error(), "token is expired or certname is not registered")
 	}
 }
+
+func TestServiceWindowPuppetEnvironment(t *testing.T) {
+	tests := []struct {
+		name          string
+		serviceWindow *ServiceWindow
+		expected      string
+	}{
+		{
+			name: "an automatic window resolves the pinned tag to an environment",
+			serviceWindow: &ServiceWindow{
+				WindowType: "automatic",
+				Linux:      &LinuxWindowDetails{LinuxAidTag: "v11.0.0"},
+			},
+			expected: "v11_0_0",
+		},
+		{
+			name: "a tag that is already a valid environment is kept as is",
+			serviceWindow: &ServiceWindow{
+				WindowType: "automatic",
+				Linux:      &LinuxWindowDetails{LinuxAidTag: "v11_0_0"},
+			},
+			expected: "v11_0_0",
+		},
+		{
+			name: "an adhoc window pins no environment",
+			serviceWindow: &ServiceWindow{
+				WindowType: "adhoc",
+				Linux:      &LinuxWindowDetails{LinuxAidTag: "v11.0.0"},
+			},
+			expected: "",
+		},
+		{
+			name:          "a window without linux details pins no environment",
+			serviceWindow: &ServiceWindow{WindowType: "automatic"},
+			expected:      "",
+		},
+		{
+			name: "a window without a tag pins no environment",
+			serviceWindow: &ServiceWindow{
+				WindowType: "automatic",
+				Linux:      &LinuxWindowDetails{},
+			},
+			expected: "",
+		},
+		{
+			name:          "no window pins no environment",
+			serviceWindow: nil,
+			expected:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if environment := tt.serviceWindow.PuppetEnvironment(); environment != tt.expected {
+				t.Errorf("PuppetEnvironment() = %q, want %q", environment, tt.expected)
+			}
+		})
+	}
+}

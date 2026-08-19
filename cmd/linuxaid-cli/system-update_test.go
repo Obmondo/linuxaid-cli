@@ -229,3 +229,72 @@ func TestResolveCustomerURLs(t *testing.T) {
 		}
 	})
 }
+
+func TestResolveSystemUpdateEnvironment(t *testing.T) {
+	const certname = "hostname.example"
+
+	automaticWindow := func(tag string) *api.ServiceWindow {
+		return &api.ServiceWindow{
+			IsWindowOpen:    true,
+			DoesWindowExist: true,
+			WindowType:      constant.ServiceWindowTypeAutomatic,
+			Timezone:        "UTC",
+			Linux:           &api.LinuxWindowDetails{LinuxAidTag: tag},
+		}
+	}
+
+	tests := []struct {
+		name          string
+		serviceWindow *api.ServiceWindow
+		client        api.ObmondoClient
+		opensource    bool
+		expected      string
+	}{
+		{
+			name:          "an automatic window pins the environment for the run",
+			serviceWindow: automaticWindow("v11.0.0"),
+			client:        mock.NewMockObmondoClient(),
+			expected:      "v11_0_0",
+		},
+		{
+			name:          "an automatic window without a tag falls back to the API",
+			serviceWindow: automaticWindow(""),
+			client:        mock.NewMockObmondoClient(),
+			expected:      mock.MockServerEnvironment,
+		},
+		{
+			name: "an adhoc window falls back to the API",
+			serviceWindow: &api.ServiceWindow{
+				IsWindowOpen:    true,
+				DoesWindowExist: true,
+				WindowType:      "adhoc",
+				Timezone:        "UTC",
+			},
+			client:   mock.NewMockObmondoClient(),
+			expected: mock.MockServerEnvironment,
+		},
+		{
+			// opensource nodes are not registered with Obmondo, so nothing pins a tag for them
+			name:          "opensource nodes use the default environment",
+			serviceWindow: automaticWindow("v11.0.0"),
+			client:        mock.NewMockObmondoClient(),
+			opensource:    true,
+			expected:      constant.DefaultOpenvoxEnv,
+		},
+		{
+			name:          "an unreachable API falls back to the default environment",
+			serviceWindow: automaticWindow(""),
+			client:        &failingEnvironmentClient{},
+			expected:      constant.DefaultOpenvoxEnv,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			environment := resolveSystemUpdateEnvironment(test.client, certname, test.serviceWindow, test.opensource)
+			if environment != test.expected {
+				t.Errorf("expected environment %q, got %q", test.expected, environment)
+			}
+		})
+	}
+}

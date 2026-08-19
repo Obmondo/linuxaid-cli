@@ -1,5 +1,11 @@
 package api
 
+import (
+	"strings"
+
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/constant"
+)
+
 type InstallScriptInput struct {
 	Certname string
 	Token    string
@@ -37,6 +43,38 @@ type ServiceWindow struct {
 	Timezone                 string              `json:"timezone"`
 	NextWindowLocalStartTime string              `json:"next_window_local_start_time,omitempty"`
 	Linux                    *LinuxWindowDetails `json:"linux,omitempty"`
+}
+
+// PuppetEnvironment returns the environment the run inside this window has to use. An automatic
+// window pins the linuxaid tag its whole update cycle runs with, so every node of the cycle
+// updates with the same release instead of whatever tag happens to be the latest when its own
+// window opens. Windows with no pinned tag - adhoc bookings, and automatic ones the API could not
+// resolve a tag for - return an empty string, leaving the caller to resolve the environment itself.
+func (s *ServiceWindow) PuppetEnvironment() string {
+	if s == nil || s.WindowType != constant.ServiceWindowTypeAutomatic || s.Linux == nil {
+		return ""
+	}
+
+	return sanitizePuppetEnvironment(s.Linux.LinuxAidTag)
+}
+
+// sanitizePuppetEnvironment maps a linuxaid tag to the environment puppet deploys it as: puppet
+// only accepts alphanumerics and underscores in an environment name, so every other character
+// becomes an underscore. This mirrors what Obmondo does when it resolves an environment itself,
+// which is why the tag from the service window needs no round trip to the API.
+func sanitizePuppetEnvironment(tag string) string {
+	if tag == "" {
+		return ""
+	}
+
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+			return r
+		default:
+			return '_'
+		}
+	}, tag)
 }
 
 type LinuxAidSettings struct {
