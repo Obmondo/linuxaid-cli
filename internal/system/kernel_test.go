@@ -1,8 +1,10 @@
 package system
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell/shelltest"
@@ -15,7 +17,7 @@ func TestGetInstalledKernel(t *testing.T) {
 	}
 	expectedKernelOutput := "6.11.0-3-generic"
 
-	latestKernel, err := getInstalledKernel(shell.New(), testBootDirectory)
+	latestKernel, err := getInstalledKernel(testBootDirectory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +25,110 @@ func TestGetInstalledKernel(t *testing.T) {
 		t.Errorf("\n expected: %s\n actual: %s", expectedKernelOutput, latestKernel)
 		t.FailNow()
 	}
+}
 
+// TestGetInstalledKernelPicksNewestRHELKernel is the regression test for the bug where
+// "find /boot/vmlinuz-* | sort -V | tail -1" returned the RHEL point release
+// "4.18.0-553.el8_10" as newest and ranked every z-stream update below it, so a node booted
+// on the point release never saw a reason to reboot.
+func TestGetInstalledKernelPicksNewestRHELKernel(t *testing.T) {
+	bootDir := writeBootDir(t,
+		"4.18.0-553.el8_10.x86_64",
+		"4.18.0-553.137.1.el8_10.x86_64",
+		"4.18.0-553.157.1.el8_10.x86_64",
+		"0-rescue-0123456789abcdef0123456789abcdef",
+	)
+
+	got, err := getInstalledKernel(bootDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "4.18.0-553.157.1.el8_10.x86_64"; got != want {
+		t.Errorf("getInstalledKernel() = %q, want %q", got, want)
+	}
+}
+
+func TestGetInstalledKernelEmptyBootDir(t *testing.T) {
+	got, err := getInstalledKernel(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Errorf("getInstalledKernel() = %q, want empty string", got)
+	}
+}
+
+func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
+	origBoot, origGrace := bootDirectory, rebootGracePeriod
+	t.Cleanup(func() {
+		bootDirectory = origBoot
+		rebootGracePeriod = origGrace
+	})
+	rebootGracePeriod = time.Millisecond
+
+	rhelBoot := []string{"4.18.0-553.el8_10.x86_64", "4.18.0-553.157.1.el8_10.x86_64"}
+
+	t.Run("reboots when a newer kernel is installed", func(t *testing.T) {
+		bootDirectory = writeBootDir(t, rhelBoot...)
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r": {Output: "4.18.0-553.el8_10.x86_64\n"},
+		}}
+
+		// The fake runner never brings the machine down, so reboot reports that the grace
+		// period elapsed. What matters is that the reboot command was issued.
+		if err := CheckKernelAndRebootIfNeeded(runner, false); err == nil {
+			t.Error("expected an error because the fake runner does not reboot the machine")
+		}
+		if !runner.Ran(rebootCommand) {
+			t.Errorf("expected %q to run, got %v", rebootCommand, runner.Commands())
+		}
+	})
+
+	t.Run("does not reboot when the running kernel is already newest", func(t *testing.T) {
+		bootDirectory = writeBootDir(t, rhelBoot...)
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r": {Output: "4.18.0-553.157.1.el8_10.x86_64\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if runner.Ran("reboot") {
+			t.Errorf("expected no reboot, got %v", runner.Commands())
+		}
+	})
+
+	t.Run("does not reboot when reboot is disabled", func(t *testing.T) {
+		bootDirectory = writeBootDir(t, rhelBoot...)
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r": {Output: "4.18.0-553.el8_10.x86_64\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if runner.Ran("reboot") {
+			t.Errorf("expected no reboot when noReboot is set, got %v", runner.Commands())
+		}
+	})
+}
+
+// writeBootDir creates a temp directory holding an empty vmlinuz-<version> file per version.
+func writeBootDir(t *testing.T, versions ...string) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	for _, version := range versions {
+		file, err := os.Create(filepath.Join(dir, "vmlinuz-"+version))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	return dir
 }
 
 // TestUpdateSystemRunsDistributionCommands pins which commands each distribution actually runs,
