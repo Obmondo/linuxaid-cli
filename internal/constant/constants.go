@@ -24,6 +24,13 @@ const (
 	DefaultPuppetServerCustomerID   = "enableit"
 	DefaultPuppetServerDomainSuffix = ".puppet.obmondo.com"
 	DefaultOpenvoxEnv               = "master"
+	// DefaultEnvironmentPath is where the per-node Job clones the puppet code for
+	// masterless apply; it must live under the /opt/obmondo hostPath mount so the
+	// host-side puppet sees it at the same absolute path.
+	DefaultEnvironmentPath = "/opt/obmondo/openvox/code/environments"
+	// DefaultHieraConfig is the global-layer hiera.yaml the Job generates; its
+	// hierarchy points at the Helm-values data staged under /opt/obmondo.
+	DefaultHieraConfig = "/opt/obmondo/openvox/hiera.yaml"
 
 	// ServiceWindowTypeAutomatic is the booking type Obmondo reports for a scheduled service
 	// window. Such a window pins the linuxaid tag its whole update cycle runs with; adhoc
@@ -56,6 +63,10 @@ const (
 	EnvVarOpenvoxEnvironment     = "OPENVOX_ENVIRONMENT"
 	CobraFlagNoReboot            = "no-reboot"
 	CobraFlagSkipOpenvox         = "skip-openvox"
+	CobraFlagEnforce             = "enforce"
+	CobraFlagApply               = "apply"
+	CobraFlagEnvironmentPath     = "environmentpath"
+	CobraFlagHieraConfig         = "hiera-config"
 	CobraFlagSecurityExporterURL = "security-exporter-url"
 
 	ObmondoEnv = "OBMONDO_ENV"
