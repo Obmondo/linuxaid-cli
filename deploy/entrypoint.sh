@@ -160,7 +160,7 @@ if [ -n "${CONTROL_REPO_URL}" ]; then
 	# 5a) Run masterless apply on the host. Report-only (--noop) unless ENFORCE=true.
 	args=(run-openvox --apply
 		--environmentpath "${CODE_DIR}/environments"
-		--openvox-environment "${OPENVOX_ENVIRONMENT}"
+		--environment "${OPENVOX_ENVIRONMENT}"
 		--hiera-config "${HIERA_CONF}")
 	if [ "${ENFORCE}" = "true" ]; then args+=(--enforce); fi
 	log "running: linuxaid-cli ${args[*]}"
