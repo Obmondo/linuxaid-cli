@@ -37,33 +37,17 @@ type OpenvoxRun struct {
 
 // runPuppet executes a puppet command and maps its exit status. Shared by agent and apply mode.
 func runPuppet(runner shell.Runner, puppetCmd string) error {
-	// Puppet run execution returns total 5 status codes
-	//
-	// 0: The run succeeded with no changes or failures; the system was already in the desired state.
-	// 1: The run failed, or wasn't attempted due to another run already in progress.
-	// 2: The run succeeded, and some resources were changed.
-	// 4: The run succeeded, and some resources failed.
-	// 6: The run succeeded, and included both changes and failures.
-	// [Source: https://www.puppet.com/docs/puppet/7/man/agent.html#usage-notes]
-	//
-	// We throw error at status code 1, and return.
-	// Status codes other than 2 are considered as warning.
-	// Status code 0 doesn't count as error, so no need to handle it.
-
-	statusCodeFailed := 1
-	statusCodeSucceededWithChanges := 2
-
+	// Unlike system-update, failed resources do not fail this run: only puppet.ExitFailed is an
+	// error, and any other non-zero code but puppet.ExitChanged is logged as a warning.
 	slog.Info("executing the puppet command", slog.String("command", puppetCmd))
 	result := runner.Run(puppetCmd)
 	if result.Err != nil {
-		// When encountering status code 1, consider it as an error, and return.
-		if result.ExitCode == statusCodeFailed {
+		if result.ExitCode == puppet.ExitFailed {
 			slog.Error("puppet command execution failed", slog.Any("status", result.Err))
 			return result.Err
 		}
 
-		// When encountering status codes other than 2, just log it as a warning.
-		if result.ExitCode != statusCodeSucceededWithChanges {
+		if result.ExitCode != puppet.ExitChanged {
 			slog.Warn("puppet run succeeded, but with failures", slog.Any("status", result.Err))
 		}
 	}

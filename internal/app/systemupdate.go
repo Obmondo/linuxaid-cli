@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"slices"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
@@ -35,7 +34,7 @@ func cleanup(puppetService *puppet.Service) {
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
 func HandlePuppetRun(puppetService *puppet.Service, environment string) error {
 	exitCode := puppetService.RunAgent(false, "noop", environment)
-	if slices.Contains(constant.PuppetSuccessExitCodes, exitCode) {
+	if puppet.Succeeded(exitCode) {
 		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
 	}

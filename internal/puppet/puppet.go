@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"time"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/config"
@@ -20,9 +19,6 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
-
-// puppetExitCodeFailed mirrors puppet's own "run failed" exit code.
-const puppetExitCodeFailed = 1
 
 type Service struct {
 	runner        shell.Runner
@@ -104,7 +100,7 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 	if remoteLog {
 		if err := s.webtee.RemoteLogObmondo([]string{cmd}, s.certName); err != nil {
 			slog.Error("remote-logged puppet run failed", slog.Any("error", err))
-			return puppetExitCodeFailed
+			return ExitFailed
 		}
 
 		return 0
@@ -112,17 +108,8 @@ func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 
 	slog.Info("running puppet agent", slog.String("mode", noopMode))
 	result := s.runner.Run(cmd)
-	if err := result.Err; err != nil {
-		// We're patching the error handling for turrisos for now, since we're still updating
-		// linuxaid support. Once done, we'll remove this special handling.
-		successStatusCodes := constant.PuppetSuccessExitCodes
-		if os.Getenv("ID") == system.ConstDistributionNameTurrisOS {
-			successStatusCodes = append(successStatusCodes, 4, 6) // nolint: mnd
-		}
-
-		if !slices.Contains(successStatusCodes, result.ExitCode) {
-			slog.Error("stdout error", slog.Any("error", err))
-		}
+	if result.Err != nil && !Succeeded(result.ExitCode) {
+		slog.Error("stdout error", slog.Any("error", result.Err))
 	}
 
 	return result.ExitCode
