@@ -66,6 +66,7 @@ func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) erro
 
 // func shouldContinueAfterConfirmation determines if the installation process should continue after user confirmation.
 // If the user provides no input (white spaces, newline, tab, etc), the same confirmation question is asked again.
+// A closed stdin, where no answer can ever come, counts as "no".
 //
 // Inputs for continuation:
 //   - y (case-insensitive)
@@ -73,15 +74,22 @@ func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) erro
 //
 // Anything other than this is considered as "no", and the program will exit.
 func shouldContinueAfterConfirmation() bool {
+	// One reader for every attempt: a new one per attempt would drop input it had already buffered.
+	reader := bufio.NewReader(os.Stdin)
+
 	// I'm really not a fan of infinite loops, but just for this time I'll pretend I didn't wrote this.
 	for {
 		prettyfmt.PrettyPrintf(" %s Please confirm to continue (Yes/No)? ", prettyfmt.IconQuestion)
 
 		// Accept user input for confirmation
-		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
+		input, err := reader.ReadString('\n')
 		input = strings.ToLower(input)
 		input = strings.TrimSpace(input)
+
+		if input == "" && err != nil {
+			prettyfmt.PrettyPrintf("\n Exiting the setup...\n")
+			return false
+		}
 
 		if input == "" {
 			continue
