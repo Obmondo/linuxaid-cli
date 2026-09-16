@@ -78,7 +78,7 @@ func init() {
 	f.DurationVar(&opInterval, "interval", defaultReconcileInterval, "reconcile interval in daemon mode")
 	f.StringVar(&opNode, "node", "", "create a Job for a single node and exit (skips if one already exists)")
 	f.StringVar(&opControlRepoURL, "control-repo-url", "", "git URL of the puppet control-repo; when set the agent Jobs run masterless puppet apply")
-	f.StringVar(&opControlRepoRef, "control-repo-ref", "", "tag (or ref) of the control-repo to checkout, from the chart's linuxaid.tag (default: latest tag)")
+	f.StringVar(&opControlRepoRef, "control-repo-ref", "", "tag (or ref) of the control-repo to checkout (default: latest tag)")
 	f.StringVar(&opHieraConfigMap, "hiera-configmap", "", "ConfigMap with the rendered Helm-values hiera data, mounted into the agent Jobs at /hiera-data")
 	f.StringVar(&opGitSecretName, "git-secret", "", "secret with git credentials (ssh-privatekey or token key) mounted into the agent Jobs at /git-credentials")
 	rootCmd.AddCommand(operatorCmd)

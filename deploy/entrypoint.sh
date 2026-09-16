@@ -14,7 +14,7 @@
 # Two run modes:
 #   - agent (default): puppet agent -t against the customer's puppetserver.
 #   - apply (CONTROL_REPO_URL set): masterless puppet apply. The control-repo is
-#     cloned at CONTROL_REPO_REF (the chart's linuxaid.tag; latest tag when unset)
+#     cloned at CONTROL_REPO_REF (latest tag when unset)
 #     into CODE_DIR under the /opt/obmondo hostPath — so the host sees it at the
 #     same absolute path — and the Helm-values hiera data mounted at HIERA_SRC_DIR
 #     is staged next to it as the global hiera layer.
@@ -28,7 +28,7 @@ CLIENT_CERT_DIR="${CLIENT_CERT_DIR:-/obmondo-clientcert}"   # mounted obmondo-cl
 OPENVOX_RELEASE_DEB="${OPENVOX_RELEASE_DEB:-https://apt.voxpupuli.org/openvox8-release-ubuntu26.04.deb}"
 
 CONTROL_REPO_URL="${CONTROL_REPO_URL:-}"                    # apply-mode switch: git URL of the puppet control-repo (environment code)
-CONTROL_REPO_REF="${CONTROL_REPO_REF:-}"                    # tag to checkout, from the chart's linuxaid.tag (default: latest tag)
+CONTROL_REPO_REF="${CONTROL_REPO_REF:-}"                    # tag to checkout (default: latest tag)
 HIERA_SRC_DIR="${HIERA_SRC_DIR:-/hiera-data}"               # mounted ConfigMap with the rendered Helm-values hiera data
 GIT_CRED_DIR="${GIT_CRED_DIR:-/git-credentials}"            # optional secret mount: ssh-privatekey or token
 
