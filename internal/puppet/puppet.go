@@ -26,17 +26,35 @@ type Service struct {
 	apiClient     api.ObmondoClient
 	certName      string
 	openvoxServer string
+	opensource    bool
 }
 
-// NewService initializes a new Puppet service instance
-func NewService(apiClient api.ObmondoClient, webtee *webtee.Webtee, runner shell.Runner, cfg config.Config) *Service {
-	return &Service{
+// NewService initializes a new Puppet service instance. Only Obmondo customers get a webtee client:
+// opensource nodes are not registered with Obmondo, so RunLogged runs their commands locally.
+func NewService(apiClient api.ObmondoClient, runner shell.Runner, cfg config.Config) *Service {
+	service := &Service{
 		runner:        runner,
 		apiClient:     apiClient,
 		certName:      cfg.Certname,
 		openvoxServer: cfg.OpenvoxServer,
-		webtee:        webtee,
+		opensource:    cfg.Opensource,
 	}
+
+	if !cfg.Opensource {
+		service.webtee = webtee.NewWebtee(apiClient)
+	}
+
+	return service
+}
+
+// RunLogged runs a command whose output is worth keeping: through webtee, which streams it to
+// Obmondo, for customers, and locally for opensource nodes.
+func (s *Service) RunLogged(command string) error {
+	if s.opensource {
+		return s.runner.Run(command).Err
+	}
+
+	return s.webtee.RemoteLogObmondo([]string{command}, s.certName)
 }
 
 // Enable agent
@@ -57,16 +75,12 @@ func (s *Service) DisableAgentService() error {
 	// There is no init script named unattended-upgrades, and puppet in /etc/init.d/ in TurrisOS system
 	if os.Getenv("ID") != system.ConstDistributionNameTurrisOS {
 		// Disable unattended-upgrades so puppet-agent package does not update
-		if err := s.webtee.RemoteLogObmondo([]string{
-			"puppet resource service unattended-upgrades ensure=stopped enable=false",
-		}, s.certName); err != nil {
+		if err := s.RunLogged("puppet resource service unattended-upgrades ensure=stopped enable=false"); err != nil {
 			return err
 		}
 
 		// Stop puppet agent service, since we manage it via run_puppet service
-		if err := s.webtee.RemoteLogObmondo([]string{
-			"puppet resource service puppet ensure=stopped enable=false",
-		}, s.certName); err != nil {
+		if err := s.RunLogged("puppet resource service puppet ensure=stopped enable=false"); err != nil {
 			return err
 		}
 
@@ -92,13 +106,15 @@ func (s *Service) DisableAgent(msg string) error {
 
 // RunAgent runs the puppet agent. The environment is passed on the command line rather than read
 // from puppet.conf, which no longer pins one: the caller decides which environment a run uses.
+// With remoteLog, a customer's run is streamed to Obmondo and only reports success (0) or
+// ExitFailed; every other run returns puppet's own exit code.
 func (s *Service) RunAgent(remoteLog bool, noopMode, environment string) int {
 	cmd := fmt.Sprintf("puppet agent -t --%s --detailed-exitcodes", noopMode)
 	if environment != "" {
 		cmd += " --environment " + environment
 	}
-	if remoteLog {
-		if err := s.webtee.RemoteLogObmondo([]string{cmd}, s.certName); err != nil {
+	if remoteLog && !s.opensource {
+		if err := s.RunLogged(cmd); err != nil {
 			slog.Error("remote-logged puppet run failed", slog.Any("error", err))
 			return ExitFailed
 		}
@@ -122,12 +138,12 @@ func (s *Service) IsAgentRunning() bool {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Debug("puppet lock file not found")
 			//nolint:errcheck // a diagnostic echo failing must not mask the real error
-			_ = s.webtee.RemoteLogObmondo([]string{"echo lock file not found"}, s.certName)
+			_ = s.RunLogged("echo lock file not found")
 			return false
 		}
 		slog.Debug("error checking lock file", slog.Any("error", err))
 		//nolint:errcheck // a diagnostic echo failing must not mask the real error
-		_ = s.webtee.RemoteLogObmondo([]string{"echo error checking lock file"}, s.certName)
+		_ = s.RunLogged("echo error checking lock file")
 		return false
 	}
 	return true
@@ -167,7 +183,7 @@ noop = true
 	content := fmt.Sprintf(cfg, server, s.certName)
 	if err := os.WriteFile(constant.PuppetConfig, []byte(content), os.FileMode(os.O_TRUNC|os.O_CREATE)); err != nil {
 		//nolint:errcheck // a diagnostic echo failing must not mask the real error
-		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo failed to configure puppet: %s", err)}, s.certName)
+		_ = s.RunLogged(fmt.Sprintf("echo failed to configure puppet: %s", err))
 		return fmt.Errorf("could not write %s: %w", constant.PuppetConfig, err)
 	}
 
@@ -195,7 +211,7 @@ func (s *Service) CheckServerStatus() error {
 	resp, err := client.Get(statusURL)
 	if err != nil {
 		//nolint:errcheck // a diagnostic echo failing must not mask the real error
-		_ = s.webtee.RemoteLogObmondo([]string{fmt.Sprintf("echo Unable to reach Puppetserver: %s", err)}, s.certName)
+		_ = s.RunLogged(fmt.Sprintf("echo Unable to reach Puppetserver: %s", err))
 		return err
 	}
 	defer resp.Body.Close()
@@ -216,7 +232,7 @@ func (s *Service) DownloadAgent(downloadPath, url string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		//nolint:errcheck // a diagnostic echo failing must not mask the real error
-		_ = s.webtee.RemoteLogObmondo([]string{"echo deb file not present at url"}, url)
+		_ = s.RunLogged("echo openvox agent package not found at " + url)
 		return fmt.Errorf("puppet agent download failed with status %d", resp.StatusCode)
 	}
 
@@ -255,7 +271,7 @@ func (s *Service) FacterNewSetup() error {
 		)
 		errMsg := fmt.Sprintf("echo cannot create external facter file: %s", err.Error())
 		//nolint:errcheck // a diagnostic echo failing must not mask the real error
-		_ = s.webtee.RemoteLogObmondo([]string{errMsg}, s.certName)
+		_ = s.RunLogged(errMsg)
 		return fmt.Errorf("could not create %s: %w", constant.ExternalFacterFile, err)
 	}
 

@@ -19,7 +19,6 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/provisioner"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
 func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) error {
@@ -110,13 +109,19 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	openvoxServer := cfg.OpenvoxServer
 	obmondoAPIURL := api.GetObmondoURL()
 	obmondoAPI := api.NewObmondoClient(obmondoAPIURL, true, certname)
-	webtee := webtee.NewWebtee(obmondoAPI)
+
+	// Token is only required for Obmondo customers; opensource users can run
+	// the setup without one. cfg.Opensource comes from a marker this install only
+	// writes further down, so it is set here for the services built below.
+	token, hasToken := os.LookupEnv(constant.InstallTokenEnv)
+	cfg.Opensource = !hasToken
+
 	runner := shell.New()
-	puppetService := puppet.NewService(obmondoAPI, webtee, runner, cfg)
-	provisioner := provisioner.NewService(obmondoAPI, puppetService, webtee, certname)
+	puppetService := puppet.NewService(obmondoAPI, runner, cfg)
+	provisioner := provisioner.NewService(obmondoAPI, puppetService)
 
 	//nolint:errcheck // a banner failing must not abort the install
-	_ = webtee.RemoteLogObmondo([]string{"echo Starting Linuxaid Install Setup "}, certname)
+	_ = puppetService.RunLogged("echo Starting Linuxaid Install Setup ")
 	prettyfmt.PrettyPrintf(" %s  %s %s %s %s %s %s\n", prettyfmt.IconGear, prettyfmt.FontWhite("Configuring Linuxaid on"), prettyfmt.FontYellow(certname), prettyfmt.FontWhite("with Openvox Server"), prettyfmt.FontYellow(openvoxServer), prettyfmt.FontWhite("and environment"), prettyfmt.FontYellow(openvoxEnv))
 	prettyfmt.PrettyPrintf(" %s  Running this tool will install and configure %s in your system.\n", prettyfmt.IconGear, prettyfmt.FontYellow("Openvox agent"))
 
@@ -124,9 +129,6 @@ func Install(cfg config.Config, openvoxEnv string) error {
 		return nil
 	}
 
-	// Token is only required for Obmondo customers; opensource users can run
-	// the setup without one.
-	token, hasToken := os.LookupEnv(constant.InstallTokenEnv)
 	if hasToken {
 		if err := progress.NonDeterministicFunc("Verifying Token", func() error {
 			input := &api.InstallScriptInput{
@@ -156,7 +158,7 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	if _, err := os.Stat(constant.AgentDisabledLockFile); err == nil {
 		prettyfmt.PrettyPrintln(prettyfmt.FontRed("Openvox has been disabled from the existing setup, can't proceed\npuppet agent --enable will enable the puppet agent\n"))
 		//nolint:errcheck // a banner failing must not abort the install
-		_ = webtee.RemoteLogObmondo([]string{"echo Exiting, openvox-agent is already installed and set to disabled"}, certname)
+		_ = puppetService.RunLogged("echo Exiting, openvox-agent is already installed and set to disabled")
 
 		// an already-disabled agent is not a failure: keep the exit 0 this always had
 		return nil
@@ -185,8 +187,8 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	if err := progress.NonDeterministicFunc("Running Openvox", func() error {
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
 
-		// the remote-logged run used to abort the whole process from inside webtee; keep it fatal
-		if exitCode := puppetService.RunAgent(true, "noop", openvoxEnv); exitCode != 0 {
+		// a failed run used to abort the whole process from inside webtee; keep it fatal
+		if exitCode := puppetService.RunAgent(true, "noop", openvoxEnv); !puppet.Succeeded(exitCode) {
 			return fmt.Errorf("the openvox run failed with exit code %d", exitCode)
 		}
 
@@ -201,7 +203,7 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	}
 
 	//nolint:errcheck // a banner failing must not abort the install
-	_ = webtee.RemoteLogObmondo([]string{"echo Finished Obmondo Setup "}, certname)
+	_ = puppetService.RunLogged("echo Finished Obmondo Setup ")
 	prettyfmt.PrettyPrintln("\n ", prettyfmt.IconSuccess, prettyfmt.FontGreen("Success!"))
 	prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.FontWhite("Head to"), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."))
 

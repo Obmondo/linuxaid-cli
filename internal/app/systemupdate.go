@@ -15,7 +15,6 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/security"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
 const (
@@ -240,7 +239,7 @@ func SystemUpdate(cfg config.Config) error {
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServer))
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI), runner, cfg)
+	puppetService := puppet.NewService(obmondoAPI, runner, cfg)
 
 	if openvoxInitiallyEnabled && !cfg.SkipOpenvox {
 		// Check if any existing puppet agent is already running
