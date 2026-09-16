@@ -24,6 +24,7 @@ var (
 	certNameFlag      string
 	openvoxServerFlag string
 	openvoxEnvFlag    string
+	masterlessFlag    bool
 )
 
 var rootCmd = &cobra.Command{
@@ -35,6 +36,9 @@ var rootCmd = &cobra.Command{
 
 	# Opensource users (no token required)
 	$ linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com
+
+	# Masterless nodes, which run linuxaid-cli run-openvox --apply themselves
+	$ linuxaid-install --certname node01.example --masterless
 	`,
 	Version: Version,
 	CompletionOptions: cobra.CompletionOptions{
@@ -59,8 +63,8 @@ var rootCmd = &cobra.Command{
 
 		// Without a token, the default Obmondo shared server will never sign
 		// the agent's certificate, so opensource users must point at a puppet
-		// server they control.
-		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet {
+		// server they control. A masterless node never talks to a server.
+		if _, isSet := os.LookupEnv(constant.InstallTokenEnv); !isSet && !masterlessFlag {
 			defaultServer := constant.DefaultPuppetServerCustomerID + constant.DefaultPuppetServerDomainSuffix
 			if cfg.OpenvoxServer == defaultServer {
 				errMsg := "Uh ho. Without a TOKEN, the Obmondo server can't sign your certificate. Set the TOKEN env, or pass your own server via"
@@ -76,6 +80,10 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(*cobra.Command, []string) error {
+		if masterlessFlag {
+			return app.InstallMasterless(cfg)
+		}
+
 		return app.Install(cfg, installEnvironment())
 	},
 }
@@ -88,6 +96,7 @@ func init() {
 	rootCmd.Flags().StringVar(&openvoxServerFlag, constant.CobraFlagOpenvoxServer, defaultServer, "Puppet server hostname")
 	// no default here: it is applied in installEnvironment(), after the environment variable
 	rootCmd.Flags().StringVarP(&openvoxEnvFlag, constant.CobraFlagEnvironment, constant.CobraFlagEnvironmentShorthand, "", "Openvox environment to install (Linuxaid release version, default "+constant.DefaultOpenvoxEnv+")")
+	rootCmd.Flags().BoolVar(&masterlessFlag, constant.CobraFlagMasterless, false, "Set up a masterless node, which runs linuxaid-cli run-openvox --apply itself: install the openvox agent and write a server-less puppet.conf, as an opensource node")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()

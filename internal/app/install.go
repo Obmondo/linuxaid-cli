@@ -21,7 +21,10 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
 )
 
-func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) error {
+// puppetBinary is where the openvox agent package installs puppet.
+const puppetBinary = "/opt/puppetlabs/bin/puppet"
+
+func compatibilityCheck(runner shell.Runner) error {
 	// Sanity check
 	if err := system.LoadOSReleaseEnv(); err != nil {
 		return err
@@ -50,12 +53,6 @@ func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) erro
 		return err
 	}
 
-	// Check if Puppetserver is alive and active
-	if err := puppetService.CheckServerStatus(); err != nil {
-		slog.Error("puppet server check failed", slog.Any("error", err))
-		return err
-	}
-
 	if err := os.Setenv("PATH", constant.PuppetPath); err != nil {
 		slog.Error("failed to set the PATH env, exiting")
 		return err
@@ -66,6 +63,7 @@ func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) erro
 
 // func shouldContinueAfterConfirmation determines if the installation process should continue after user confirmation.
 // If the user provides no input (white spaces, newline, tab, etc), the same confirmation question is asked again.
+// A closed stdin, where no answer can ever come, counts as "no".
 //
 // Inputs for continuation:
 //   - y (case-insensitive)
@@ -73,15 +71,22 @@ func compatibilityCheck(puppetService *puppet.Service, runner shell.Runner) erro
 //
 // Anything other than this is considered as "no", and the program will exit.
 func shouldContinueAfterConfirmation() bool {
+	// One reader for every attempt: a new one per attempt would drop input it had already buffered.
+	reader := bufio.NewReader(os.Stdin)
+
 	// I'm really not a fan of infinite loops, but just for this time I'll pretend I didn't wrote this.
 	for {
 		prettyfmt.PrettyPrintf(" %s Please confirm to continue (Yes/No)? ", prettyfmt.IconQuestion)
 
 		// Accept user input for confirmation
-		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
+		input, err := reader.ReadString('\n')
 		input = strings.ToLower(input)
 		input = strings.TrimSpace(input)
+
+		if input == "" && err != nil {
+			prettyfmt.PrettyPrintf("\n Exiting the setup...\n")
+			return false
+		}
 
 		if input == "" {
 			continue
@@ -149,7 +154,17 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	}
 
 	if err := progress.NonDeterministicFunc("Checking Compatibility", func() error {
-		return compatibilityCheck(puppetService, runner)
+		if err := compatibilityCheck(runner); err != nil {
+			return err
+		}
+
+		// Check if Puppetserver is alive and active
+		if err := puppetService.CheckServerStatus(); err != nil {
+			slog.Error("puppet server check failed", slog.Any("error", err))
+			return err
+		}
+
+		return nil
 	}); err != nil {
 		return err
 	}
@@ -208,4 +223,51 @@ func Install(cfg config.Config, openvoxEnv string) error {
 	prettyfmt.PrettyPrintf("\n %s %s %s\n", prettyfmt.FontWhite("Head to"), prettyfmt.FontBlue("https://obmondo.com/user/servers"), prettyfmt.FontWhite("to add role and subscription."))
 
 	return nil
+}
+
+// InstallMasterless sets up a masterless node, which runs `linuxaid-cli run-openvox --apply` itself:
+// it installs the openvox agent if it is missing, writes a server-less puppet.conf and marks the node
+// opensource. There is no confirmation, puppet server, certificate or agent run, and no webtee or
+// Obmondo API client, so it is safe to run before every apply.
+func InstallMasterless(cfg config.Config) error {
+	cfg.Opensource = true
+	runner := shell.New()
+	puppetService := puppet.NewService(nil, runner, cfg)
+	provisioner := provisioner.NewService(nil, puppetService)
+
+	if err := compatibilityCheck(runner); err != nil {
+		return err
+	}
+
+	if err := config.SetOpensourceMode(true); err != nil {
+		slog.Warn("failed to record opensource mode", slog.Any("error", err))
+	}
+
+	if err := installAgentIfMissing(provisioner, puppetService, runner); err != nil {
+		return err
+	}
+
+	return puppetService.ConfigureMasterless()
+}
+
+// installAgentIfMissing installs the openvox agent unless it is already installed, and stops its
+// service: a masterless node runs puppet itself.
+func installAgentIfMissing(provisioner *provisioner.Provisioner, puppetService *puppet.Service, runner shell.Runner) error {
+	if _, err := os.Stat(puppetBinary); err == nil {
+		slog.Info("openvox agent is already installed", slog.String("puppet", puppetBinary))
+		return nil
+	}
+
+	slog.Info("installing the openvox agent")
+	if err := provisioner.ProvisionPuppet(); err != nil {
+		return err
+	}
+
+	// Only the puppet service: DisableAgentService also turns off unattended-upgrades, which a
+	// node that puppet does not enforce yet still needs for its security updates.
+	if result := runner.Quiet(puppetBinary + " resource service puppet ensure=stopped enable=false"); result.Err != nil {
+		return fmt.Errorf("failed to disable the puppet service: %w", result.Err)
+	}
+
+	return puppetService.FacterNewSetup()
 }
