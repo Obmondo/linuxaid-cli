@@ -4,6 +4,7 @@ ignore_merge_commits = true
 disable_changelog = true
 
 post_bump_hooks = [
-  "git push github main {{version_tag}}",
+  # origin is the GitHub repo, gitea its mirror.
   "git push origin main {{version_tag}}",
+  "git push gitea main {{version_tag}}",
 ]
