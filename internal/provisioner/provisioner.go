@@ -11,7 +11,6 @@ import (
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
 const (
@@ -22,19 +21,16 @@ const (
 )
 
 type Provisioner struct {
-	webtee    *webtee.Webtee
 	apiClient api.ObmondoClient
 	puppet    *puppet.Service
-	certName  string
 }
 
-// NewService creates a new Puppet installer service.
-func NewService(apiClient api.ObmondoClient, puppet *puppet.Service, webtee *webtee.Webtee, certname string) *Provisioner {
+// NewService creates a new Puppet installer service. Its install commands run through the puppet
+// service's RunLogged.
+func NewService(apiClient api.ObmondoClient, puppet *puppet.Service) *Provisioner {
 	return &Provisioner{
 		apiClient: apiClient,
 		puppet:    puppet,
-		certName:  certname,
-		webtee:    webtee,
 	}
 }
 
@@ -70,10 +66,10 @@ func (s *Provisioner) provisionForDebian() error {
 	}
 
 	codeName := os.Getenv("UBUNTU_CODENAME")
-	if err := s.webtee.RemoteLogObmondo([]string{"apt update"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("apt update"); err != nil {
 		return err
 	}
-	if err := s.webtee.RemoteLogObmondo([]string{"apt install -y iptables"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("apt install -y iptables"); err != nil {
 		return err
 	}
 	var ubuntuVersion string
@@ -101,8 +97,8 @@ func (s *Provisioner) provisionForDebian() error {
 		return err
 	}
 
-	installCmd := []string{fmt.Sprintf("apt install -y %s", downloadPath)}
-	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+	installCmd := fmt.Sprintf("apt install -y %s", downloadPath)
+	if err := s.puppet.RunLogged(installCmd); err != nil {
 		return err
 	}
 
@@ -111,7 +107,7 @@ func (s *Provisioner) provisionForDebian() error {
 
 // provisionForRedHat installs puppet-agent on RHEL/CentOS systems
 func (s *Provisioner) provisionForRedHat() error {
-	if err := s.webtee.RemoteLogObmondo([]string{"yum install -y iptables"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("yum install -y iptables"); err != nil {
 		return err
 	}
 
@@ -137,8 +133,8 @@ func (s *Provisioner) provisionForRedHat() error {
 		return err
 	}
 
-	installCmd := []string{fmt.Sprintf("yum install %s -y", downloadPath)}
-	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+	installCmd := fmt.Sprintf("yum install %s -y", downloadPath)
+	if err := s.puppet.RunLogged(installCmd); err != nil {
 		return err
 	}
 
@@ -147,7 +143,7 @@ func (s *Provisioner) provisionForRedHat() error {
 
 // provisionForSuse installs puppet-agent on SUSE systems
 func (s *Provisioner) provisionForSuse() error {
-	if err := s.webtee.RemoteLogObmondo([]string{"zypper install -y iptables"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("zypper install -y iptables"); err != nil {
 		return err
 	}
 
@@ -173,8 +169,8 @@ func (s *Provisioner) provisionForSuse() error {
 		return err
 	}
 
-	installCmd := []string{fmt.Sprintf("rpm -ivh %s", downloadPath)}
-	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+	installCmd := fmt.Sprintf("rpm -ivh %s", downloadPath)
+	if err := s.puppet.RunLogged(installCmd); err != nil {
 		return err
 	}
 
@@ -183,15 +179,15 @@ func (s *Provisioner) provisionForSuse() error {
 
 // provisionForTurris installs puppet via gem on TurrisOS
 func (s *Provisioner) provisionForTurris() error {
-	if err := s.webtee.RemoteLogObmondo([]string{"opkg update"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("opkg update"); err != nil {
 		return err
 	}
-	if err := s.webtee.RemoteLogObmondo([]string{"opkg install ruby ruby-stdlib ruby-dev ruby-gems"}, s.certName); err != nil {
+	if err := s.puppet.RunLogged("opkg install ruby ruby-stdlib ruby-dev ruby-gems"); err != nil {
 		return err
 	}
 
-	installCmd := []string{fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxVersion)}
-	if err := s.webtee.RemoteLogObmondo(installCmd, s.certName); err != nil {
+	installCmd := fmt.Sprintf("gem install -v %s --no-document openvox", constant.OpenvoxVersion)
+	if err := s.puppet.RunLogged(installCmd); err != nil {
 		return err
 	}
 

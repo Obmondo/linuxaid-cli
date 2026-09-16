@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"slices"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
@@ -16,7 +15,6 @@ import (
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/puppet"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/security"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/system"
-	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/webtee"
 )
 
 const (
@@ -35,7 +33,7 @@ func cleanup(puppetService *puppet.Service) {
 // HandlePuppetRun is resposible to run the puppet-agent and handle the status codes of the execution
 func HandlePuppetRun(puppetService *puppet.Service, environment string) error {
 	exitCode := puppetService.RunAgent(false, "noop", environment)
-	if slices.Contains(constant.PuppetSuccessExitCodes, exitCode) {
+	if puppet.Succeeded(exitCode) {
 		slog.Info("everything is fine with puppet agent run, let's continue.")
 		return nil
 	}
@@ -241,7 +239,7 @@ func SystemUpdate(cfg config.Config) error {
 		slog.String("prometheus", prometheusHost),
 		slog.String("puppet_server", puppetServer))
 
-	puppetService := puppet.NewService(obmondoAPI, webtee.NewWebtee(obmondoAPI), runner, cfg)
+	puppetService := puppet.NewService(obmondoAPI, runner, cfg)
 
 	if openvoxInitiallyEnabled && !cfg.SkipOpenvox {
 		// Check if any existing puppet agent is already running
