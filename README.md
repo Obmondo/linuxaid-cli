@@ -48,6 +48,10 @@ TOKEN='your-token' linuxaid-install --certname web01.example --puppet-server you
 
 # Opensource users (no token required)
 linuxaid-install --certname web01.example --puppet-server your.openvoxserver.com --environment master
+
+# Masterless nodes (e.g. Kubernetes), which run `linuxaid-cli run-openvox --apply` themselves:
+# install the openvox agent and write a server-less puppet.conf
+linuxaid-install --certname node01.example --masterless
 ```
 
 ### linuxaid-cli
@@ -87,11 +91,12 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 
 - `--certname` / `CERTNAME` - Certificate name (defaults to the machine's FQDN)
 - `--debug` / `DEBUG` - Enable debug logging
-- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname (for `linuxaid-install`, required when no `TOKEN` is set; for `linuxaid-cli`, overrides the customer settings)
+- `--puppet-server` / `PUPPET_SERVER` - Puppet server hostname (for `linuxaid-install`, required when no `TOKEN` is set, unless `--masterless`; for `linuxaid-cli`, overrides the customer settings)
 
 ## `linuxaid-install` Specific Flags
 
 - `--environment` / `-E` / `OPENVOX_ENVIRONMENT` - Openvox environment to install (Linuxaid release version, default `master`)
+- `--masterless` - Set up a masterless node, which runs `linuxaid-cli run-openvox --apply` itself: install the openvox agent if it is missing and write a server-less `puppet.conf`. There is no confirmation, puppet server, certificate or agent run, and the node is marked opensource
 
 ## `linuxaid-cli` Command-Specific Flags
 

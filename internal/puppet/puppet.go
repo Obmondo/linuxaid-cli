@@ -190,6 +190,19 @@ noop = true
 	return nil
 }
 
+// ConfigureMasterless writes puppet.conf for a node that compiles its own catalog with puppet apply:
+// no server, and, as in ConfigureAgent, no environment, which each run passes.
+func (s *Service) ConfigureMasterless() error {
+	content := fmt.Sprintf("[main]\ncertname = %s\nreport = true\n", s.certName)
+
+	// nolint: mnd
+	if err := os.WriteFile(constant.PuppetConfig, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("could not write %s: %w", constant.PuppetConfig, err)
+	}
+
+	return nil
+}
+
 // Check server status
 func (s *Service) CheckServerStatus() error {
 	// The openvox server value is a bare hostname; default to https when no

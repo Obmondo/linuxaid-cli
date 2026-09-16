@@ -65,6 +65,7 @@ const (
 	CobraFlagSkipOpenvox         = "skip-openvox"
 	CobraFlagEnforce             = "enforce"
 	CobraFlagApply               = "apply"
+	CobraFlagMasterless          = "masterless"
 	CobraFlagEnvironmentPath     = "environmentpath"
 	CobraFlagHieraConfig         = "hiera-config"
 	CobraFlagSecurityExporterURL = "security-exporter-url"
