@@ -7,8 +7,9 @@ import (
 )
 
 func InitLogger(writer io.Writer, debug bool) {
+	// The source file:line only helps when debugging; normal runs keep their lines short.
 	handlerOptions := &slog.HandlerOptions{
-		AddSource: true,
+		AddSource: debug,
 	}
 
 	if debug {
