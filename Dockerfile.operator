@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+#
+# Operator image: the in-cluster controller (linuxaid-agent) that lists nodes and creates one
+# agent Job per node. It is only a Kubernetes API client — no host access — so it runs non-root
+# with no extra tooling.
+
+# The build stage runs on the build platform and cross-compiles for the target one, so a
+# multi-arch build only emulates the final stage.
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+WORKDIR /src
+RUN apk add --no-cache git
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+ARG VERSION=spike
+ARG TARGETOS
+ARG TARGETARCH
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-agent ./cmd/linuxaid-agent
+
+FROM alpine:3.24
+RUN apk add --no-cache ca-certificates
+COPY --from=build /out/linuxaid-agent /usr/local/bin/linuxaid-agent
+USER 65534:65534
+ENTRYPOINT ["/usr/local/bin/linuxaid-agent"]
