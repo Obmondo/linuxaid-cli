@@ -98,9 +98,10 @@ fi
 
 # 3) Set the host up for masterless runs: the openvox agent if it is missing (the same
 #    packages as any LinuxAid server), a server-less puppet.conf, and the opensource
-#    marker, so run-openvox makes no Obmondo API calls.
+#    marker, so run-openvox makes no Obmondo API calls. NEEDRESTART_SUSPEND stops Ubuntu's
+#    needrestart from restarting services after apt runs; it restarted containerd.
 log "running: linuxaid-install --masterless"
-ns env CERTNAME="${CERTNAME}" DEBIAN_FRONTEND=noninteractive PATH="/usr/sbin:/usr/bin:/sbin:/bin" "${HOST_INSTALL}" --masterless
+ns env CERTNAME="${CERTNAME}" DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 PATH="/usr/sbin:/usr/bin:/sbin:/bin" "${HOST_INSTALL}" --masterless
 
 # 4) Materialize the puppet code + hiera data on the host. The clone runs in the
 #    container (which has git+ssh) into the hostPath, so the host-side puppet apply
@@ -127,12 +128,13 @@ hierarchy:
     path: values.yaml
 EOF
 
-# 5) Run masterless apply on the host. Report-only (--noop) unless ENFORCE=true.
+# 5) Run masterless apply on the host. Report-only (--noop) unless ENFORCE=true, and
+#    needrestart stays suspended for the packages an enforcing run installs.
 args=(run-openvox --apply
 	--environmentpath "${CODE_DIR}/environments"
 	--environment "${OPENVOX_ENVIRONMENT}"
 	--hiera-config "${HIERA_CONF}")
 if [ "${ENFORCE}" = "true" ]; then args+=(--enforce); fi
 log "running: linuxaid-cli ${args[*]}"
-ns env CERTNAME="${CERTNAME}" OBMONDO_SKIP_CONNECTIVITY_METRICS=1 PATH="/opt/puppetlabs/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+ns env CERTNAME="${CERTNAME}" OBMONDO_SKIP_CONNECTIVITY_METRICS=1 NEEDRESTART_SUSPEND=1 PATH="/opt/puppetlabs/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
 	"${HOST_CLI}" "${args[@]}"

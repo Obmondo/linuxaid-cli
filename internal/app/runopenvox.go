@@ -86,9 +86,9 @@ func runOpenvoxAgent(runner shell.Runner, cfg config.Config, environment, tags s
 }
 
 // applyOpenvox runs masterless puppet apply against the environment cloned under
-// environmentPath. The environment's own environment.conf and hiera.yaml drive the
-// modulepath and hierarchy, exactly as on the puppetserver; hieraConfig injects the
-// Helm-values data as the (higher-precedence) global hiera layer.
+// environmentPath. The environment's own environment.conf, hiera.yaml and ENC drive the
+// modulepath, hierarchy and node parameters, exactly as on an opensource puppetserver;
+// hieraConfig injects the Helm-values data as the (higher-precedence) global hiera layer.
 func applyOpenvox(runner shell.Runner, enforce bool, environmentPath, environment, hieraConfig string) error {
 	sitePP := filepath.Join(environmentPath, environment, "manifests", "site.pp")
 	if _, err := os.Stat(sitePP); err != nil {
@@ -100,6 +100,11 @@ func applyOpenvox(runner shell.Runner, enforce bool, environmentPath, environmen
 		"--detailed-exitcodes",
 		"--environmentpath", environmentPath,
 		"--environment", environment,
+	}
+	// Without the ENC's parameters, LinuxAid's hiera.yaml fails on undefined variables.
+	enc := filepath.Join(environmentPath, environment, constant.MasterlessENC)
+	if _, err := os.Stat(enc); err == nil {
+		args = append(args, "--node_terminus", "exec", "--external_nodes", enc)
 	}
 	if hieraConfig != "" {
 		args = append(args, "--hiera_config", hieraConfig)
