@@ -70,8 +70,8 @@ jobs:
         uses: docker/metadata-action@v6.2.0
         with:
           images: ghcr.io/obmondo/${{ matrix.image }}
-          # v1.12.0 is published as 1.12.0, the version LinuxAid's hiera pins
-          tags: type=semver,pattern={{version}}
+          # the git tag (v1.12.0), the same tag the gitea release pushes to Harbor
+          tags: type=ref,event=tag
 
       - name: Build and push
         uses: docker/build-push-action@v7.4.0
