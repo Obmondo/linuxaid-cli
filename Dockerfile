@@ -5,18 +5,22 @@
 # deploy/entrypoint.sh). Runs as the per-node Job that the operator creates. The
 # node's cert is provided pre-signed (obmondo-clientcert), so there is nothing to enroll.
 
-FROM golang:1.24-alpine AS build
+# The build stage runs on the build platform and cross-compiles for the target one, so a
+# multi-arch build only emulates the final stage.
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 ARG VERSION=spike
+ARG TARGETOS
+ARG TARGETARCH
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-cli ./cmd/linuxaid-cli && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-install ./cmd/linuxaid-install
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-cli ./cmd/linuxaid-cli && \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-X main.Version=${VERSION} -s -w" -o /out/linuxaid-install ./cmd/linuxaid-install
 
-FROM alpine:3.20
+FROM alpine:3.24
 # git + openssh-client: apply mode clones the puppet code in-container into the
 # /opt/obmondo hostPath (the host itself is not required to have git).
 RUN apk add --no-cache bash util-linux ca-certificates git openssh-client

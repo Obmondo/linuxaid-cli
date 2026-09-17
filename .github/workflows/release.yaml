@@ -25,6 +25,8 @@ jobs:
           fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@v6.0.0
+        with:
+          go-version-file: go.mod
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6.4.0
         with:
@@ -32,6 +34,55 @@ jobs:
           args: release --clean -f .goreleaser-github.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  images:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: linuxaid-agent
+            dockerfile: Dockerfile.operator
+          - image: linuxaid-cli
+            dockerfile: Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4.4.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ghcr.io/obmondo/${{ matrix.image }}
+          # v1.12.0 is published as 1.12.0, the version LinuxAid's hiera pins
+          tags: type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ github.ref_name }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   bump-linuxaid:
     needs: goreleaser
