@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -358,6 +360,52 @@ func TestRunOpenvoxAgentBuildsCommand(t *testing.T) {
 
 			if test.wantAbsent != "" && strings.Contains(commands[0], test.wantAbsent) {
 				t.Errorf("expected command %q not to contain %q", commands[0], test.wantAbsent)
+			}
+		})
+	}
+}
+
+// TestApplyOpenvoxUsesEnvironmentENC pins that masterless apply takes the node parameters from
+// the control-repo's ENC when it ships one, and applies without an ENC otherwise.
+func TestApplyOpenvoxUsesEnvironmentENC(t *testing.T) {
+	tests := []struct {
+		name    string
+		withENC bool
+	}{
+		{name: "the control-repo ENC supplies the node parameters", withENC: true},
+		{name: "a control-repo without an ENC applies without one", withENC: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			environmentPath := t.TempDir()
+			manifests := filepath.Join(environmentPath, "master", "manifests")
+			if err := os.MkdirAll(manifests, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(manifests, "site.pp"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			enc := filepath.Join(environmentPath, "master", constant.MasterlessENC)
+			if test.withENC {
+				if err := os.WriteFile(enc, nil, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			runner := &shelltest.Recorder{}
+			if err := applyOpenvox(runner, false, environmentPath, "master", ""); err != nil {
+				t.Fatalf("applyOpenvox returned %v", err)
+			}
+
+			commands := runner.Commands()
+			if len(commands) != 1 {
+				t.Fatalf("expected exactly one command, got %v", commands)
+			}
+
+			wantENC := "--node_terminus exec --external_nodes " + enc
+			if got := strings.Contains(commands[0], wantENC); got != test.withENC {
+				t.Errorf("command %q contains %q = %t, want %t", commands[0], wantENC, got, test.withENC)
 			}
 		})
 	}

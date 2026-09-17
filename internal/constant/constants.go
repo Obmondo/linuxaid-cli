@@ -31,6 +31,9 @@ const (
 	// DefaultHieraConfig is the global-layer hiera.yaml the Job generates; its
 	// hierarchy points at the Helm-values data staged under /opt/obmondo.
 	DefaultHieraConfig = "/opt/obmondo/openvox/hiera.yaml"
+	// MasterlessENC is the control-repo's opensource ENC, which masterless apply runs for the
+	// node parameters (hiera_datapath, obmondo_tags, ...) an opensource puppetserver gets from it.
+	MasterlessENC = "linuxaid_enc.rb"
 
 	// ServiceWindowTypeAutomatic is the booking type Obmondo reports for a scheduled service
 	// window. Such a window pins the linuxaid tag its whole update cycle runs with; adhoc
