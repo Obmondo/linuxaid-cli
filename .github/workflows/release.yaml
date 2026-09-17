@@ -113,11 +113,25 @@ jobs:
             --pattern "linuxaid-cli_${{ steps.version.outputs.version }}_checksums.txt" \
             --output checksums.txt
 
+      # secrets.GITHUB_TOKEN is scoped to this repository alone, so it cannot push
+      # to or open a PR on Obmondo/LinuxAid. Mint an installation token instead;
+      # it is revoked when the job ends.
+      - name: Mint a LinuxAid installation token
+        id: app-token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          client-id: ${{ secrets.LINUXAID_APP_CLIENT_ID }}
+          private-key: ${{ secrets.LINUXAID_APP_PRIVATE_KEY }}
+          owner: Obmondo
+          repositories: LinuxAid
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Checkout LinuxAid
         uses: actions/checkout@v5.0.0
         with:
           repository: Obmondo/LinuxAid
-          token: ${{ secrets.LINUXAID_REPO_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           path: LinuxAid
 
       - name: Bump version and checksums in LinuxAid hiera data
@@ -126,7 +140,7 @@ jobs:
 
       - name: Open PR against LinuxAid
         env:
-          GH_TOKEN: ${{ secrets.LINUXAID_REPO_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         working-directory: LinuxAid
         run: |
           VERSION="${{ steps.version.outputs.version }}"
