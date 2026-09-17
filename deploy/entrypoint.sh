@@ -57,23 +57,26 @@ git_cmd() {
 	fi
 }
 
-# Clone a repo at the given ref; without one, at its latest tag (version-sorted),
-# falling back to the default-branch tip for untagged repos.
+# Check out a repo at the given ref; without one, at its latest tag (version-sorted),
+# falling back to the default-branch tip for untagged repos. A shallow fetch replaces
+# `clone --branch`, which warns on annotated tags and prints detached-HEAD advice.
 clone_repo() {
 	local url=$1 dest=$2 ref=$3
 	rm -rf "${dest}"
-	mkdir -p "$(dirname "${dest}")"
+	mkdir -p "${dest}"
 
 	if [ -z "${ref}" ]; then
 		ref="$(git_cmd ls-remote --refs --sort='-v:refname' --tags "${url}" | awk -F'refs/tags/' 'NR==1{print $2}')"
 	fi
 	if [ -n "${ref}" ]; then
 		log "cloning ${url} at ${ref}"
-		git_cmd clone --quiet --depth 1 --branch "${ref}" "${url}" "${dest}"
 	else
 		log "no tags on ${url} — cloning default-branch tip"
-		git_cmd clone --quiet --depth 1 "${url}" "${dest}"
+		ref=HEAD
 	fi
+	git -C "${dest}" -c init.defaultBranch=master init --quiet
+	git_cmd -C "${dest}" fetch --quiet --depth 1 "${url}" "${ref}"
+	git -C "${dest}" -c advice.detachedHead=false checkout --quiet FETCH_HEAD
 }
 
 log "certname=${CERTNAME} enforce=${ENFORCE} env=${OPENVOX_ENVIRONMENT}"
