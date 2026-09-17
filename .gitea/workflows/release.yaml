@@ -44,3 +44,31 @@ jobs:
           echo "Uploading artifacts in dist/"
           ls -alh dist/
           rsync -azv dist/*.deb dist/*.rpm -e "ssh -o StrictHostKeyChecking=no" ${USERNAME}@${HOST}:${PUBLIC_PATH}
+
+  # The same two images the GitHub release pushes to GHCR, pushed to Harbor. Independent of
+  # goreleaser, so a failed image build never holds back the packages.
+  linuxaid-agent-image:
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
+    uses: Obmondo/gitea-actions/.gitea/workflows/build-image.yaml@main
+    with:
+      push: true
+      file: ./Dockerfile.operator
+      tags: harbor.obmondo.com/obmondo/linuxaid-agent:${{ gitea.ref_name }}
+      build-args: VERSION=${{ gitea.ref_name }}
+      platforms: linux/amd64,linux/arm64
+    secrets:
+      username: ${{ secrets.HARBOR_USERNAME }}
+      password: ${{ secrets.HARBOR_PASSWORD }}
+
+  linuxaid-cli-image:
+    runs-on: ubuntu-22.04-htzhel1-ax42-a
+    uses: Obmondo/gitea-actions/.gitea/workflows/build-image.yaml@main
+    with:
+      push: true
+      file: ./Dockerfile
+      tags: harbor.obmondo.com/obmondo/linuxaid-cli:${{ gitea.ref_name }}
+      build-args: VERSION=${{ gitea.ref_name }}
+      platforms: linux/amd64,linux/arm64
+    secrets:
+      username: ${{ secrets.HARBOR_USERNAME }}
+      password: ${{ secrets.HARBOR_PASSWORD }}
