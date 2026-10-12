@@ -76,7 +76,7 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 
 		// The fake runner never brings the machine down, so reboot reports that the grace
 		// period elapsed. What matters is that the reboot command was issued.
-		if err := CheckKernelAndRebootIfNeeded(runner, false); err == nil {
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameDebian, false); err == nil {
 			t.Error("expected an error because the fake runner does not reboot the machine")
 		}
 		if !runner.Ran(rebootCommand) {
@@ -90,7 +90,7 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 			"uname -r": {Output: "4.18.0-553.157.1.el8_10.x86_64\n"},
 		}}
 
-		if err := CheckKernelAndRebootIfNeeded(runner, false); err != nil {
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameDebian, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if runner.Ran("reboot") {
@@ -104,7 +104,7 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 			"uname -r": {Output: "4.18.0-553.el8_10.x86_64\n"},
 		}}
 
-		if err := CheckKernelAndRebootIfNeeded(runner, true); err != nil {
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameDebian, true); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if runner.Ran("reboot") {
@@ -143,6 +143,7 @@ func TestUpdateSystemRunsDistributionCommands(t *testing.T) {
 		{distribution: ConstDistributionNameSLES, want: "zypper update -y"},
 		{distribution: ConstDistributionNameRHEL, want: "yum update -y"},
 		{distribution: ConstDistributionNameRocky, want: "yum update -y"},
+		{distribution: ConstDistributionNameTurrisOS, want: "pkgupdate --batch --no-immediate-reboot"},
 	}
 
 	for _, test := range tests {
@@ -185,4 +186,75 @@ func TestUpdateSystemIgnoresUnknownDistribution(t *testing.T) {
 	if len(runner.Commands()) != 0 {
 		t.Errorf("expected no commands to run, got %v", runner.Commands())
 	}
+}
+
+func TestCheckTurrisKernelAndRebootIfNeeded(t *testing.T) {
+	origGrace := rebootGracePeriod
+	t.Cleanup(func() {
+		rebootGracePeriod = origGrace
+	})
+	rebootGracePeriod = time.Millisecond
+
+	t.Run("reboots when newer kernel package installed on Turris with real opkg format", func(t *testing.T) {
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r":                   {Output: "6.6.88\n"},
+			"opkg list-installed kernel": {Output: "kernel - 6.6.89-r1\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
+			t.Error("expected an error because fake runner does not reboot")
+		}
+		cmds := runner.Commands()
+		foundReboot := false
+		for _, cmd := range cmds {
+			switch cmd {
+			case "reboot":
+				foundReboot = true
+			case "reboot --force":
+				t.Errorf("expected plain 'reboot' for Turris, got 'reboot --force'")
+			}
+		}
+		if !foundReboot {
+			t.Errorf("expected 'reboot' to run, got %v", cmds)
+		}
+	})
+
+	t.Run("does not reboot when Turris kernel is up to date with hash suffix", func(t *testing.T) {
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r":                   {Output: "6.6.88\n"},
+			"opkg list-installed kernel": {Output: "kernel - 6.6.88~030160133b7136452d44a9fedbe72889-r3\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if runner.Ran("reboot") {
+			t.Errorf("expected no reboot, got %v", runner.Commands())
+		}
+	})
+
+	t.Run("reboots when prefix collision occurs (running 6.6.8 vs installed 6.6.88)", func(t *testing.T) {
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r":                   {Output: "6.6.8\n"},
+			"opkg list-installed kernel": {Output: "kernel - 6.6.88-r1\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
+			t.Error("expected an error because fake runner does not reboot")
+		}
+		if !runner.Ran("reboot") {
+			t.Errorf("expected 'reboot' to run, got %v", runner.Commands())
+		}
+	})
+
+	t.Run("reports error when opkg fails or returns empty", func(t *testing.T) {
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{
+			"uname -r":                   {Output: "6.6.88\n"},
+			"opkg list-installed kernel": {Output: "\n"},
+		}}
+
+		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
+			t.Error("expected error when opkg output is empty, got nil")
+		}
+	})
 }
