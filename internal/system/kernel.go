@@ -47,6 +47,11 @@ func CheckKernelAndRebootIfNeeded(runner shell.Runner, distribution string, noRe
 	switch distribution {
 	case ConstDistributionNameTurrisOS:
 		installedKernel, err = getTurrisInstalledKernel(runner)
+		if err == nil {
+			if idx := strings.IndexAny(installedKernel, "~-+"); idx != -1 {
+				installedKernel = installedKernel[:idx]
+			}
+		}
 	default:
 		// In an LXC container there is no kernel in /boot and nothing to reboot into.
 		installedKernel, err = getInstalledKernel(bootDirectory)
@@ -73,11 +78,6 @@ func CheckKernelAndRebootIfNeeded(runner shell.Runner, distribution string, noRe
 	}
 
 	compareInstalled := installedKernel
-	if distribution == ConstDistributionNameTurrisOS {
-		if idx := strings.IndexAny(installedKernel, "~-+"); idx != -1 {
-			compareInstalled = installedKernel[:idx]
-		}
-	}
 
 	if compareInstalled == runningKernel {
 		slog.Info("running kernel is already the newest installed kernel, no reboot needed",

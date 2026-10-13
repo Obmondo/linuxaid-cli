@@ -3,11 +3,22 @@ package system
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell/shelltest"
+)
+
+const (
+	testRhelKernelPoint = "4.18.0-553.el8_10.x86_64"
+	testRhelKernelZ     = "4.18.0-553.157.1.el8_10.x86_64"
+	testUnameCmd        = "uname -r"
+	testOpkgCmd         = "opkg list-installed kernel"
+	testUbuntuUpgrade   = "apt-get --with-new-pkgs upgrade -y"
+	testTurrisUnameOut  = "6.6.88\n"
+	testUbuntuKernel    = "6.8.0-134-generic"
 )
 
 func TestGetInstalledKernel(t *testing.T) {
@@ -33,9 +44,9 @@ func TestGetInstalledKernel(t *testing.T) {
 // on the point release never saw a reason to reboot.
 func TestGetInstalledKernelPicksNewestRHELKernel(t *testing.T) {
 	bootDir := writeBootDir(t,
-		"4.18.0-553.el8_10.x86_64",
+		testRhelKernelPoint,
 		"4.18.0-553.137.1.el8_10.x86_64",
-		"4.18.0-553.157.1.el8_10.x86_64",
+		testRhelKernelZ,
 		"0-rescue-0123456789abcdef0123456789abcdef",
 	)
 
@@ -43,7 +54,7 @@ func TestGetInstalledKernelPicksNewestRHELKernel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "4.18.0-553.157.1.el8_10.x86_64"; got != want {
+	if want := testRhelKernelZ; got != want {
 		t.Errorf("getInstalledKernel() = %q, want %q", got, want)
 	}
 }
@@ -66,12 +77,12 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 	})
 	rebootGracePeriod = time.Millisecond
 
-	rhelBoot := []string{"4.18.0-553.el8_10.x86_64", "4.18.0-553.157.1.el8_10.x86_64"}
+	rhelBoot := []string{testRhelKernelPoint, testRhelKernelZ}
 
 	t.Run("reboots when a newer kernel is installed", func(t *testing.T) {
 		bootDirectory = writeBootDir(t, rhelBoot...)
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r": {Output: "4.18.0-553.el8_10.x86_64\n"},
+			testUnameCmd: {Output: testRhelKernelPoint + "\n"},
 		}}
 
 		// The fake runner never brings the machine down, so reboot reports that the grace
@@ -87,7 +98,7 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 	t.Run("does not reboot when the running kernel is already newest", func(t *testing.T) {
 		bootDirectory = writeBootDir(t, rhelBoot...)
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r": {Output: "4.18.0-553.157.1.el8_10.x86_64\n"},
+			testUnameCmd: {Output: testRhelKernelZ + "\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameDebian, false); err != nil {
@@ -101,7 +112,7 @@ func TestCheckKernelAndRebootIfNeeded(t *testing.T) {
 	t.Run("does not reboot when reboot is disabled", func(t *testing.T) {
 		bootDirectory = writeBootDir(t, rhelBoot...)
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r": {Output: "4.18.0-553.el8_10.x86_64\n"},
+			testUnameCmd: {Output: testRhelKernelPoint + "\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameDebian, true); err != nil {
@@ -138,8 +149,8 @@ func TestUpdateSystemRunsDistributionCommands(t *testing.T) {
 		distribution string
 		want         string
 	}{
-		{distribution: ConstDistributionNameUbuntu, want: "apt-get --with-new-pkgs upgrade -y"},
-		{distribution: ConstDistributionNameDebian, want: "apt-get --with-new-pkgs upgrade -y"},
+		{distribution: ConstDistributionNameUbuntu, want: testUbuntuUpgrade},
+		{distribution: ConstDistributionNameDebian, want: testUbuntuUpgrade},
 		{distribution: ConstDistributionNameSLES, want: "zypper update -y"},
 		{distribution: ConstDistributionNameRHEL, want: "yum update -y"},
 		{distribution: ConstDistributionNameRocky, want: "yum update -y"},
@@ -165,7 +176,7 @@ func TestUpdateSystemRunsDistributionCommands(t *testing.T) {
 func TestUpdateSystemReportsFailure(t *testing.T) {
 	runner := &shelltest.Recorder{
 		Results: map[string]shell.Result{
-			"apt-get --with-new-pkgs upgrade -y": {ExitCode: 100},
+			testUbuntuUpgrade: {ExitCode: 100},
 		},
 	}
 
@@ -197,32 +208,26 @@ func TestCheckTurrisKernelAndRebootIfNeeded(t *testing.T) {
 
 	t.Run("reboots when newer kernel package installed on Turris with real opkg format", func(t *testing.T) {
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r":                   {Output: "6.6.88\n"},
-			"opkg list-installed kernel": {Output: "kernel - 6.6.89-r1\n"},
+			testUnameCmd: {Output: testTurrisUnameOut},
+			testOpkgCmd:  {Output: "kernel - 6.6.89-r1\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
 			t.Error("expected an error because fake runner does not reboot")
 		}
 		cmds := runner.Commands()
-		foundReboot := false
-		for _, cmd := range cmds {
-			switch cmd {
-			case "reboot":
-				foundReboot = true
-			case "reboot --force":
-				t.Errorf("expected plain 'reboot' for Turris, got 'reboot --force'")
-			}
-		}
-		if !foundReboot {
+		if !slices.Contains(cmds, turrisRebootCommand) {
 			t.Errorf("expected 'reboot' to run, got %v", cmds)
+		}
+		if runner.Ran(rebootCommand) {
+			t.Errorf("expected plain 'reboot' for Turris, got 'reboot --force'")
 		}
 	})
 
 	t.Run("does not reboot when Turris kernel is up to date with hash suffix", func(t *testing.T) {
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r":                   {Output: "6.6.88\n"},
-			"opkg list-installed kernel": {Output: "kernel - 6.6.88~030160133b7136452d44a9fedbe72889-r3\n"},
+			testUnameCmd: {Output: testTurrisUnameOut},
+			testOpkgCmd:  {Output: "kernel - 6.6.88~030160133b7136452d44a9fedbe72889-r3\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err != nil {
@@ -235,8 +240,8 @@ func TestCheckTurrisKernelAndRebootIfNeeded(t *testing.T) {
 
 	t.Run("reboots when prefix collision occurs (running 6.6.8 vs installed 6.6.88)", func(t *testing.T) {
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r":                   {Output: "6.6.8\n"},
-			"opkg list-installed kernel": {Output: "kernel - 6.6.88-r1\n"},
+			testUnameCmd: {Output: "6.6.8\n"},
+			testOpkgCmd:  {Output: "kernel - 6.6.88-r1\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
@@ -249,8 +254,8 @@ func TestCheckTurrisKernelAndRebootIfNeeded(t *testing.T) {
 
 	t.Run("reports error when opkg fails or returns empty", func(t *testing.T) {
 		runner := &shelltest.Recorder{Results: map[string]shell.Result{
-			"uname -r":                   {Output: "6.6.88\n"},
-			"opkg list-installed kernel": {Output: "\n"},
+			testUnameCmd: {Output: testTurrisUnameOut},
+			testOpkgCmd:  {Output: "\n"},
 		}}
 
 		if err := CheckKernelAndRebootIfNeeded(runner, ConstDistributionNameTurrisOS, false); err == nil {
