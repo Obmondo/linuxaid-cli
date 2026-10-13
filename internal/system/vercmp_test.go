@@ -10,25 +10,25 @@ func TestCompareKernelVersions(t *testing.T) {
 	}{
 		{
 			name: "rhel z-stream is newer than the point release",
-			a:    "4.18.0-553.157.1.el8_10.x86_64",
-			b:    "4.18.0-553.el8_10.x86_64",
+			a:    testRhelKernelZ,
+			b:    testRhelKernelPoint,
 			want: 1,
 		},
 		{
 			name: "rhel point release is older than a z-stream",
-			a:    "4.18.0-553.el8_10.x86_64",
-			b:    "4.18.0-553.157.1.el8_10.x86_64",
+			a:    testRhelKernelPoint,
+			b:    testRhelKernelZ,
 			want: -1,
 		},
 		{
 			name: "higher rhel z-stream wins",
-			a:    "4.18.0-553.157.1.el8_10.x86_64",
+			a:    testRhelKernelZ,
 			b:    "4.18.0-553.137.1.el8_10.x86_64",
 			want: 1,
 		},
 		{
 			name: "higher ubuntu abi number wins",
-			a:    "6.8.0-134-generic",
+			a:    testUbuntuKernel,
 			b:    "6.8.0-111-generic",
 			want: 1,
 		},
@@ -40,8 +40,8 @@ func TestCompareKernelVersions(t *testing.T) {
 		},
 		{
 			name: "equal versions",
-			a:    "6.8.0-134-generic",
-			b:    "6.8.0-134-generic",
+			a:    testUbuntuKernel,
+			b:    testUbuntuKernel,
 			want: 0,
 		},
 		{

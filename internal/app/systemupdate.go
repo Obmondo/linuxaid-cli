@@ -292,7 +292,7 @@ func SystemUpdate(cfg config.Config) error {
 		cleanup(puppetService)
 	}
 
-	if err := system.CheckKernelAndRebootIfNeeded(runner, cfg.NoReboot); err != nil {
+	if err := system.CheckKernelAndRebootIfNeeded(runner, distribution, cfg.NoReboot); err != nil {
 		slog.Error("unable to check kernel and reboot", slog.String("error", err.Error()))
 		return nil
 	}

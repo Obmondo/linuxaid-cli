@@ -20,6 +20,8 @@ func UpdateSystem(runner shell.Runner, distribution string) error {
 		return updateSUSE(runner)
 	case ConstDistributionNameCentOS, ConstDistributionNameRHEL, ConstDistributionNameRocky:
 		return updateRedHat(runner)
+	case ConstDistributionNameTurrisOS:
+		return updateTurris(runner)
 	default:
 		slog.Error("unknown distribution", slog.String("distribution", distribution))
 		return nil
@@ -93,6 +95,23 @@ func updateRedHat(runner shell.Runner) error {
 	if update.ExitCode != 0 {
 		slog.Error("exiting, yum update failed")
 		return fmt.Errorf("yum update failed: exit status %d", update.ExitCode)
+	}
+
+	return nil
+}
+
+func updateTurris(runner shell.Runner) error {
+	slog.Info("running pkgupdate --batch --no-immediate-reboot")
+
+	update := runner.Run("pkgupdate --batch --no-immediate-reboot")
+	if update.Err != nil {
+		slog.Error("failed to update turris os packages", slog.Any("error", update.Err))
+		return update.Err
+	}
+
+	if update.ExitCode != 0 {
+		slog.Error("exiting, pkgupdate failed")
+		return fmt.Errorf("pkgupdate failed: exit status %d", update.ExitCode)
 	}
 
 	return nil
