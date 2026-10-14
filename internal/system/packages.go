@@ -55,6 +55,11 @@ func updateDebian(runner shell.Runner) error {
 		return autoremove.Err
 	}
 
+	if clean := runner.Run("apt-get clean"); clean.Err != nil {
+		slog.Error("failed to clean apt cache", slog.Any("error", clean.Err))
+		return clean.Err
+	}
+
 	return nil
 }
 
@@ -76,6 +81,11 @@ func updateSUSE(runner shell.Runner) error {
 		return fmt.Errorf("suse update failed: exit status %d", update.ExitCode)
 	}
 
+	if clean := runner.Run("zypper clean --all"); clean.Err != nil {
+		slog.Error("failed to clean zypper cache", slog.Any("error", clean.Err))
+		return clean.Err
+	}
+
 	return nil
 }
 
@@ -95,6 +105,11 @@ func updateRedHat(runner shell.Runner) error {
 	if update.ExitCode != 0 {
 		slog.Error("exiting, yum update failed")
 		return fmt.Errorf("yum update failed: exit status %d", update.ExitCode)
+	}
+
+	if clean := runner.Run("yum clean all"); clean.Err != nil {
+		slog.Error("failed to clean yum cache", slog.Any("error", clean.Err))
+		return clean.Err
 	}
 
 	return nil
