@@ -48,7 +48,6 @@ jobs:
   # The same two images the GitHub release pushes to GHCR, pushed to Harbor. Independent of
   # goreleaser, so a failed image build never holds back the packages.
   linuxaid-agent-image:
-    runs-on: ubuntu-22.04-htzhel1-ax42-a
     uses: Obmondo/gitea-actions/.gitea/workflows/build-image.yaml@main
     with:
       push: true
@@ -61,7 +60,6 @@ jobs:
       password: ${{ secrets.HARBOR_PASSWORD }}
 
   linuxaid-cli-image:
-    runs-on: ubuntu-22.04-htzhel1-ax42-a
     uses: Obmondo/gitea-actions/.gitea/workflows/build-image.yaml@main
     with:
       push: true
