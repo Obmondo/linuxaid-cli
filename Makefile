@@ -39,8 +39,9 @@ release: ## Cut a new release using cocogitto (usage: make release [patch|minor|
 	@if [ "$(shell git branch --show-current)" != "main" ]; then \
 		echo "❌ Releases must be cut from 'main'"; exit 1; \
 	fi
-	@git fetch github --tags --force
+	@git fetch gitea --tags --force
 	@git fetch origin --tags --force
 	@git pull origin main --rebase
+	@git push gitea origin/main:main
 	@cog bump $(if $(filter-out $@,$(MAKECMDGOALS)),$(filter-out $@,$(MAKECMDGOALS)),--auto)
-	@echo "✅ Successfully bumped version and pushed tags to both remotes (github & origin)!"
+	@echo "✅ Successfully bumped version and pushed tags to both remotes (origin & gitea)!"
