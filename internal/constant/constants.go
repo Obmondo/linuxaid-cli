@@ -7,7 +7,7 @@ const (
 	PuppetPackageName  = "puppet-agent"
 	PuppetPath         = "/sbin:/usr/sbin:/bin:/usr/bin:/opt/puppetlabs/puppet/bin"
 	PuppetConfig       = "/etc/puppetlabs/puppet/puppet.conf"
-	OpenvoxVersion     = "8.28.1"
+	OpenvoxVersion     = "8.32.0"
 	PuppetMajorVersion = "openvox8"
 	PuppetCertEnv      = "PUPPETCERT"
 	PuppetPrivKeyEnv   = "PUPPETPRIVKEY"
