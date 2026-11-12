@@ -223,15 +223,17 @@ func TestResolveCustomerURLs(t *testing.T) {
 func TestResolveSystemUpdateEnvironment(t *testing.T) {
 	const certname = "hostname.example"
 
-	automaticWindow := func(tag string) *api.ServiceWindow {
+	window := func(windowType, tag string) *api.ServiceWindow {
 		return &api.ServiceWindow{
 			IsWindowOpen:    true,
 			DoesWindowExist: true,
-			WindowType:      constant.ServiceWindowTypeAutomatic,
+			WindowType:      windowType,
 			Timezone:        "UTC",
 			Linux:           &api.LinuxWindowDetails{LinuxAidTag: tag},
 		}
 	}
+	automaticWindow := func(tag string) *api.ServiceWindow { return window(constant.ServiceWindowTypeAutomatic, tag) }
+	adhocWindow := func(tag string) *api.ServiceWindow { return window("adhoc", tag) }
 
 	tests := []struct {
 		name          string
@@ -253,15 +255,16 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 			expected:      mock.MockServerEnvironment,
 		},
 		{
-			name: "an adhoc window falls back to the API",
-			serviceWindow: &api.ServiceWindow{
-				IsWindowOpen:    true,
-				DoesWindowExist: true,
-				WindowType:      "adhoc",
-				Timezone:        "UTC",
-			},
-			client:   mock.NewMockObmondoClient(),
-			expected: mock.MockServerEnvironment,
+			name:          "an adhoc window pins the environment for the run",
+			serviceWindow: adhocWindow("v11.0.0"),
+			client:        mock.NewMockObmondoClient(),
+			expected:      "v11_0_0",
+		},
+		{
+			name:          "an adhoc window without a tag falls back to the API",
+			serviceWindow: adhocWindow(""),
+			client:        mock.NewMockObmondoClient(),
+			expected:      mock.MockServerEnvironment,
 		},
 		{
 			// opensource nodes are not registered with Obmondo, so nothing pins a tag for them

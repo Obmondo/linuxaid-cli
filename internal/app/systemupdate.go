@@ -147,17 +147,17 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, cfg config.Config) (prome
 	return
 }
 
-// resolveSystemUpdateEnvironment decides which puppet environment this update runs with. An
-// automatic window pins the linuxaid tag of its update cycle, and that tag is what the whole group
-// updates to, so it always wins over the environment the API resolves for the node - both over the
-// latest release, which would drift ahead mid-cycle, and over an environment pinned for the
-// certname. Everything else (adhoc windows, opensource nodes, and a window that pinned no tag)
-// falls back to the usual resolution.
+// resolveSystemUpdateEnvironment decides which puppet environment this update runs with. A window
+// that pins a linuxaid tag - an automatic window the tag of its update cycle, an adhoc window the
+// tag it was booked with or the one of the cycle it follows - always wins over the environment the
+// API resolves for the node, both over the latest release, which would drift ahead mid-cycle, and
+// over an environment pinned for the certname. Everything else (opensource nodes, and a window
+// that pinned no tag) falls back to the usual resolution.
 func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname string, serviceWindow *api.ServiceWindow, opensource bool) string {
 	if !opensource {
 		if environment := serviceWindow.PuppetEnvironment(); environment != "" {
-			slog.Info("using the environment pinned by the automatic service window",
-				slog.String("environment", environment))
+			slog.Info("using the environment pinned by the service window",
+				slog.String("environment", environment), slog.String("window_type", serviceWindow.WindowType))
 			return environment
 		}
 
