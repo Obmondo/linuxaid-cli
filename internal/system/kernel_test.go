@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ const (
 	testRhelKernelZ     = "4.18.0-553.157.1.el8_10.x86_64"
 	testUnameCmd        = "uname -r"
 	testOpkgCmd         = "opkg list-installed kernel"
-	testUbuntuUpgrade   = "apt-get --with-new-pkgs upgrade -y"
+	testUbuntuUpgrade   = aptUpgradeCmd
 	testTurrisUnameOut  = "6.6.88\n"
 	testUbuntuKernel    = "6.8.0-134-generic"
 )
@@ -182,6 +183,48 @@ func TestUpdateSystemReportsFailure(t *testing.T) {
 
 	if err := UpdateSystem(runner, ConstDistributionNameDebian); err == nil {
 		t.Error("expected a failing apt-get upgrade to be reported, got nil")
+	}
+}
+
+// TestUpdateDebianKeepsLocalConffiles is the regression test for hosts where LinuxAid edits
+// /etc/systemd/resolved.conf: dpkg's conffile question aborted the upgrade and left
+// systemd-resolved half-configured. Pending packages must be configured first, and both
+// dpkg and apt must keep the local config file without asking.
+func TestUpdateDebianKeepsLocalConffiles(t *testing.T) {
+	runner := &shelltest.Recorder{}
+
+	if err := UpdateSystem(runner, ConstDistributionNameUbuntu); err != nil {
+		t.Fatalf("UpdateSystem returned %v", err)
+	}
+
+	commands := runner.Commands()
+	configure, upgrade := slices.Index(commands, dpkgConfigureCmd), slices.Index(commands, aptUpgradeCmd)
+	if configure == -1 || upgrade == -1 || configure > upgrade {
+		t.Fatalf("expected %q before %q, got %v", dpkgConfigureCmd, aptUpgradeCmd, commands)
+	}
+
+	for _, command := range []string{dpkgConfigureCmd, aptUpgradeCmd} {
+		if !strings.Contains(command, "--force-confdef") || !strings.Contains(command, "--force-confold") {
+			t.Errorf("expected %q to keep local conffiles", command)
+		}
+	}
+}
+
+// TestUpdateDebianStopsWhenDpkgConfigureFails makes sure a broken dpkg state is reported
+// instead of running an upgrade that cannot succeed.
+func TestUpdateDebianStopsWhenDpkgConfigureFails(t *testing.T) {
+	runner := &shelltest.Recorder{
+		Results: map[string]shell.Result{
+			dpkgConfigureCmd: {ExitCode: 1},
+		},
+	}
+
+	if err := UpdateSystem(runner, ConstDistributionNameDebian); err == nil {
+		t.Error("expected a failing dpkg --configure -a to be reported, got nil")
+	}
+
+	if runner.Ran(aptUpgradeCmd) {
+		t.Errorf("expected no upgrade after dpkg failed, got %v", runner.Commands())
 	}
 }
 

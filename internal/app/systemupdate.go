@@ -273,7 +273,8 @@ func SystemUpdate(cfg config.Config) error {
 	// Apt/Yum/Zypper update
 	if err := system.UpdateSystem(runner, distribution); err != nil {
 		slog.Error("unable to update system", slog.String("error", err.Error()))
-		return nil
+		// Exit non-zero so the failed update is visible in systemd and monitoring.
+		return fmt.Errorf("unable to update system: %w", err)
 	}
 
 	securityExporterURL := cfg.SecurityExporterURL

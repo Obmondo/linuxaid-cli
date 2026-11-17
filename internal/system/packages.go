@@ -28,6 +28,15 @@ func UpdateSystem(runner shell.Runner, distribution string) error {
 	}
 }
 
+// DEBIAN_FRONTEND=noninteractive only covers debconf questions. dpkg asks its own
+// question when a package ships a new version of a config file that was changed
+// locally (e.g. /etc/systemd/resolved.conf managed by LinuxAid), and with no stdin
+// that question aborts the whole upgrade. confdef/confold keep the local file.
+const (
+	dpkgConfigureCmd = "dpkg --force-confdef --force-confold --configure -a"
+	aptUpgradeCmd    = "apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --with-new-pkgs upgrade -y"
+)
+
 func updateDebian(runner shell.Runner) error {
 	slog.Info("running apt update/upgrade/autoremove")
 
@@ -35,11 +44,18 @@ func updateDebian(runner shell.Runner) error {
 		return fmt.Errorf("could not set DEBIAN_FRONTEND: %w", err)
 	}
 
+	// Finish any package left half-configured by an earlier interrupted run,
+	// otherwise apt refuses to upgrade.
+	if result := runner.Run(dpkgConfigureCmd); result.Err != nil || result.ExitCode != 0 {
+		slog.Error("failed to configure pending packages", slog.Any("error", result.Err), slog.Int("exit_code", result.ExitCode))
+		return fmt.Errorf("dpkg --configure -a failed: exit status %d", result.ExitCode)
+	}
+
 	if result := runner.Quiet("apt-get update"); result.Err != nil {
 		slog.Error("failed to update all repositories", slog.Any("error", result.Err))
 	}
 
-	upgrade := runner.Run("apt-get --with-new-pkgs upgrade -y")
+	upgrade := runner.Run(aptUpgradeCmd)
 	if upgrade.Err != nil {
 		slog.Error("failed to upgrade all packages", slog.Any("error", upgrade.Err))
 		return upgrade.Err
