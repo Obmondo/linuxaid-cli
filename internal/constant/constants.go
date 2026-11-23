@@ -36,8 +36,7 @@ const (
 	MasterlessENC = "linuxaid_enc.rb"
 
 	// ServiceWindowTypeAutomatic is the booking type Obmondo reports for a scheduled service
-	// window. Such a window pins the linuxaid tag its whole update cycle runs with; adhoc
-	// windows are booked by hand and pin no tag.
+	// window. Such a window pins the linuxaid tag its whole update cycle runs with.
 	ServiceWindowTypeAutomatic = "automatic"
 
 	// Progress Bar

@@ -143,10 +143,18 @@ func TestServiceWindowPuppetEnvironment(t *testing.T) {
 			expected: "v11_0_0",
 		},
 		{
-			name: "an adhoc window pins no environment",
+			name: "an adhoc window resolves the pinned tag to an environment",
 			serviceWindow: &ServiceWindow{
 				WindowType: "adhoc",
 				Linux:      &LinuxWindowDetails{LinuxAidTag: "v11.0.0"},
+			},
+			expected: "v11_0_0",
+		},
+		{
+			name: "an adhoc window without a tag pins no environment",
+			serviceWindow: &ServiceWindow{
+				WindowType: "adhoc",
+				Linux:      &LinuxWindowDetails{},
 			},
 			expected: "",
 		},
