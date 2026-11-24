@@ -26,5 +26,6 @@ FROM alpine:3.24
 RUN apk add --no-cache bash util-linux ca-certificates git openssh-client
 COPY --from=build /out/linuxaid-cli /out/linuxaid-install /usr/local/bin/
 COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY deploy/node-update.sh /usr/local/bin/node-update.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/node-update.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

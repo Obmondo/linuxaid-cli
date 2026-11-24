@@ -17,6 +17,11 @@ type Config struct {
 	SecurityExporterURL string
 	// Opensource is true on nodes set up without an Obmondo token, which the API rejects.
 	Opensource bool
+	// AgentControlled is set when kubeaid-agent runs system-update on a Kubernetes node: the
+	// agent owns the service window, so the run makes no Obmondo API call and never reboots.
+	AgentControlled bool
+	// ResultFile is where an agent-controlled run writes its result for kubeaid-agent.
+	ResultFile string
 }
 
 // Load reads the flags and environment bound to viper into a Config. Certname is left empty:
@@ -30,6 +35,8 @@ func Load() Config {
 		SkipOpenvox:         ShouldSkipOpenvox(),
 		SecurityExporterURL: GetSecurityExporterURL(),
 		Opensource:          IsOpensourceMode(),
+		AgentControlled:     IsAgentControlled(),
+		ResultFile:          GetResultFile(),
 	}
 }
 
@@ -65,6 +72,16 @@ func NoReboot() bool {
 func ShouldSkipOpenvox() bool {
 	initIfNil()
 	return viperConfig.GetBool(constant.CobraFlagSkipOpenvox)
+}
+
+func IsAgentControlled() bool {
+	initIfNil()
+	return viperConfig.GetBool(constant.CobraFlagAgentControlled)
+}
+
+func GetResultFile() string {
+	initIfNil()
+	return viperConfig.GetString(constant.CobraFlagResultFile)
 }
 
 func GetSecurityExporterURL() string {
