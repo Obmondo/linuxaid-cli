@@ -241,15 +241,17 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 		client        api.ObmondoClient
 		opensource    bool
 		expected      string
+		wantErr       bool
 	}{
 		{
-			name:          "an automatic window pins the environment for the run",
+			// an api pod from before the server environment endpoint was the source still sends one
+			name:          "an automatic window uses the environment from the API over its tag",
 			serviceWindow: automaticWindow("v11.0.0"),
 			client:        mock.NewMockObmondoClient(),
-			expected:      "v11_0_0",
+			expected:      mock.MockServerEnvironment,
 		},
 		{
-			name:          "an automatic window without a tag falls back to the API",
+			name:          "an automatic window without a tag uses the environment from the API",
 			serviceWindow: automaticWindow(""),
 			client:        mock.NewMockObmondoClient(),
 			expected:      mock.MockServerEnvironment,
@@ -261,7 +263,7 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 			expected:      "v11_0_0",
 		},
 		{
-			name:          "an adhoc window without a tag falls back to the API",
+			name:          "an adhoc window without a tag uses the environment from the API",
 			serviceWindow: adhocWindow(""),
 			client:        mock.NewMockObmondoClient(),
 			expected:      mock.MockServerEnvironment,
@@ -275,13 +277,19 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 			expected:      constant.DefaultOpenvoxEnv,
 		},
 		{
-			name:          "an unreachable API falls back to the default environment",
+			name:          "an unreachable API skips the update instead of using the default environment",
 			serviceWindow: automaticWindow(""),
 			client:        &failingEnvironmentClient{},
-			expected:      constant.DefaultOpenvoxEnv,
+			wantErr:       true,
 		},
 		{
-			name:          "no window at all falls back to the API",
+			name:          "an unresolved environment skips the update instead of using the default environment",
+			serviceWindow: automaticWindow(""),
+			client:        &emptyEnvironmentClient{},
+			wantErr:       true,
+		},
+		{
+			name:          "no window at all uses the environment from the API",
 			serviceWindow: nil,
 			client:        mock.NewMockObmondoClient(),
 			expected:      mock.MockServerEnvironment,
@@ -290,7 +298,16 @@ func TestResolveSystemUpdateEnvironment(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			environment := resolveSystemUpdateEnvironment(test.client, certname, test.serviceWindow, test.opensource)
+			environment, err := resolveSystemUpdateEnvironment(test.client, certname, test.serviceWindow, test.opensource)
+			if test.wantErr {
+				if err == nil {
+					t.Errorf("expected an error, got environment %q", environment)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 			if environment != test.expected {
 				t.Errorf("expected environment %q, got %q", test.expected, environment)
 			}
