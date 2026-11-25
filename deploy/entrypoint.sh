@@ -11,19 +11,20 @@
 # CERTNAME (already signed — nothing to enroll). `linuxaid-install --masterless` then
 # installs the openvox agent if it is missing, with the same packages as any LinuxAid
 # server, writes a server-less puppet.conf and marks the node opensource. The
-# control-repo is cloned at CONTROL_REPO_REF (latest tag when unset) into CODE_DIR under
-# the /opt/obmondo hostPath — so the host sees it at the same absolute path — and the
-# Helm-values hiera data mounted at HIERA_SRC_DIR is staged next to it as the global
-# hiera layer for `linuxaid-cli run-openvox --apply`.
+# control-repo ref is the hiera data's common::system::openvox::environment, else
+# CONTROL_REPO_REF, else the repo's newest tag. It is cloned into CODE_DIR under the
+# /opt/obmondo hostPath — so the host sees it at the same absolute path — as an
+# environment named after that ref (v1.8.14 -> v1_8_14), and the Helm-values hiera data
+# mounted at HIERA_SRC_DIR is staged next to it as the global hiera layer for
+# `linuxaid-cli run-openvox --apply`. An OPENVOX_ENVIRONMENT from the operator is ignored.
 set -euo pipefail
 
 CERTNAME="${CERTNAME:?CERTNAME (obmondo-clientcert CN, e.g. <cluster>.<customerID>) is required}"
 ENFORCE="${ENFORCE:-false}"
-OPENVOX_ENVIRONMENT="${OPENVOX_ENVIRONMENT:-master}"
 CLIENT_CERT_DIR="${CLIENT_CERT_DIR:-/obmondo-clientcert}"   # mounted obmondo-clientcert (tls.crt / tls.key / ca.crt)
 
 CONTROL_REPO_URL="${CONTROL_REPO_URL:?CONTROL_REPO_URL (git URL of the puppet control-repo) is required}"
-CONTROL_REPO_REF="${CONTROL_REPO_REF:-}"                    # tag to checkout (default: latest tag)
+CONTROL_REPO_REF="${CONTROL_REPO_REF:-}"                    # tag or branch to check out (default: newest tag); the hiera data's ref wins
 HIERA_SRC_DIR="${HIERA_SRC_DIR:-/hiera-data}"               # mounted ConfigMap with the rendered Helm-values hiera data
 GIT_CRED_DIR="${GIT_CRED_DIR:-/git-credentials}"            # optional secret mount: ssh-privatekey or token
 
@@ -57,29 +58,42 @@ git_cmd() {
 	fi
 }
 
-# Check out a repo at the given ref; without one, at its latest tag (version-sorted),
-# falling back to the default-branch tip for untagged repos. A shallow fetch replaces
-# `clone --branch`, which warns on annotated tags and prints detached-HEAD advice.
+# Print the ref to check out: the given one, else the repo's newest tag (version-sorted),
+# else HEAD (the default-branch tip) for an untagged repo.
+resolve_ref() {
+	local url=$1 ref=$2
+	if [ -z "${ref}" ]; then
+		ref="$(git_cmd ls-remote --refs --sort='-v:refname' --tags "${url}" | awk -F'refs/tags/' 'NR==1{print $2}')"
+	fi
+	printf '%s' "${ref:-HEAD}"
+}
+
+# Check out a repo at the given ref. A shallow fetch replaces `clone --branch`, which
+# warns on annotated tags and prints detached-HEAD advice.
 clone_repo() {
 	local url=$1 dest=$2 ref=$3
 	rm -rf "${dest}"
 	mkdir -p "${dest}"
 
-	if [ -z "${ref}" ]; then
-		ref="$(git_cmd ls-remote --refs --sort='-v:refname' --tags "${url}" | awk -F'refs/tags/' 'NR==1{print $2}')"
-	fi
-	if [ -n "${ref}" ]; then
-		log "cloning ${url} at ${ref}"
-	else
-		log "no tags on ${url} — cloning default-branch tip"
-		ref=HEAD
-	fi
+	log "cloning ${url} at ${ref}"
 	git -C "${dest}" -c init.defaultBranch=master init --quiet
 	git_cmd -C "${dest}" fetch --quiet --depth 1 "${url}" "${ref}"
 	git -C "${dest}" -c advice.detachedHead=false checkout --quiet FETCH_HEAD
 }
 
-log "certname=${CERTNAME} enforce=${ENFORCE} env=${OPENVOX_ENVIRONMENT}"
+# Print the control-repo ref the hiera data asks for, if any: the value of
+# common::system::openvox::environment, a tag (v1.8.14) or a branch (master). Older
+# charts wrote the environment name there (v1_8_14), which is turned back into its tag.
+hiera_control_repo_ref() {
+	local ref
+	ref="$(sed -n 's/^common::system::openvox::environment:[[:space:]]*//p' "$1" | head -n 1 | tr -d "\"'" | awk '{print $1}')"
+	if [[ "${ref}" =~ ^v[0-9]+(_[0-9]+)+$ ]]; then
+		ref="${ref//_/.}"
+	fi
+	printf '%s' "${ref}"
+}
+
+log "certname=${CERTNAME} enforce=${ENFORCE}"
 
 # 1) Stage the static binaries onto the host via the /opt/obmondo hostPath mount.
 mkdir -p "${HOST_BIN_DIR}"
@@ -114,8 +128,28 @@ if [ ! -f "${HIERA_SRC_DIR}/values.yaml" ]; then
 	exit 1
 fi
 
+# Which release runs: the hiera data's ref, so editing the ConfigMap is enough to switch,
+# else CONTROL_REPO_REF, else the newest tag. The environment is named after the ref
+# actually checked out, so it never says master for tagged code.
+hiera_ref="$(hiera_control_repo_ref "${HIERA_SRC_DIR}/values.yaml")"
+if [ -n "${hiera_ref}" ]; then
+	ref_from="the hiera data"
+elif [ -n "${CONTROL_REPO_REF}" ]; then
+	ref_from=CONTROL_REPO_REF
+else
+	ref_from="the newest tag"
+fi
+ref="$(resolve_ref "${CONTROL_REPO_URL}" "${hiera_ref:-${CONTROL_REPO_REF}}")"
+if [ "${ref}" = HEAD ]; then
+	ref_from="the default branch (no tags)"
+	OPENVOX_ENVIRONMENT=master
+else
+	OPENVOX_ENVIRONMENT="${ref//[^A-Za-z0-9_]/_}"
+fi
+log "control-repo ref ${ref} from ${ref_from}, environment ${OPENVOX_ENVIRONMENT}"
+
 env_dir="${CODE_DIR}/environments/${OPENVOX_ENVIRONMENT}"
-clone_repo "${CONTROL_REPO_URL}" "${env_dir}" "${CONTROL_REPO_REF}"
+clone_repo "${CONTROL_REPO_URL}" "${env_dir}" "${ref}"
 
 # Stage the Helm-values hiera data and point a global-layer hiera.yaml at it:
 # global beats the environment layer, so chart values win over repo defaults.
