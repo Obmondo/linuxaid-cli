@@ -34,7 +34,14 @@ func UpdateSystem(runner shell.Runner, distribution string) error {
 // that question aborts the whole upgrade. confdef/confold keep the local file.
 const (
 	dpkgConfigureCmd = "dpkg --force-confdef --force-confold --configure -a"
-	aptUpgradeCmd    = "apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --with-new-pkgs upgrade -y"
+	aptUpgradeCmd    = "apt-get " + aptLockTimeout + " -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold --with-new-pkgs upgrade -y"
+	aptUpdateCmd     = "apt-get " + aptLockTimeout + " update"
+	aptAutoremoveCmd = "apt-get " + aptLockTimeout + " autoremove -y"
+	aptCleanCmd      = "apt-get " + aptLockTimeout + " clean"
+
+	// aptLockTimeout makes apt wait up to 10 minutes for the dpkg lock instead of failing at
+	// once when another apt run (apt-daily, an operator, an older update job) holds it.
+	aptLockTimeout = "-o DPkg::Lock::Timeout=600"
 )
 
 func updateDebian(runner shell.Runner) error {
@@ -51,7 +58,7 @@ func updateDebian(runner shell.Runner) error {
 		return fmt.Errorf("dpkg --configure -a failed: exit status %d", result.ExitCode)
 	}
 
-	if result := runner.Quiet("apt-get update"); result.Err != nil {
+	if result := runner.Quiet(aptUpdateCmd); result.Err != nil {
 		slog.Error("failed to update all repositories", slog.Any("error", result.Err))
 	}
 
@@ -66,12 +73,12 @@ func updateDebian(runner shell.Runner) error {
 		return fmt.Errorf("apt-get update and upgrade failed: exit status %d", upgrade.ExitCode)
 	}
 
-	if autoremove := runner.Run("apt-get autoremove -y"); autoremove.Err != nil {
+	if autoremove := runner.Run(aptAutoremoveCmd); autoremove.Err != nil {
 		slog.Error("failed to remove unused dependencies", slog.Any("error", autoremove.Err))
 		return autoremove.Err
 	}
 
-	if clean := runner.Run("apt-get clean"); clean.Err != nil {
+	if clean := runner.Run(aptCleanCmd); clean.Err != nil {
 		slog.Error("failed to clean apt cache", slog.Any("error", clean.Err))
 		return clean.Err
 	}

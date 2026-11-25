@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,11 +22,12 @@ const (
 	rebootGraceMinutes = 5
 )
 
-// bootDirectory and rebootGracePeriod are vars, not consts, so tests can point them at a
-// temporary directory and shorten the wait.
+// bootDirectory, rebootGracePeriod and rebootRequiredFile are vars, not consts, so tests can
+// point them at a temporary directory and shorten the wait.
 var (
-	bootDirectory     = "/boot"
-	rebootGracePeriod = rebootGraceMinutes * time.Minute
+	bootDirectory      = "/boot"
+	rebootGracePeriod  = rebootGraceMinutes * time.Minute
+	rebootRequiredFile = "/var/run/reboot-required"
 )
 
 func getRebootCommand(distribution string) string {
@@ -41,24 +43,8 @@ func getRebootCommand(distribution string) string {
 // installed, unless noReboot is set. It always logs which branch it took: a silent no-op here
 // is what previously hid nodes that never rebooted after an update.
 func CheckKernelAndRebootIfNeeded(runner shell.Runner, distribution string, noReboot bool) error {
-	var installedKernel string
-	var err error
-
-	switch distribution {
-	case ConstDistributionNameTurrisOS:
-		installedKernel, err = getTurrisInstalledKernel(runner)
-		if err == nil {
-			if idx := strings.IndexAny(installedKernel, "~-+"); idx != -1 {
-				installedKernel = installedKernel[:idx]
-			}
-		}
-	default:
-		// In an LXC container there is no kernel in /boot and nothing to reboot into.
-		installedKernel, err = getInstalledKernel(bootDirectory)
-	}
-
+	installedKernel, runningKernel, err := installedAndRunningKernel(runner, distribution)
 	if err != nil {
-		slog.Error("error occurred while trying to find kernel", slog.String("error", err.Error()))
 		return err
 	}
 	if installedKernel == "" {
@@ -66,20 +52,7 @@ func CheckKernelAndRebootIfNeeded(runner shell.Runner, distribution string, noRe
 		return nil
 	}
 
-	running := runner.Capture("uname -r")
-	if running.Err != nil {
-		slog.Error("Failed to fetch Running Kernel", slog.Any("error", running.Err))
-		return running.Err
-	}
-	runningKernel := strings.TrimSpace(running.Output)
-	if runningKernel == "" {
-		slog.Error("empty output from uname -r")
-		return errors.New("empty output from uname -r")
-	}
-
-	compareInstalled := installedKernel
-
-	if compareInstalled == runningKernel {
+	if installedKernel == runningKernel {
 		slog.Info("running kernel is already the newest installed kernel, no reboot needed",
 			slog.String("kernel", runningKernel))
 		return nil
@@ -98,6 +71,85 @@ func CheckKernelAndRebootIfNeeded(runner shell.Runner, distribution string, noRe
 	}
 
 	return reboot(runner, distribution, installedKernel, runningKernel)
+}
+
+// Reasons CheckReboot gives for a reboot.
+const (
+	RebootReasonKernel = "kernel"
+	RebootReasonFile   = "reboot-required-file"
+)
+
+// RebootCheck says whether the node needs a reboot after an update and why. Its JSON form is
+// the result file of an agent-controlled system-update, which kubeaid-agent reads back from
+// the update pod's termination message, so the field names are a contract with that agent.
+type RebootCheck struct {
+	Required        bool   `json:"reboot_required"`
+	Reason          string `json:"reason"`
+	RunningKernel   string `json:"running_kernel"`
+	InstalledKernel string `json:"installed_kernel"`
+}
+
+// CheckReboot reports whether the node needs a reboot, without rebooting it: a newer kernel
+// than the running one is installed, or a package left rebootRequiredFile behind (Debian and
+// Ubuntu do that for libc, systemd and similar).
+func CheckReboot(runner shell.Runner, distribution string) (RebootCheck, error) {
+	installedKernel, runningKernel, err := installedAndRunningKernel(runner, distribution)
+	if err != nil {
+		return RebootCheck{}, err
+	}
+
+	check := RebootCheck{RunningKernel: runningKernel, InstalledKernel: installedKernel}
+	switch {
+	case installedKernel != "" && installedKernel != runningKernel:
+		check.Required, check.Reason = true, RebootReasonKernel
+	case fileExists(rebootRequiredFile):
+		check.Required, check.Reason = true, RebootReasonFile
+	}
+
+	return check, nil
+}
+
+// installedAndRunningKernel returns the newest installed kernel and the running one. Both are
+// empty when no kernel is installed, e.g. in an LXC container, where there is nothing to
+// reboot into.
+func installedAndRunningKernel(runner shell.Runner, distribution string) (installedKernel, runningKernel string, err error) {
+	switch distribution {
+	case ConstDistributionNameTurrisOS:
+		installedKernel, err = getTurrisInstalledKernel(runner)
+		if err == nil {
+			if idx := strings.IndexAny(installedKernel, "~-+"); idx != -1 {
+				installedKernel = installedKernel[:idx]
+			}
+		}
+	default:
+		installedKernel, err = getInstalledKernel(bootDirectory)
+	}
+
+	if err != nil {
+		slog.Error("error occurred while trying to find kernel", slog.String("error", err.Error()))
+		return "", "", err
+	}
+	if installedKernel == "" {
+		return "", "", nil
+	}
+
+	running := runner.Capture("uname -r")
+	if running.Err != nil {
+		slog.Error("Failed to fetch Running Kernel", slog.Any("error", running.Err))
+		return "", "", running.Err
+	}
+	runningKernel = strings.TrimSpace(running.Output)
+	if runningKernel == "" {
+		slog.Error("empty output from uname -r")
+		return "", "", errors.New("empty output from uname -r")
+	}
+
+	return installedKernel, runningKernel, nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // reboot asks PID 1 to reboot and then blocks until the machine goes down. The request is

@@ -1,10 +1,13 @@
 package app
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	api "gitea.obmondo.com/EnableIT/linuxaid-cli/internal/obmondo"
 	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/shell"
@@ -169,6 +172,54 @@ func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname strin
 	return resolveOpenvoxEnvironment(obmondoAPI, certname, "", opensource)
 }
 
+// runAgentControlled updates the packages for kubeaid-agent and writes whether the node needs a
+// reboot to resultFile as system.RebootCheck JSON. It never reboots and takes no Obmondo
+// client, so it cannot check or close a service window. On failure it returns an error and
+// writes no result.
+func runAgentControlled(runner shell.Runner, cmds system.CertificateManagerCommands, distribution, resultFile string) error {
+	if resultFile == "" {
+		return errors.New("--result-file is required with --agent-controlled")
+	}
+
+	slog.Info("agent-controlled system-update: packages only, no reboot", slog.String("result_file", resultFile))
+
+	if err := cmds.UpdateRepositoryList(); err != nil {
+		return fmt.Errorf("unable to update repository: %w", err)
+	}
+
+	if err := cmds.CheckAndInstallCaCertificates(); err != nil {
+		return fmt.Errorf("unable to check if ca certs are installed: %w", err)
+	}
+
+	if err := system.UpdateSystem(runner, distribution); err != nil {
+		return fmt.Errorf("unable to update system: %w", err)
+	}
+
+	check, err := system.CheckReboot(runner, distribution)
+	if err != nil {
+		return fmt.Errorf("unable to check whether a reboot is needed: %w", err)
+	}
+
+	result, err := json.Marshal(check)
+	if err != nil {
+		return fmt.Errorf("encoding the result: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(resultFile), 0o755); err != nil { //nolint:mnd
+		return fmt.Errorf("creating the result directory: %w", err)
+	}
+	if err := os.WriteFile(resultFile, result, 0o644); err != nil { //nolint:gosec,mnd // read back by the update pod
+		return fmt.Errorf("writing the result file: %w", err)
+	}
+
+	slog.Info("agent-controlled system-update finished",
+		slog.Bool("reboot_required", check.Required),
+		slog.String("reason", check.Reason),
+		slog.String("running_kernel", check.RunningKernel),
+		slog.String("installed_kernel", check.InstalledKernel))
+
+	return nil
+}
+
 // SystemUpdate runs the update workflow. A returned error means the run failed in a way the
 // caller should surface as a non-zero exit; the paths that give up quietly return nil on purpose,
 // so systemd does not mark the unit failed for an inactive window or an unreachable API.
@@ -197,6 +248,12 @@ func SystemUpdate(cfg config.Config) error {
 	}
 
 	slog.Info("starting system-update")
+
+	// kubeaid-agent owns the service window and the node's reboot, so branch off before any
+	// Obmondo API call, OpenVox run or reboot logic.
+	if cfg.AgentControlled {
+		return runAgentControlled(runner, cmds, os.Getenv("ID"), cfg.ResultFile)
+	}
 
 	// check if agent disable file exists
 	openvoxInitiallyEnabled := true

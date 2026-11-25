@@ -306,3 +306,62 @@ func TestCheckTurrisKernelAndRebootIfNeeded(t *testing.T) {
 		}
 	})
 }
+
+func TestCheckReboot(t *testing.T) {
+	origBoot, origFile := bootDirectory, rebootRequiredFile
+	t.Cleanup(func() {
+		bootDirectory = origBoot
+		rebootRequiredFile = origFile
+	})
+
+	const installed, running = "7.0.0-43-generic", "7.0.0-22-generic"
+
+	t.Run("kernel newer", func(t *testing.T) { // TestCheckRebootKernelNewer
+		bootDirectory = writeBootDir(t, running, installed)
+		rebootRequiredFile = filepath.Join(t.TempDir(), "reboot-required")
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{testUnameCmd: {Output: running + "\n"}}}
+
+		got, err := CheckReboot(runner, ConstDistributionNameUbuntu)
+		if err != nil {
+			t.Fatalf("CheckReboot: %v", err)
+		}
+		want := RebootCheck{Required: true, Reason: RebootReasonKernel, RunningKernel: running, InstalledKernel: installed}
+		if got != want {
+			t.Errorf("CheckReboot() = %+v, want %+v", got, want)
+		}
+		if runner.Ran("reboot") {
+			t.Errorf("CheckReboot must never reboot, ran %v", runner.Commands())
+		}
+	})
+
+	t.Run("reboot-required file", func(t *testing.T) { // TestCheckRebootRebootRequiredFile
+		bootDirectory = writeBootDir(t, installed)
+		rebootRequiredFile = filepath.Join(t.TempDir(), "reboot-required")
+		if err := os.WriteFile(rebootRequiredFile, []byte("*** System restart required ***\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{testUnameCmd: {Output: installed + "\n"}}}
+
+		got, err := CheckReboot(runner, ConstDistributionNameUbuntu)
+		if err != nil {
+			t.Fatalf("CheckReboot: %v", err)
+		}
+		if !got.Required || got.Reason != RebootReasonFile {
+			t.Errorf("CheckReboot() = %+v, want Required with reason %q", got, RebootReasonFile)
+		}
+	})
+
+	t.Run("nothing to do", func(t *testing.T) { // TestCheckRebootNone
+		bootDirectory = writeBootDir(t, installed)
+		rebootRequiredFile = filepath.Join(t.TempDir(), "reboot-required")
+		runner := &shelltest.Recorder{Results: map[string]shell.Result{testUnameCmd: {Output: installed + "\n"}}}
+
+		got, err := CheckReboot(runner, ConstDistributionNameUbuntu)
+		if err != nil {
+			t.Fatalf("CheckReboot: %v", err)
+		}
+		if got.Required || got.Reason != "" {
+			t.Errorf("CheckReboot() = %+v, want no reboot", got)
+		}
+	})
+}

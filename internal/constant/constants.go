@@ -72,6 +72,11 @@ const (
 	CobraFlagEnvironmentPath     = "environmentpath"
 	CobraFlagHieraConfig         = "hiera-config"
 	CobraFlagSecurityExporterURL = "security-exporter-url"
+	// CobraFlagAgentControlled marks a system-update run that kubeaid-agent controls: no service
+	// window check or close, no OpenVox run and never a reboot.
+	CobraFlagAgentControlled = "agent-controlled"
+	// CobraFlagResultFile is where an agent-controlled system-update writes its RebootCheck JSON.
+	CobraFlagResultFile = "result-file"
 
 	ObmondoEnv = "OBMONDO_ENV"
 )

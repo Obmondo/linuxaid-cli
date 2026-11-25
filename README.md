@@ -105,6 +105,19 @@ These flags are available for both `linuxaid-install` and `linuxaid-cli`:
 - `--no-reboot` / `NO_REBOOT` - Disable automatic reboot after updates
 - `--skip-openvox` / `SKIP_OPENVOX` - Skip Puppet agent run
 - `--security-exporter-url` / `SECURITY_EXPORTER_URL` - URL of the security exporter (default: `http://127.254.254.254:63396`)
+- `--agent-controlled` / `AGENT_CONTROLLED` - For kubeaid-agent on Kubernetes nodes. Updates the
+  packages only: no service window check or close, no Openvox run, and never a reboot. Needs
+  `--result-file`
+- `--result-file` / `RESULT_FILE` - With `--agent-controlled`, where to write the result as JSON:
+  `reboot_required`, `reason` (`kernel` or `reboot-required-file`), `running_kernel` and
+  `installed_kernel`. Nothing is written when the update fails, and the command exits non-zero
+
+kubeaid-agent runs this through `deploy/node-update.sh` in the image: one privileged Job per node
+copies `linuxaid-cli` to `/opt/obmondo/bin` on the host, runs it there with `nsenter`, and passes
+the result file back as the pod's termination message.
+
+apt waits up to 10 minutes for the dpkg lock (`DPkg::Lock::Timeout=600`) instead of failing when
+another apt run holds it.
 
 The Openvox environment for the run is not a flag: an automatic service window pins the Linuxaid
 tag its update cycle runs with, and the update uses that tag so every server in the group updates

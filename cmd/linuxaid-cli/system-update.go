@@ -12,7 +12,11 @@ import (
 
 const defaultSecurityExporterURL = "http://127.254.254.254:63396"
 
-var securityExporterURLFlag string
+var (
+	securityExporterURLFlag string
+	agentControlledFlag     bool
+	resultFileFlag          string
+)
 
 var systemUpdateCmd = &cobra.Command{
 	Use:     "system-update",
@@ -37,15 +41,21 @@ func init() {
 	systemUpdateCmd.Flags().BoolVar(&rebootFlag, constant.CobraFlagNoReboot, false, "Set this flag to prevent reboot (default will reboot)")
 	systemUpdateCmd.Flags().BoolVar(&skipOpenvoxFlag, constant.CobraFlagSkipOpenvox, false, "Set this flag to prevent running openvox")
 	systemUpdateCmd.Flags().StringVar(&securityExporterURLFlag, constant.CobraFlagSecurityExporterURL, defaultSecurityExporterURL, "Security exporter URL")
+	systemUpdateCmd.Flags().BoolVar(&agentControlledFlag, constant.CobraFlagAgentControlled, false, "Run for kubeaid-agent: update packages only, no service window, no OpenVox, never reboot")
+	systemUpdateCmd.Flags().StringVar(&resultFileFlag, constant.CobraFlagResultFile, "", "With --agent-controlled: write whether a reboot is needed to this file as JSON")
 
 	// Bind flags to viper
 	v := config.GetViperInstance()
 	v.BindPFlag(constant.CobraFlagNoReboot, systemUpdateCmd.Flags().Lookup(constant.CobraFlagNoReboot))
 	v.BindPFlag(constant.CobraFlagSkipOpenvox, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSkipOpenvox))
 	v.BindPFlag(constant.CobraFlagSecurityExporterURL, systemUpdateCmd.Flags().Lookup(constant.CobraFlagSecurityExporterURL))
+	v.BindPFlag(constant.CobraFlagAgentControlled, systemUpdateCmd.Flags().Lookup(constant.CobraFlagAgentControlled))
+	v.BindPFlag(constant.CobraFlagResultFile, systemUpdateCmd.Flags().Lookup(constant.CobraFlagResultFile))
 
 	// Bind environment variables
 	v.BindEnv(constant.CobraFlagNoReboot, "NO_REBOOT")
 	v.BindEnv(constant.CobraFlagSkipOpenvox, "SKIP_OPENVOX")
 	v.BindEnv(constant.CobraFlagSecurityExporterURL, "SECURITY_EXPORTER_URL")
+	v.BindEnv(constant.CobraFlagAgentControlled, "AGENT_CONTROLLED")
+	v.BindEnv(constant.CobraFlagResultFile, "RESULT_FILE")
 }
