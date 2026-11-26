@@ -1,7 +1,6 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -164,15 +163,7 @@ func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname strin
 		return environment, nil
 	}
 
-	environment, err := obmondoAPI.GetServerEnvironment(certname)
-	if err != nil {
-		return "", err
-	}
-	if environment == "" {
-		return "", errors.New("obmondo resolved no puppet environment")
-	}
-
-	return environment, nil
+	return fetchServerEnvironment(obmondoAPI, certname)
 }
 
 // SystemUpdate runs the update workflow. A returned error means the run failed in a way the
@@ -228,6 +219,17 @@ func SystemUpdate(cfg config.Config) error {
 
 	slog.Info("service window is active, going ahead")
 
+	// asked before the slow steps below, so a run Obmondo cannot answer for gives up straight away;
+	// puppet.conf no longer pins an environment, so the run needs the one this window updates to
+	runOpenvox := openvoxInitiallyEnabled && !cfg.SkipOpenvox
+	var environment string
+	if runOpenvox {
+		if environment, err = resolveSystemUpdateEnvironment(obmondoAPI, cfg.Certname, serviceWindowNow, cfg.Opensource); err != nil {
+			slog.Error("unable to get the puppet environment, skipping this update", slog.String("error", err.Error()))
+			return nil
+		}
+	}
+
 	if err := cmds.UpdateRepositoryList(); err != nil {
 		return fmt.Errorf("unable to update repository: %w", err)
 	}
@@ -247,16 +249,9 @@ func SystemUpdate(cfg config.Config) error {
 
 	puppetService := puppet.NewService(obmondoAPI, runner, cfg)
 
-	if openvoxInitiallyEnabled && !cfg.SkipOpenvox {
+	if runOpenvox {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-
-		// puppet.conf no longer pins an environment, so the run needs the one this window updates to
-		environment, err := resolveSystemUpdateEnvironment(obmondoAPI, cfg.Certname, serviceWindowNow, cfg.Opensource)
-		if err != nil {
-			slog.Error("unable to get the puppet environment, skipping this update", slog.String("error", err.Error()))
-			return nil
-		}
 
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -218,18 +219,26 @@ func resolveOpenvoxEnvironment(obmondoAPI api.ObmondoClient, certname, flagEnvir
 		return constant.DefaultOpenvoxEnv
 	}
 
-	environment, err := obmondoAPI.GetServerEnvironment(certname)
+	environment, err := fetchServerEnvironment(obmondoAPI, certname)
 	if err != nil {
 		slog.Warn("could not fetch the environment from Obmondo, falling back to the default",
 			slog.Any("error", err), slog.String("environment", constant.DefaultOpenvoxEnv))
 		return constant.DefaultOpenvoxEnv
 	}
 
+	return environment
+}
+
+// fetchServerEnvironment asks Obmondo for the puppet environment of the node. Obmondo answers an
+// empty environment when it cannot decide one, which counts as a failure the same as a failed call.
+func fetchServerEnvironment(obmondoAPI api.ObmondoClient, certname string) (string, error) {
+	environment, err := obmondoAPI.GetServerEnvironment(certname)
+	if err != nil {
+		return "", err
+	}
 	if environment == "" {
-		slog.Warn("Obmondo returned no environment, falling back to the default",
-			slog.String("environment", constant.DefaultOpenvoxEnv))
-		return constant.DefaultOpenvoxEnv
+		return "", errors.New("obmondo resolved no puppet environment")
 	}
 
-	return environment
+	return environment, nil
 }
