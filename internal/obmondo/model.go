@@ -2,6 +2,8 @@ package api
 
 import (
 	"strings"
+
+	"gitea.obmondo.com/EnableIT/linuxaid-cli/internal/constant"
 )
 
 type InstallScriptInput struct {
@@ -43,14 +45,13 @@ type ServiceWindow struct {
 	Linux                    *LinuxWindowDetails `json:"linux,omitempty"`
 }
 
-// PuppetEnvironment returns the environment the run inside this window has to use. An automatic
-// window pins the linuxaid tag its whole update cycle runs with, so every node of the cycle
-// updates with the same release instead of whatever tag happens to be the latest when its own
-// window opens. An adhoc window pins the tag it was booked with, or the one of the update cycle
-// it follows. A window with no pinned tag returns an empty string, leaving the caller to resolve
-// the environment itself.
+// PuppetEnvironment returns the environment an adhoc window pins for its run: the linuxaid tag it
+// was booked with, or the one of the update cycle it follows. An automatic window pins nothing
+// here, because Obmondo answers the environment of the node itself (a manual environment, else the
+// tag of its update group's latest window), so an automatic window and a window with no tag return
+// an empty string and the caller asks Obmondo.
 func (s *ServiceWindow) PuppetEnvironment() string {
-	if s == nil || s.Linux == nil {
+	if s == nil || s.Linux == nil || s.WindowType == constant.ServiceWindowTypeAutomatic {
 		return ""
 	}
 

@@ -147,26 +147,23 @@ func resolveCustomerURLs(obmondoAPI api.ObmondoClient, cfg config.Config) (prome
 	return
 }
 
-// resolveSystemUpdateEnvironment decides which puppet environment this update runs with. A window
-// that pins a linuxaid tag - an automatic window the tag of its update cycle, an adhoc window the
-// tag it was booked with or the one of the cycle it follows - always wins over the environment the
-// API resolves for the node, both over the latest release, which would drift ahead mid-cycle, and
-// over an environment pinned for the certname. Everything else (opensource nodes, and a window
-// that pinned no tag) falls back to the usual resolution.
-func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname string, serviceWindow *api.ServiceWindow, opensource bool) string {
-	if !opensource {
-		if environment := serviceWindow.PuppetEnvironment(); environment != "" {
-			slog.Info("using the environment pinned by the service window",
-				slog.String("environment", environment), slog.String("window_type", serviceWindow.WindowType))
-			return environment
-		}
-
-		if serviceWindow != nil && serviceWindow.WindowType == constant.ServiceWindowTypeAutomatic {
-			slog.Warn("the automatic service window pinned no linuxaid tag, asking the API for the environment")
-		}
+// resolveSystemUpdateEnvironment decides which puppet environment this update runs with. Obmondo
+// answers the environment of the node: a manual environment set for it, else the linuxaid tag of
+// its update group's latest window, else the latest release. An adhoc window that pins a tag runs
+// on it instead. The update never runs on a guessed environment: when Obmondo cannot answer, the
+// error tells the caller to skip the run, and the next run inside the window asks again.
+func resolveSystemUpdateEnvironment(obmondoAPI api.ObmondoClient, certname string, serviceWindow *api.ServiceWindow, opensource bool) (string, error) {
+	if opensource {
+		return constant.DefaultOpenvoxEnv, nil
 	}
 
-	return resolveOpenvoxEnvironment(obmondoAPI, certname, "", opensource)
+	if environment := serviceWindow.PuppetEnvironment(); environment != "" {
+		slog.Info("using the environment pinned by the adhoc service window",
+			slog.String("environment", environment))
+		return environment, nil
+	}
+
+	return fetchServerEnvironment(obmondoAPI, certname)
 }
 
 // SystemUpdate runs the update workflow. A returned error means the run failed in a way the
@@ -222,6 +219,17 @@ func SystemUpdate(cfg config.Config) error {
 
 	slog.Info("service window is active, going ahead")
 
+	// asked before the slow steps below, so a run Obmondo cannot answer for gives up straight away;
+	// puppet.conf no longer pins an environment, so the run needs the one this window updates to
+	runOpenvox := openvoxInitiallyEnabled && !cfg.SkipOpenvox
+	var environment string
+	if runOpenvox {
+		if environment, err = resolveSystemUpdateEnvironment(obmondoAPI, cfg.Certname, serviceWindowNow, cfg.Opensource); err != nil {
+			slog.Error("unable to get the puppet environment, skipping this update", slog.String("error", err.Error()))
+			return nil
+		}
+	}
+
 	if err := cmds.UpdateRepositoryList(); err != nil {
 		return fmt.Errorf("unable to update repository: %w", err)
 	}
@@ -241,12 +249,9 @@ func SystemUpdate(cfg config.Config) error {
 
 	puppetService := puppet.NewService(obmondoAPI, runner, cfg)
 
-	if openvoxInitiallyEnabled && !cfg.SkipOpenvox {
+	if runOpenvox {
 		// Check if any existing puppet agent is already running
 		puppetService.WaitForAgent(constant.PuppetWaitForCertTimeOut)
-
-		// puppet.conf no longer pins an environment, so the run needs the one this window updates to
-		environment := resolveSystemUpdateEnvironment(obmondoAPI, cfg.Certname, serviceWindowNow, cfg.Opensource)
 
 		// Run puppet-agent and check the exit code, and exit this script, if it's not 0 or 2
 		if err := HandlePuppetRun(puppetService, environment); err != nil {
